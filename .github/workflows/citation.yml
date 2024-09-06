@@ -1,0 +1,68 @@
+name: Citation preview
+
+on:
+  push:
+    branches: [ main ]
+    paths: ['CITATION.bib', '.github/workflows/citation.yml']
+  pull_request:
+    branches: [ main ]
+    paths: ['CITATION.bib', '.github/workflows/citation.yml']
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for non-ASCII characters
+        run: |
+          # Fail immediately if there are any non-ASCII characters in
+          # the BibTeX source.  We prefer "escaped codes" rather than
+          # UTF-8 characters in order to ensure the bibliography will
+          # display correctly even in documents that do not contain
+          # \usepackage[utf8]{inputenc}.
+          if [ -f "CITATION.bib" ]; then
+          python3 -c 'open("CITATION.bib", encoding="ascii").read()'
+          fi
+      - name: Install LaTeX
+        run: |
+          if [ -f "CITATION.bib" ]; then
+          sudo apt-get update
+          sudo apt-get install -y texlive-latex-base texlive-publishers
+          fi
+      - name: Run LaTeX
+        run: |
+          if [ -f "CITATION.bib" ]; then
+          arr=(${GITHUB_REPOSITORY//\// })
+          export REPO=${arr[1]}
+          cat <<- EOF > citation-preview.tex
+          \documentclass[preprint,aps,physrev,notitlepage]{revtex4-2}
+          \usepackage{hyperref}
+          \begin{document}
+          \title{\texttt{$REPO} BibTeX test}
+          \maketitle
+          \noindent
+          \texttt{$REPO}
+          \cite{$REPO}
+          \bibliography{CITATION}
+          \end{document}
+          EOF
+          pdflatex citation-preview
+          fi
+      - name: Run BibTeX
+        run: |
+          if [ -f "CITATION.bib" ]; then
+          bibtex citation-preview
+          fi
+      - name: Re-run LaTeX
+        run: |
+          if [ -f "CITATION.bib" ]; then
+          pdflatex citation-preview
+          pdflatex citation-preview
+          fi
+      - name: Upload PDF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: citation-preview.pdf
+          path: citation-preview.pdf

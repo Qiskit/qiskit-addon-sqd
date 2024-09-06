@@ -1,0 +1,42 @@
+name: Latest version tests
+
+on:
+  push:
+    branches:
+      - main
+      - 'stable/**'
+  pull_request:
+    branches:
+      - main
+      - 'stable/**'
+  schedule:
+    - cron: '0 1 * * *'
+
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      max-parallel: 4
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+        include:
+          - os: macos-latest
+            python-version: "3.12"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install tox
+      - name: Test using tox environment
+        shell: bash
+        run: |
+          toxpyversion=$(echo ${{ matrix.python-version }} | sed -E 's/^([0-9]+)\.([0-9]+).*$/\1\2/')
+          tox -epy${toxpyversion}
+          tox -epy${toxpyversion}-notebook
