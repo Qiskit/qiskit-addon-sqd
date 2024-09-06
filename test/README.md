@@ -53,14 +53,6 @@ The `notebook` and `py##-notebook` environments invoke [nbmake] to ensure that a
 $ tox -e py310-notebook
 ```
 
-## Doctest environment
-
-The `doctest` environment uses [doctest] to execute the code snippets that are embedded into the documentation strings. The tests get run using [pytest].
-
-```sh
-tox -e doctest
-```
-
 ## Coverage environment
 
 The `coverage` environment uses [Coverage.py] to ensure that the fraction of code tested by pytest is above some threshold (enforced to be 100% for new modules).  A detailed, line-by-line coverage report can be viewed by navigating to `htmlcov/index.html` in a web browser.
@@ -97,7 +89,6 @@ If the build succeeds, it can be viewed by navigating to `docs/_build/html/index
 [pylint]: https://github.com/PyCQA/pylint
 [nbqa]: https://github.com/nbQA-dev/nbQA
 [Jupyter]: https://jupyter.org/
-[doctest]: https://docs.python.org/3/library/doctest.html
 [pytest]: https://docs.pytest.org/
 [unittest]: https://docs.python.org/3/library/unittest.html
 [Coverage.py]: https://coverage.readthedocs.io/

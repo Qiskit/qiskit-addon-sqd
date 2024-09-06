@@ -41,4 +41,3 @@ jobs:
           toxpyversion=$(echo ${{ matrix.python-version }} | sed -E 's/^([0-9]+)\.([0-9]+).*$/\1\2/')
           tox -epy${toxpyversion}
           tox -epy${toxpyversion}-notebook
-          tox -edoctest

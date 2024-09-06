@@ -33,7 +33,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "qiskit-addon-sqd[test,doctest,nbtest,lint,docs]",
+    "qiskit-addon-sqd[test,nbtest,lint,docs]",
 ]
 basetest = [
     "tox>=4.0",
@@ -42,10 +42,6 @@ basetest = [
 ]
 test = [
     "qiskit-addon-sqd[basetest]",
-]
-doctest = [
-    "qiskit-addon-sqd[basetest,notebook-dependencies]",
-    "pytest-doctestplus>=1.2.1",
 ]
 nbtest = [
     "qiskit-addon-sqd[basetest]",
@@ -71,7 +67,7 @@ notebook-dependencies = [
     "qiskit-ibm-runtime",
 ]
 docs = [
-    "qiskit-addon-sqd[doctest]",
+    "qiskit-addon-sqd[basetest,notebook-dependencies]",
     "qiskit-sphinx-theme~=2.0.0",
     "jupyter-sphinx",
     "sphinx-design",

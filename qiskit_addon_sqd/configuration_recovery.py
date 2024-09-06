@@ -68,7 +68,7 @@ def recover_configurations(
     Refine bitstrings based on average orbital occupancy and a target hamming weight.
 
     This function makes the assumption that bit ``i`` represents the same orbital as
-    bit ``i + # orbitals`` in all input bitstrings, s.t. i < # orbitals.
+    bit ``i + # orbitals`` in all input bitstrings, s.t. ``i < # orbitals``.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
