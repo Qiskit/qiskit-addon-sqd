@@ -52,7 +52,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    "sphinx.ext.doctest",
     "sphinx.ext.mathjax",
     "sphinx.ext.linkcode",
     "sphinx.ext.intersphinx",
@@ -61,7 +60,6 @@ extensions = [
     "reno.sphinxext",
     "nbsphinx",
     "qiskit_sphinx_theme",
-    "pytest_doctestplus.sphinx.doctestplus",
 ]
 
 html_last_updated_fmt = "%Y/%m/%d"
