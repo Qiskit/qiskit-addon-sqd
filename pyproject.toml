@@ -1,0 +1,150 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qiskit-addon-sqd"
+version = "0.3.0"
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+classifiers = [ 
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+
+requires-python = ">=3.10"
+
+dependencies = [
+    "numpy>=1.26",
+    "pyscf>=2.5",
+    "jaxlib>=0.4",
+    "jax>=0.4",
+    "scipy>=0.13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "qiskit-addon-sqd[test,nbtest,lint,docs]",
+]
+basetest = [
+    "tox>=4.0",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+test = [
+    "qiskit-addon-sqd[basetest]",
+]
+doctest = [
+    "qiskit-addon-sqd[basetest,notebook-dependencies]",
+    "pytest-doctestplus>=1.2.1",
+]
+nbtest = [
+    "qiskit-addon-sqd[basetest]",
+    "nbmake>=1.5.0",
+]
+style = [
+    "ruff==0.6.4",
+    "nbqa>=1.8.5",
+]
+lint = [
+    "qiskit-addon-sqd[style]",
+    "mypy==1.11.2",
+    "pylint>=3.2.7",
+    "pydocstyle==6.3",
+    "reno>=4.1",
+    "toml>=0.9.6",
+]
+notebook-dependencies = [
+    "qiskit-addon-sqd",
+    "matplotlib",
+    "ffsim",
+    "qiskit",
+    "qiskit-ibm-runtime",
+]
+docs = [
+    "qiskit-addon-sqd[doctest]",
+    "qiskit-sphinx-theme~=2.0.0",
+    "jupyter-sphinx",
+    "sphinx-design",
+    "sphinx-autodoc-typehints",
+    "sphinx-copybutton",
+    "nbsphinx>=0.9.4",
+    "reno>=4.1",
+]
+
+[tool.hatch.build.targets.wheel]
+only-include = [
+    "qiskit_addon_sqd",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.mypy]
+python_version = "3.10"
+show_error_codes = true
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pylint.main]
+py-version = "3.10"
+
+[tool.pylint."messages control"]
+disable = ["all"]
+enable = [
+    "reimported",
+    "no-self-use",
+    "no-else-raise",
+    "redefined-argument-from-local",
+    "redefined-builtin",
+    "raise-missing-from",
+    "cyclic-import",
+    "unused-argument",
+    "attribute-defined-outside-init",
+    "no-else-return",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["./qiskit_addon_sqd/", "./test/"]
+
+[tool.ruff]
+line-length = 100
+src = ["qiskit_addon_sqd", "test"]
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "I",   # isort
+    "E",   # pycodestyle
+    "W",   # pycodestyle
+    "F",   # pyflakes
+    "RUF", # ruff
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+    "B",   # flake8-bugbear
+    "A",   # flake8-builtins
+]
+ignore = [
+    "E501", # line too long
+]
+
+[tool.ruff.lint.pylint]
+max-args = 6
+
+[tool.ruff.lint.extend-per-file-ignores]
+"docs/**/*" = [
+    "E402", # module level import not at top of file
+]
+
+[tool.typos.default.extend-words]
+IY = "IY"
