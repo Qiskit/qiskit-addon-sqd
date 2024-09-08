@@ -354,7 +354,7 @@ def _check_addresses(
                 f"index {i} has hamming weight {ham}."
             )
 
-    return np.sort(np.unique(addr_up)), np.sort(np.unique(addr_dn))
+    return np.unique(addr_up), np.unique(addr_dn)
 
 
 def _optimize_orbitals_sci(

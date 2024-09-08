@@ -32,19 +32,19 @@ For more installation information refer to the `installation instructions <insta
 System sizes and computational requirements
 -------------------------------------------
 
-The computational cost of SQD is dominated by the eigenstate solver calls. At each step of the self-consistent configuration recovery iteration, `n_batches` of eigenstate solver calls are performed. The different calls are embarrassingly parallel. In this `tutorial <tutorials/01_getting_started_fermionic.ipynb>`_, those calls are inside a `for` loop. **It is highly recommended to perform these calls in parallel**.
+The computational cost of SQD is dominated by the eigenstate solver calls. At each step of the self-consistent configuration recovery iteration, a number of eigenstate solver calls are performed. The different calls are embarrassingly parallel. In this `tutorial <tutorials/01_getting_started_fermionic.ipynb>`_, those calls are inside a `for` loop. **It is highly recommended to perform these calls in parallel**.
 
 The :func:`qiskit_addon_sqd.fermion.solve_fermion` function is multithreaded and capable of handling systems with ~25 spacial orbitals and ~10 electrons with subspace dimensions of ~$10^7$, using ~10-30 cores.
 
 Choosing subspace dimensions
 ----------------------------
 
-The choice of the subspace dimension affects the accuracy and runtime of the eigenstate solver. The larger the subspace the more accurate the calculation, at the cost of increasing the runtime and memory requirements. It is not known *a priori* the optimal subspace size, thus a convergence study with the subspace dimension may be performed, as described in this `guide <how_tos/choose_subspace_dimension.ipynb>`_.
+The choice of the subspace dimension affects the accuracy and runtime of the eigenstate solver. The larger the subspace the more accurate the calculation, at the cost of increasing the runtime and memory requirements. The optimal subspace size of a given system is not known, thus a convergence study with the subspace dimension may be performed, as described in this `guide <how_tos/choose_subspace_dimension.ipynb>`_.
 
 The subspace dimension is set indirectly
 ----------------------------------------
 
-In this package, the user controls the number of bitstrings contained in each subspace with the `samples_per_batch` argument in :func:`.qiskit_addon_sqd.subsampling.postselect_and_subsample`. The value of this argument determines an upper bound to the subspace dimension in the case of quantum chemistry applications. See this `example <how_tos/select_open_closed_shell.ipynb>`_ for more details.
+In this package, the user controls the number of bitstrings contained in each subspace with the `samples_per_batch` argument in :func:`.qiskit_addon_sqd.subsampling.postselect_and_subsample`. The value of this argument sets an upper bound to the subspace dimension in the case of quantum chemistry applications. See this `example <how_tos/select_open_closed_shell.ipynb>`_ for more details.
 
 Deprecation Policy
 ------------------
