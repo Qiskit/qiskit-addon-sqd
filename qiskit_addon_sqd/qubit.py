@@ -18,19 +18,116 @@ Functions for handling quantum samples.
    :toctree: ../stubs/
    :nosignatures:
 
-   matrix_elements_from_pauli_string
+   matrix_elements_from_pauli
    sort_and_remove_duplicates
 """
 
-from collections.abc import Sequence
 from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
 from jax import Array, config, jit, vmap
 from numpy.typing import NDArray
+from qiskit.quantum_info import Pauli, SparsePauliOp
+from scipy.sparse import coo_matrix, spmatrix
+from scipy.sparse.linalg import eigsh
 
 config.update("jax_enable_x64", True)  # To deal with large integers
+
+
+def solve_qubit(
+    bitstring_matrix: np.ndarray,
+    hamiltonian: SparsePauliOp,
+    verbose: bool = False,
+    **scipy_kwargs,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Find the energies and eigenstates of a Hamiltonian projected into a subspace.
+
+    The subspace is defined by a collection of computational basis states which
+    are specified by the bitstrings (rows) in the ``bitstring_matrix``.
+
+    This function calls `scipy.sparse.linalg.eigsh <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.eigsh.html#eigsh>`_ for the diagonalization.
+
+    Args:
+        bitstring_matrix: A 2D array of ``bool`` representations of bit
+            values such that each row represents a single bitstring. This set of
+            bitstrings specifies the subspace into which the ``hamiltonian`` will be
+            projected and diagonalized.
+        hamiltonian: A Hamiltonian specified as a Pauli operator.
+        verbose: Whether to print the stage of the subroutine.
+        **scipy_kwargs: Keyword arguments to be passed to `scipy.sparse.linalg.eigsh <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.eigsh.html#eigsh>`_.
+
+    Returns:
+        - 1D array with the eigenvalues
+        - 2D array with the eigenvectors. Each column represents an eigenvector.
+
+    Raises:
+        ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
+    """
+    if bitstring_matrix.shape[1] > 63:
+        raise ValueError("Bitstrings (rows) in bitstring_matrix must have length < 64.")
+
+    d, _ = bitstring_matrix.shape
+
+    ham_proj = project_operator_to_subspace(bitstring_matrix, hamiltonian, verbose=verbose)
+
+    if verbose:
+        print("Diagonalizing Hamiltonian in the subspace...")
+    energies, eigenstates = eigsh(ham_proj, **scipy_kwargs)
+
+    return energies, eigenstates
+
+
+def project_operator_to_subspace(
+    bitstring_matrix: np.ndarray,
+    hamiltonian: SparsePauliOp,
+    verbose: bool = False,
+) -> spmatrix:
+    """
+    Projects a Pauli operator into a subspace.
+
+    The subspace is defined by a collection of computational basis states, which
+    are specified by the bitstrings (rows) in ``bitstring_matrix``.
+
+    Args:
+        bitstring_matrix: A 2D array of ``bool`` representations of bit
+            values such that each row represents a single bitstring. This set of
+            bitstrings specifies the subspace into which the ``hamiltonian`` will be
+            projected and diagonalized.
+        hamiltonian: A Hamiltonian specified as a Pauli operator.
+        verbose: whether to print the stage of the subroutine.
+
+    Return:
+        A `scipy.sparse.coo_matrix <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html#coo-matrix>`_ representing the operator projected in the subspace.
+
+    Raises:
+        ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
+    """
+    if bitstring_matrix.shape[1] > 63:
+        raise ValueError("Bitstrings (rows) in bitstring_matrix must have length < 64.")
+
+    d, _ = bitstring_matrix.shape
+    operator = coo_matrix((d, d), dtype="complex128")
+
+    for i, pauli in enumerate(hamiltonian.paulis):
+        coefficent = hamiltonian.coeffs[i]
+        if verbose:
+            (
+                print(
+                    f"Projecting term {i+1} out of {hamiltonian.size}: {coefficent} * "
+                    + "".join(pauli.to_label())
+                    + " ..."
+                )
+            )
+
+        matrix_elements, row_coords, col_coords = matrix_elements_from_pauli(
+            bitstring_matrix, pauli
+        )
+
+        operator += coefficent * coo_matrix((matrix_elements, (row_coords, col_coords)), (d, d))
+
+    return operator
 
 
 def sort_and_remove_duplicates(bitstring_matrix: np.ndarray, inplace: bool = True) -> np.ndarray:
@@ -57,8 +154,8 @@ def sort_and_remove_duplicates(bitstring_matrix: np.ndarray, inplace: bool = Tru
     return bitstring_matrix[indices, :]
 
 
-def matrix_elements_from_pauli_string(
-    bitstring_matrix: np.ndarray, pauli_str: Sequence[str]
+def matrix_elements_from_pauli(
+    bitstring_matrix: np.ndarray, pauli: Pauli
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Find the matrix elements of a Pauli operator in the subspace defined by the bitstrings.
@@ -80,9 +177,7 @@ def matrix_elements_from_pauli_string(
             The bitstrings in the matrix must be sorted according to
             their base-10 representation. Otherwise the projection will return
             wrong results.
-        pauli_str: A length-N sequence of single-qubit Pauli strings representing
-            an N-qubit Pauli operator. The Pauli term for qubit ``i`` should be
-            in ``pauli_str[i]`` (e.g. ``qiskit.quantum_info.Pauli("XYZ") = ["Z", "Y", "X"]``).
+        pauli: A Pauli operator.
 
     Returns:
         First array corresponds to the nonzero matrix elements
@@ -90,15 +185,15 @@ def matrix_elements_from_pauli_string(
         Third array corresponds to the column indices of the elements
 
     Raises:
-        ValueError: Input bit arrays must have length < ``64``.
+        ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
     """
+    if bitstring_matrix.shape[1] > 63:
+        raise ValueError("Bitstrings (rows) in bitstring_matrix must have length < 64.")
+
     d, n_qubits = bitstring_matrix.shape
     row_array = np.arange(d)
 
-    if n_qubits > 63:
-        raise ValueError("Bit arrays must have length < 64.")
-
-    diag, sign, imag = _pauli_str_to_bool(pauli_str)
+    diag, sign, imag = _pauli_to_bool(pauli.to_label()[::-1])
 
     base_10_array_rows = _base_10_conversion_from_bts_matrix_vmap(bitstring_matrix)
 
@@ -119,17 +214,15 @@ def matrix_elements_from_pauli_string(
     return matrix_elements, row_array, col_array
 
 
-def _pauli_str_to_bool(
-    pauli_str: Sequence[str],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _pauli_to_bool(pauli_str: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Transform sequences of Pauli strings into arrays.
 
-    An N-qubit Pauli string will be transformed into 3 arrays which represent
+    A Pauli operator will be transformed into 3 arrays which represent
     the diagonal terms of the Pauli operator.
 
     Args:
-        pauli_str: A sequence of single-qubit Pauli strings.
+        pauli_str: A Pauli string such that index ``0`` corresponds to qubit ``0``.
 
     Returns:
         A 3-tuple:
@@ -142,19 +235,19 @@ def _pauli_str_to_bool(
     sign = []
     imag = []
     for p in pauli_str:
-        if p == "I" or p == "i":
+        if p == "I":
             diag.append(True)
             sign.append(False)
             imag.append(False)
-        if p == "X" or p == "x":
+        if p == "X":
             diag.append(False)
             sign.append(False)
             imag.append(False)
-        if p == "Y" or p == "y":
+        if p == "Y":
             diag.append(False)
             sign.append(True)
             imag.append(True)
-        if p == "Z" or p == "z":
+        if p == "Z":
             diag.append(True)
             sign.append(True)
             imag.append(False)
@@ -163,14 +256,14 @@ def _pauli_str_to_bool(
 
 
 def _connected_elements_and_amplitudes_bool(
-    bit_array: np.ndarray, diag: np.ndarray, sign: np.ndarray, imag: np.ndarray
+    bitstring_matrix: np.ndarray, diag: np.ndarray, sign: np.ndarray, imag: np.ndarray
 ) -> tuple[NDArray[np.bool_], Array]:
     """
     Find the connected element to computational basis state |X>.
 
     Given a Pauli operator represented by ``{diag, sign, imag}``.
     Args:
-        bit_array: A 1D array of ``bool`` representations of bits.
+        bitstring_matrix: A 1D array of ``bool`` representations of bits.
         diag: ``bool`` whether the Pauli operator is diagonal. Only ``True``
             for I and Z.
         sign: ``bool`` Whether there is a change of sign in the matrix elements
@@ -182,9 +275,10 @@ def _connected_elements_and_amplitudes_bool(
         A matrix of bitstrings where each row is the connected element to the
             input the matrix element.
     """
-    bit_array_mask: NDArray[np.bool_] = bit_array == diag
-    return bit_array_mask, jnp.prod(
-        (-1) ** (jnp.logical_and(bit_array, sign)) * jnp.array(1j, dtype="complex64") ** (imag)
+    bitstring_matrix_mask: NDArray[np.bool_] = bitstring_matrix == diag
+    return bitstring_matrix_mask, jnp.prod(
+        (-1) ** (jnp.logical_and(bitstring_matrix, sign))
+        * jnp.array(1j, dtype="complex64") ** (imag)
     )
 
 
