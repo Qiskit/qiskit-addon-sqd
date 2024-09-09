@@ -266,9 +266,10 @@ def bitstring_matrix_to_sorted_addresses(
     """
     Convert a bitstring matrix into base-10 address representation.
 
-    This function separates each bitstring in ``bitstring_matrix`` in half, translates
-    each set of bits into integer representations, and appends them to their respective
-    lists. Those lists are sorted and output from this function.
+    This function separates each row in the ``bitstring_matrix`` in half column-wise.
+    The left- (alpha) and right-hand (beta) columns of bits are translated into
+    unsigned, base-10 integers, which are referred to as determinant addresses. This function
+    returns an array of sorted, unique addresses for both the spin-up and spin-down systems.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
