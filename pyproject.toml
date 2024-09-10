@@ -23,6 +23,7 @@ classifiers = [
 requires-python = ">=3.10"
 
 dependencies = [
+    "qiskit>=1.2",
     "numpy>=1.26",
     "pyscf>=2.5",
     "jaxlib>=0.4.17",
@@ -60,6 +61,7 @@ lint = [
 ]
 notebook-dependencies = [
     "qiskit-addon-sqd",
+    "qiskit-addon-utils",
     "matplotlib",
     "ffsim",
     "qiskit",
