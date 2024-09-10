@@ -28,7 +28,7 @@ dependencies = [
     "pyscf>=2.5",
     "jaxlib>=0.4.31",
     "jax>=0.4.31",
-    "scipy>=0.14",
+    "scipy>=1.14.1",
 ]
 
 [project.optional-dependencies]
