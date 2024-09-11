@@ -1,3 +1,18 @@
+<!-- SHIELDS -->
+<div align="left">
+
+  [![Release](https://img.shields.io/pypi/v/qiskit-addon-sqd.svg?label=Release)](https://github.com/Qiskit/qiskit-addon-sqd/releases)
+  ![Platform](https://img.shields.io/badge/%F0%9F%92%BB%20Platform-Linux%20%7C%20macOS%20%7C%20Windows-informational)
+  [![Python](https://img.shields.io/pypi/pyversions/qiskit-addon-sqd?label=Python&logo=python)](https://www.python.org/)
+  [![Qiskit](https://img.shields.io/badge/Qiskit%20-%20%3E%3D1.2%20-%20%236133BD?logo=Qiskit)](https://github.com/Qiskit/qiskit)
+<br />
+  [![Docs (stable)](https://img.shields.io/badge/%F0%9F%93%84%20Docs-stable-blue.svg)](https://qiskit.github.io/qiskit-addon-sqd/)
+  <!-- [![DOI](https://zenodo.org/badge/DOI/TODO](https://zenodo.org/doi/TODO -->
+  [![License](https://img.shields.io/github/license/Qiskit/qiskit-addon-sqd?label=License)](LICENSE.txt)
+  [![Downloads](https://img.shields.io/pypi/dm/qiskit-addon-sqd.svg?label=Downloads)](https://pypi.org/project/qiskit-addon-sqd/)
+  [![Tests](https://github.com/Qiskit/qiskit-addon-sqd/actions/workflows/test_latest_versions.yml/badge.svg)](https://github.com/Qiskit/qiskit-addon-sqd/actions/workflows/test_latest_versions.yml)
+  [![Coverage](https://coveralls.io/repos/github/Qiskit/qiskit-addon-sqd/badge.svg?branch=main)](https://coveralls.io/github/Qiskit/qiskit-addon-sqd?branch=main)
+
 # Qiskit addon: sample-based quantum diagonalization (SQD)
 
 ### Table of contents
@@ -68,13 +83,16 @@ We follow [semantic versioning](https://semver.org/) and are guided by the princ
 We may occasionally make breaking changes in order to improve the user experience.
 When possible, we will keep old interfaces and mark them as deprecated, as long as they can co-exist with the
 new ones.
-Each substantial improvement, breaking change, or deprecation will be documented in the release notes.
+Each substantial improvement, breaking change, or deprecation will be documented in the
+[release notes](https://qiskit.github.io/qiskit-addon-sqd/release-notes.html).
 
 ----------------------------------------------------------------------------------------------------
 
 ### Contributing
 
-The developer guide is located at [CONTRIBUTING.md](https://github.com/Qiskit/qiskit-addon-sqd/blob/main/CONTRIBUTING.md>)
+The source code is available [on GitHub](https://github.com/Qiskit/qiskit-addon-sqd).
+
+The developer guide is located at [CONTRIBUTING.md](https://github.com/Qiskit/qiskit-addon-sqd/blob/main/CONTRIBUTING.md)
 in the root of this project's repository.
 By participating, you are expected to uphold Qiskit's [code of conduct](https://github.com/Qiskit/qiskit/blob/main/CODE_OF_CONDUCT.md).
 
