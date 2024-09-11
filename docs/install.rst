@@ -3,7 +3,7 @@ Installation Instructions
 
 Let's see how to install the package. The first
 thing to do is choose how you're going to run and install the
-packages. There are two primary ways to do this:
+package. There are two primary ways to do this:
 
 - :ref:`Option 1`
 - :ref:`Option 2`
@@ -22,13 +22,6 @@ Activate your new environment.
 .. code:: sh
 
     source /path/to/virtual/environment/bin/activate
-
-Note: If you are using Windows, use the following commands in PowerShell:
-
-.. code:: pwsh
-
-    python3 -m venv c:\path\to\virtual\environment
-    c:\path\to\virtual\environment\Scripts\Activate.ps1
 
 
 .. _Option 1:

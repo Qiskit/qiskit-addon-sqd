@@ -62,6 +62,7 @@ def recover_configurations(
     avg_occupancies: np.ndarray,
     hamming_left: int,
     hamming_right: int,
+    *,
     rand_seed: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
