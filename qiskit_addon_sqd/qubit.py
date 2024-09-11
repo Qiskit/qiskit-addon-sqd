@@ -38,6 +38,7 @@ config.update("jax_enable_x64", True)  # To deal with large integers
 def solve_qubit(
     bitstring_matrix: np.ndarray,
     hamiltonian: SparsePauliOp,
+    *,
     verbose: bool = False,
     **scipy_kwargs,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -82,6 +83,7 @@ def solve_qubit(
 def project_operator_to_subspace(
     bitstring_matrix: np.ndarray,
     hamiltonian: SparsePauliOp,
+    *,
     verbose: bool = False,
 ) -> spmatrix:
     """
@@ -163,8 +165,9 @@ def matrix_elements_from_pauli(
     .. note::
        The bitstrings in the ``bitstring_matrix`` must be sorted and unique according
        to their base-10 representation. Otherwise the projection will return wrong
-       results. We do not explicitly check for uniqueness and order because this
-       can be rather time consuming.
+       results. This function does not explicitly check for uniqueness and order because
+       this can be rather time consuming. See :func:`qiskit_addon_sqd.qubit.sort_and_remove_duplicates`
+       for a simple way to ensure your bitstring matrix is well-formatted.
 
     .. note::
        This function relies on ``jax`` to efficiently perform some calculations. ``jax``
@@ -180,9 +183,9 @@ def matrix_elements_from_pauli(
         pauli: A Pauli operator.
 
     Returns:
-        First array corresponds to the nonzero matrix elements
-        Second array corresponds to the row indices of the elements
-        Third array corresponds to the column indices of the elements
+        A 1D array corresponding to the nonzero matrix elements
+        A 1D array corresponding to the row indices of the elements
+        A 1D array corresponding to the column indices of the elements
 
     Raises:
         ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.

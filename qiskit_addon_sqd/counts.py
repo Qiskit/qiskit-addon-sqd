@@ -31,10 +31,10 @@ import numpy as np
 
 def counts_to_arrays(counts: dict[str, float | int]) -> tuple[np.ndarray, np.ndarray]:
     """
-    Convert a counts dictionary into arrays.
+    Convert a counts dictionary into a bitstring matrix and a probability array.
 
     Args:
-        counts: The dictionary to convert
+        counts: The counts dictionary to convert
 
     Returns:
         A tuple containing:

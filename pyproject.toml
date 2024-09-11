@@ -13,7 +13,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -27,25 +26,22 @@ dependencies = [
     "qiskit>=1.2",
     "numpy>=1.26",
     "pyscf>=2.5",
-    "jaxlib>=0.4.17",
-    "jax>=0.4",
-    "scipy>=0.13",
+    "jaxlib>=0.4.31",
+    "jax>=0.4.31",
+    "scipy>=1.14.1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "qiskit-addon-sqd[test,nbtest,lint,docs]",
 ]
-basetest = [
+test = [
     "tox>=4.0",
     "pytest>=8.0",
     "pytest-cov>=5.0",
 ]
-test = [
-    "qiskit-addon-sqd[basetest]",
-]
 nbtest = [
-    "qiskit-addon-sqd[basetest]",
+    "qiskit-addon-sqd[test]",
     "nbmake>=1.5.0",
 ]
 style = [
@@ -69,7 +65,7 @@ notebook-dependencies = [
     "qiskit-ibm-runtime",
 ]
 docs = [
-    "qiskit-addon-sqd[basetest,notebook-dependencies]",
+    "qiskit-addon-sqd[test,notebook-dependencies]",
     "qiskit-sphinx-theme~=2.0.0",
     "jupyter-sphinx",
     "sphinx-design",

@@ -12,9 +12,9 @@ on:
     branches:
       - main
       - 'stable/**'
-
 jobs:
-  build_and_deploy_docs:
+  build:
+    name: Build docs
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -34,21 +34,24 @@ jobs:
         shell: bash
         run: |
           tox -edocs
-      - name: Prepare docs artifact
-        if: always()
-        shell: bash
-        run: |
-          mkdir artifact
-          cp -a docs/_build/html artifact/addon_sqd_html_docs
       - name: Upload docs artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: addon_sqd_html_docs
-          path: ./artifact
-      - name: Deploy docs
-        if: ${{ github.ref == 'refs/heads/stable/0.3' }}
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/_build/html/
+          path: docs/_build/html
+
+  deploy:
+    name: Deploy docs
+    if: ${{ github.ref == 'refs/heads/stable/0.3' }}
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
