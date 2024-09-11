@@ -91,3 +91,4 @@ References
    How-To Guides <how_tos/index>
    API Reference <apidocs/qiskit_addon_sqd>
    GitHub <https://github.com/qiskit/qiskit-addon-sqd>
+   Release Notes <release-notes>
