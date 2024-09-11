@@ -35,7 +35,7 @@ All documentation is available at https://qiskit.github.io/qiskit-addon-sqd/.
 
 ### Installation
 
-We encourage installing this package via `pip`, when possible:
+We encourage installing this package via `pip` when possible:
 
 ```bash
 pip install 'qiskit-addon-sqd'
