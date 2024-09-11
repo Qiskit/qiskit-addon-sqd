@@ -11,7 +11,6 @@
   [![License](https://img.shields.io/github/license/Qiskit/qiskit-addon-sqd?label=License)](LICENSE.txt)
   [![Downloads](https://img.shields.io/pypi/dm/qiskit-addon-sqd.svg?label=Downloads)](https://pypi.org/project/qiskit-addon-sqd/)
   [![Tests](https://github.com/Qiskit/qiskit-addon-sqd/actions/workflows/test_latest_versions.yml/badge.svg)](https://github.com/Qiskit/qiskit-addon-sqd/actions/workflows/test_latest_versions.yml)
-  [![Coverage](https://coveralls.io/repos/github/Qiskit/qiskit-addon-sqd/badge.svg?branch=main)](https://coveralls.io/github/Qiskit/qiskit-addon-sqd?branch=main)
 
 # Qiskit addon: sample-based quantum diagonalization (SQD)
 

@@ -167,3 +167,4 @@ notice-rgx = """
 """
 
 [tool.typos.default.extend-words]
+arange = "arange"
