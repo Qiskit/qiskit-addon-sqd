@@ -42,6 +42,7 @@ def solve_fermion(
     addresses: tuple[np.ndarray, np.ndarray],
     hcore: np.ndarray,
     eri: np.ndarray,
+    *,
     spin_sq: int | None = None,
     max_davidson: int = 100,
     verbose: int | None = None,
@@ -242,11 +243,11 @@ def flip_orbital_occupancies(occupancies: np.ndarray) -> np.ndarray:
 
     This function reformats a 1D array of spin-orbital occupancies formatted like:
 
-        ``[occ_a_0, occ_a_1, occ_a_N, occ_b_0, ..., occ_b_N]``
+        ``[occ_a_1, occ_a_2, ..., occ_a_N, occ_b_1, ..., occ_b_N]``
 
     To an array formatted like:
 
-        ``[occ_a_N, ..., occ_a_0, occ_b_N, ..., occ_b_0]``
+        ``[occ_a_N, ..., occ_a_1, occ_b_N, ..., occ_b_1]``
 
     where ``N`` is the number of spatial orbitals.
     """
@@ -264,12 +265,12 @@ def bitstring_matrix_to_sorted_addresses(
     bitstring_matrix: np.ndarray, open_shell: bool = False
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Convert a bitstring matrix into base-10 address representation.
+    Convert a bitstring matrix into a sorted array of unique, unsigned base-10 representations.
 
-    This function separates each row in the ``bitstring_matrix`` in half column-wise.
-    The left- (alpha) and right-hand (beta) columns of bits are translated into
-    unsigned, base-10 integers, which are referred to as determinant addresses. This function
-    returns an array of sorted, unique addresses for both the spin-up and spin-down systems.
+    This function separates each bitstring in ``bitstring_matrix`` in half, flips the
+    bits and translates them into integer representations, and finally appends them to
+    their respective (spin-up or spin-down) lists. Those lists are sorted and output
+    from this function.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
@@ -281,7 +282,7 @@ def bitstring_matrix_to_sorted_addresses(
             and right bitstrings.
 
     Returns:
-        A length-2 tuple of sorted, base-10 determinant addresses representing the left
+        A length-2 tuple of sorted, unique base-10 determinant addresses representing the left
         and right halves of the bitstrings, respectively.
     """
     num_orbitals = bitstring_matrix.shape[1] // 2
@@ -355,7 +356,7 @@ def _check_addresses(
                 f"index {i} has hamming weight {ham}."
             )
 
-    return np.unique(addr_up), np.unique(addr_dn)
+    return np.sort(np.unique(addr_up)), np.sort(np.unique(addr_dn))
 
 
 def _optimize_orbitals_sci(
