@@ -20,9 +20,11 @@ from importlib.metadata import version as metadata_version
 # be documented.
 sys.path.insert(0, os.path.abspath(".."))
 
-project = "Sample-based Quantum Diagonalization"
+project = "Qiskit addon: sample-based quantum diagonalization (SQD)"
 project_copyright = "2024, Qiskit addons team"
-description = "Classically post-process noisy samples drawn from a quantum processor to produce more accurate energy estimations"
+description = (
+    "Classically postprocess noisy quantum samples to yield more accurate energy estimations"
+)
 author = "Qiskit addons team"
 language = "en"
 release = metadata_version("qiskit-addon-sqd")
