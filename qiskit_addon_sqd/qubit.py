@@ -113,11 +113,11 @@ def project_operator_to_subspace(
     operator = coo_matrix((d, d), dtype="complex128")
 
     for i, pauli in enumerate(hamiltonian.paulis):
-        coefficent = hamiltonian.coeffs[i]
+        coefficient = hamiltonian.coeffs[i]
         if verbose:
             (
                 print(
-                    f"Projecting term {i+1} out of {hamiltonian.size}: {coefficent} * "
+                    f"Projecting term {i+1} out of {hamiltonian.size}: {coefficient} * "
                     + "".join(pauli.to_label())
                     + " ..."
                 )
@@ -127,7 +127,7 @@ def project_operator_to_subspace(
             bitstring_matrix, pauli
         )
 
-        operator += coefficent * coo_matrix((matrix_elements, (row_coords, col_coords)), (d, d))
+        operator += coefficient * coo_matrix((matrix_elements, (row_coords, col_coords)), (d, d))
 
     return operator
 

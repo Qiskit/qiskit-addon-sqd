@@ -47,7 +47,7 @@ These environments execute all tests using [pytest], which supports its own simp
 
 ## Notebook environments
 
-The `notebook` and `py##-notebook` environments invoke [nbmake] to ensure that all the Jupyter notebooks in the [`docs/`](/docs/tutorials) directory execute successfully.
+The `notebook` and `py##-notebook` environments invoke [nbmake] to ensure that all Jupyter notebooks in the [`docs/`](/docs/) directory execute successfully.
 
 ```sh
 $ tox -e py310-notebook
