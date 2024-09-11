@@ -91,7 +91,7 @@ def recover_configurations(
     # First, we need to flip the orbitals such that
 
     corrected_dict: dict[str, float] = {}
-    for bitstring, freq in zip(bitstring_matrix, probabilities):
+    for bitstring, freq in zip(bitstring_matrix, probabilities, strict=False):
         bs_corrected = _bipartite_bitstring_correcting(
             bitstring,
             avg_occupancies,

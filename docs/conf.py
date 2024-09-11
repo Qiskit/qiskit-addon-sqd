@@ -22,7 +22,9 @@ sys.path.insert(0, os.path.abspath(".."))
 
 project = "Qiskit addon: sample-based quantum diagonalization (SQD)"
 project_copyright = "2024, Qiskit addons team"
-description = "Classically postprocess noisy quantum samples to yield more accurate energy estimations"
+description = (
+    "Classically postprocess noisy quantum samples to yield more accurate energy estimations"
+)
 author = "Qiskit addons team"
 language = "en"
 release = metadata_version("qiskit-addon-sqd")
