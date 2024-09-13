@@ -138,8 +138,8 @@ class TestSubsampling(unittest.TestCase):
             batches = postselect_and_subsample(
                 self.bitstring_matrix,
                 self.uniform_probs,
-                hamming_left,
                 hamming_right,
+                hamming_left,
                 samples_per_batch,
                 num_batches,
             )
@@ -158,8 +158,8 @@ class TestSubsampling(unittest.TestCase):
             batches = postselect_and_subsample(
                 self.bitstring_matrix,
                 self.uniform_probs,
-                hamming_left,
                 hamming_right,
+                hamming_left,
                 samples_per_batch,
                 num_batches,
             )
@@ -178,8 +178,8 @@ class TestSubsampling(unittest.TestCase):
             batches = postselect_and_subsample(
                 self.bitstring_matrix[1:],
                 self.uniform_probs[1:],
-                hamming_left,
                 hamming_right,
+                hamming_left,
                 samples_per_batch,
                 num_batches,
             )
@@ -195,8 +195,8 @@ class TestSubsampling(unittest.TestCase):
                 postselect_and_subsample(
                     self.bitstring_matrix,
                     self.uniform_probs,
-                    hamming_left,
                     hamming_right,
+                    hamming_left,
                     samples_per_batch,
                     num_batches,
                 )
@@ -213,8 +213,8 @@ class TestSubsampling(unittest.TestCase):
                 postselect_and_subsample(
                     self.bitstring_matrix,
                     self.uniform_probs,
-                    hamming_left,
                     hamming_right,
+                    hamming_left,
                     samples_per_batch,
                     num_batches,
                 )
@@ -231,8 +231,8 @@ class TestSubsampling(unittest.TestCase):
                 postselect_and_subsample(
                     self.bitstring_matrix,
                     self.uniform_probs,
-                    hamming_left,
                     hamming_right,
+                    hamming_left,
                     samples_per_batch,
                     num_batches,
                 )
@@ -249,8 +249,8 @@ class TestSubsampling(unittest.TestCase):
                 postselect_and_subsample(
                     self.bitstring_matrix,
                     np.array([]),
-                    hamming_left,
                     hamming_right,
+                    hamming_left,
                     samples_per_batch,
                     num_batches,
                 )
