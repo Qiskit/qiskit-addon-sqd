@@ -26,7 +26,7 @@ upgrade:
             num_elec_a,
             num_elec_b,
             samples_per_batch,
-            n_batches,
+            num_batches,
         )
 
     should be changed to
@@ -51,5 +51,5 @@ upgrade:
             hamming_right=num_elec_a,
             hamming_left=num_elec_b,
             samples_per_batch=samples_per_batch,
-            n_batches=n_batches,
+            num_batches=num_batches,
         )
