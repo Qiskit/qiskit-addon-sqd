@@ -90,8 +90,8 @@ def generate_counts_uniform(
 def generate_counts_bipartite_hamming(
     num_samples: int,
     num_bits: int,
-    hamming_left: int,
     hamming_right: int,
+    hamming_left: int,
     rand_seed: None | int = None,
 ) -> dict[str, int]:
     """
@@ -100,8 +100,8 @@ def generate_counts_bipartite_hamming(
     Args:
         num_samples: The number of samples to draw
         num_bits: The number of bits in the bitstrings
-        hamming_left: The hamming weight on the left half of each bitstring
         hamming_right: The hamming weight on the right half of each bitstring
+        hamming_left: The hamming weight on the left half of each bitstring
         rand_seed: A seed for controlling randomness
 
     Returns:
@@ -128,17 +128,17 @@ def generate_counts_bipartite_hamming(
     sample_dict: dict[str, int] = {}
     for _ in range(num_samples):
         # Pick random bits to flip such that the left and right hamming weights are correct
-        up_flips = np.random.choice(np.arange(num_bits // 2), hamming_left, replace=False).astype(
+        up_flips = np.random.choice(np.arange(num_bits // 2), hamming_right, replace=False).astype(
             "int"
         )
-        dn_flips = np.random.choice(np.arange(num_bits // 2), hamming_right, replace=False).astype(
+        dn_flips = np.random.choice(np.arange(num_bits // 2), hamming_left, replace=False).astype(
             "int"
         )
 
         # Create a bitstring with the chosen bits flipped
         bts_arr = np.zeros(num_bits)
-        bts_arr[up_flips] = 1
-        bts_arr[dn_flips + num_bits // 2] = 1
+        bts_arr[dn_flips] = 1
+        bts_arr[up_flips + num_bits // 2] = 1
         bts_arr = bts_arr.astype("int")
         bts = np.array2string(bts_arr, separator="")[1:-1]
 
