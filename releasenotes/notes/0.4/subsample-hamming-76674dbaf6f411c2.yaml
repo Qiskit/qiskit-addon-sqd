@@ -1,6 +1,6 @@
 ---
 prelude: >
-    This is a patch release which introduces a couple of small, but important, breaking changes to to the API. These changes allow for a more consistent pattern in specifying the number of alpha and beta electrons throughout both the chemistry and non-chemistry functions in the API.
+    This is a minor release which introduces a couple of small, but important, breaking changes to to the API. These changes allow for a more consistent pattern in specifying the number of alpha and beta electrons throughout both the chemistry and non-chemistry functions in the API.
 
 upgrade:
   - |
