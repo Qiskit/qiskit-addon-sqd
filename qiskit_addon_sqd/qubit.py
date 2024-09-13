@@ -18,6 +18,9 @@ Functions for handling quantum samples.
    :toctree: ../stubs/
    :nosignatures:
 
+   solve_qubit
+   project_operator_to_subspace
+   sort_and_remove_duplicates
    matrix_elements_from_pauli
    sort_and_remove_duplicates
 """
