@@ -90,6 +90,7 @@ def generate_counts_uniform(
 def generate_counts_bipartite_hamming(
     num_samples: int,
     num_bits: int,
+    *,
     hamming_right: int,
     hamming_left: int,
     rand_seed: None | int = None,

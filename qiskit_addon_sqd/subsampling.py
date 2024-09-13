@@ -32,10 +32,11 @@ from .configuration_recovery import post_select_by_hamming_weight
 def postselect_and_subsample(
     bitstring_matrix: np.ndarray,
     probabilities: np.ndarray,
-    hamming_right: int,
-    hamming_left: int,
     samples_per_batch: int,
     num_batches: int,
+    *,
+    hamming_right: int,
+    hamming_left: int,
     rand_seed: int | None = None,
 ) -> list[np.ndarray]:
     """
@@ -52,10 +53,10 @@ def postselect_and_subsample(
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring.
         probabilities: A 1D array specifying a probability distribution over the bitstrings
-        hamming_right: The target hamming weight for the right half of sampled bitstrings
-        hamming_left: The target hamming weight for the left half of sampled bitstrings
         samples_per_batch: The number of samples to draw for each batch
         num_batches: The number of batches to generate
+        hamming_right: The target hamming weight for the right half of sampled bitstrings
+        hamming_left: The target hamming weight for the left half of sampled bitstrings
         rand_seed: A seed to control random behavior
 
     Returns:
@@ -76,7 +77,9 @@ def postselect_and_subsample(
         raise ValueError("Hamming weight must be specified with a non-negative integer.")
 
     # Post-select only bitstrings with correct hamming weight
-    mask_postsel = post_select_by_hamming_weight(bitstring_matrix, hamming_left, hamming_right)
+    mask_postsel = post_select_by_hamming_weight(
+        bitstring_matrix, hamming_right=hamming_right, hamming_left=hamming_left
+    )
     bs_mat_postsel = bitstring_matrix[mask_postsel]
     probs_postsel = probabilities[mask_postsel]
     probs_postsel = np.abs(probs_postsel) / np.sum(np.abs(probs_postsel))

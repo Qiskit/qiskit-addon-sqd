@@ -30,7 +30,7 @@ import numpy as np
 
 
 def post_select_by_hamming_weight(
-    bitstring_matrix: np.ndarray, hamming_right: int, hamming_left: int
+    bitstring_matrix: np.ndarray, *, hamming_right: int, hamming_left: int
 ) -> np.ndarray:
     """
     Post-select bitstrings based on the hamming weight of each half.
@@ -62,7 +62,6 @@ def recover_configurations(
     avg_occupancies: np.ndarray,
     num_elec_a: int,
     num_elec_b: int,
-    *,
     rand_seed: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """

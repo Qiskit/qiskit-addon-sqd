@@ -76,7 +76,7 @@ class TestCounts(unittest.TestCase):
             hamming_left = 3
             hamming_right = 2
             counts = generate_counts_bipartite_hamming(
-                num_samples, num_bits, hamming_right, hamming_left
+                num_samples, num_bits, hamming_right=hamming_right, hamming_left=hamming_left
             )
             self.assertLessEqual(len(counts), num_samples)
             for bs in counts:
@@ -92,7 +92,7 @@ class TestCounts(unittest.TestCase):
             hamming_right = 2
             with pytest.raises(ValueError) as e_info:
                 generate_counts_bipartite_hamming(
-                    num_samples, num_bits, hamming_right, hamming_left
+                    num_samples, num_bits, hamming_right=hamming_right, hamming_left=hamming_left
                 )
             self.assertEqual(
                 "The number of bits must be specified with an even integer.", e_info.value.args[0]
@@ -104,7 +104,7 @@ class TestCounts(unittest.TestCase):
             hamming_right = 2
             with pytest.raises(ValueError) as e_info:
                 generate_counts_bipartite_hamming(
-                    num_samples, num_bits, hamming_right, hamming_left
+                    num_samples, num_bits, hamming_right=hamming_right, hamming_left=hamming_left
                 )
             self.assertEqual(
                 "The number of samples must be specified with a positive integer.",
@@ -117,7 +117,7 @@ class TestCounts(unittest.TestCase):
             hamming_right = 2
             with pytest.raises(ValueError) as e_info:
                 generate_counts_bipartite_hamming(
-                    num_samples, num_bits, hamming_right, hamming_left
+                    num_samples, num_bits, hamming_right=hamming_right, hamming_left=hamming_left
                 )
             self.assertEqual(
                 "The number of bits must be specified with a positive integer.",
@@ -130,7 +130,7 @@ class TestCounts(unittest.TestCase):
             hamming_right = -1
             with pytest.raises(ValueError) as e_info:
                 generate_counts_bipartite_hamming(
-                    num_samples, num_bits, hamming_right, hamming_left
+                    num_samples, num_bits, hamming_right=hamming_right, hamming_left=hamming_left
                 )
             self.assertEqual(
                 "Hamming weights must be specified as non-negative integers.", e_info.value.args[0]

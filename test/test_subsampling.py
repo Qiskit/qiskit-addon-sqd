@@ -138,10 +138,10 @@ class TestSubsampling(unittest.TestCase):
             batches = postselect_and_subsample(
                 self.bitstring_matrix,
                 self.uniform_probs,
-                hamming_right,
-                hamming_left,
                 samples_per_batch,
                 num_batches,
+                hamming_right=hamming_right,
+                hamming_left=hamming_left,
             )
             self.assertEqual(num_batches, len(batches))
             for batch in batches:
@@ -158,10 +158,10 @@ class TestSubsampling(unittest.TestCase):
             batches = postselect_and_subsample(
                 self.bitstring_matrix,
                 self.uniform_probs,
-                hamming_right,
-                hamming_left,
                 samples_per_batch,
                 num_batches,
+                hamming_right=hamming_right,
+                hamming_left=hamming_left,
             )
             self.assertEqual(num_batches, len(batches))
             for batch in batches:
@@ -178,10 +178,10 @@ class TestSubsampling(unittest.TestCase):
             batches = postselect_and_subsample(
                 self.bitstring_matrix[1:],
                 self.uniform_probs[1:],
-                hamming_right,
-                hamming_left,
                 samples_per_batch,
                 num_batches,
+                hamming_right=hamming_right,
+                hamming_left=hamming_left,
             )
             self.assertEqual(num_batches, len(batches))
             for batch in batches:
@@ -195,10 +195,10 @@ class TestSubsampling(unittest.TestCase):
                 postselect_and_subsample(
                     self.bitstring_matrix,
                     self.uniform_probs,
-                    hamming_right,
-                    hamming_left,
                     samples_per_batch,
                     num_batches,
+                    hamming_right=hamming_right,
+                    hamming_left=hamming_left,
                 )
             assert (
                 e_info.value.args[0]
@@ -213,10 +213,10 @@ class TestSubsampling(unittest.TestCase):
                 postselect_and_subsample(
                     self.bitstring_matrix,
                     self.uniform_probs,
-                    hamming_right,
-                    hamming_left,
                     samples_per_batch,
                     num_batches,
+                    hamming_right=hamming_right,
+                    hamming_left=hamming_left,
                 )
             assert (
                 e_info.value.args[0]
@@ -231,10 +231,10 @@ class TestSubsampling(unittest.TestCase):
                 postselect_and_subsample(
                     self.bitstring_matrix,
                     self.uniform_probs,
-                    hamming_right,
-                    hamming_left,
                     samples_per_batch,
                     num_batches,
+                    hamming_right=hamming_right,
+                    hamming_left=hamming_left,
                 )
             assert (
                 e_info.value.args[0]
@@ -249,10 +249,10 @@ class TestSubsampling(unittest.TestCase):
                 postselect_and_subsample(
                     self.bitstring_matrix,
                     np.array([]),
-                    hamming_right,
-                    hamming_left,
                     samples_per_batch,
                     num_batches,
+                    hamming_right=hamming_right,
+                    hamming_left=hamming_left,
                 )
             assert (
                 e_info.value.args[0]
@@ -266,10 +266,10 @@ class TestSubsampling(unittest.TestCase):
             batches = postselect_and_subsample(
                 np.array([]),
                 np.array([]),
-                hamming_left,
-                hamming_right,
                 samples_per_batch,
                 num_batches,
+                hamming_right=hamming_right,
+                hamming_left=hamming_left,
             )
             self.assertEqual(num_batches, len(batches))
             self.assertEqual(0, batches[0].shape[0])
