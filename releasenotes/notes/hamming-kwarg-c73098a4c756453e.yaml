@@ -2,7 +2,7 @@
 upgrade:
   - |
     
-    The :func:`qiskit_addon_sqd.counts.generate_counts_bipartite_hamming`, :func:`qiskit_addon_sqd.subsampling.postselect_and_subsample`, and :func:`qiskit_addon_sqd.configuration_recovery.post_select_by_hamming_weight` now require the ``hamming_right`` and ``hamming_left`` arguments to be specified as keyword arguments.
+    The :func:`qiskit_addon_sqd.counts.generate_counts_bipartite_hamming`, :func:`qiskit_addon_sqd.subsampling.postselect_and_subsample`, and :func:`qiskit_addon_sqd.configuration_recovery.post_select_by_hamming_weight` now require the ``hamming_right`` and ``hamming_left`` arguments to be specified as keyword arguments. Additionally, the ``samples_per_batch`` and ``n_batches`` arguments to :func:`qiskit_addon_sqd.subsampling.post_select_by_hamming_weight` should now be passed as keyword arguments.
 
     To upgrade
 
@@ -48,8 +48,8 @@ upgrade:
         batches = postselect_and_subsample(
             bs_mat,
             probs_arr,
-            samples_per_batch,
-            n_batches,
             hamming_right=num_elec_a,
             hamming_left=num_elec_b,
+            samples_per_batch=samples_per_batch,
+            n_batches=n_batches,
         )
