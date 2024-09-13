@@ -1,0 +1,44 @@
+---
+upgrade:
+  - |
+    The :func:`qiskit_addon_sqd.subsampling.postselect_and_subsample` and :func:`qiskit_addon_sqd.configuration_recovery.post_select_by_hamming_weight` now take the ``hamming_right`` positional argument before the ``hamming_left`` argument to better match the rest of the workflow.
+
+    To upgrade
+
+    .. code-block:: python
+        
+        from qiskit_addon_sqd.configuration_recovery import post_select_by_hamming_weight
+        from qiskit_addon_sqd.subsampling import postselect_and_subsample
+
+        bs_mat = post_select_by_hamming_weight(bs_mat_full, num_elec_b, num_elec_a)
+    
+        ...
+        
+        batches = postselect_and_subsample(
+            bs_mat,
+            probs_arr,
+            num_elec_b,
+            num_elec_a,
+            samples_per_batch,
+            n_batches,
+        )
+
+    should be changed to
+
+    .. code-block:: python
+        
+        from qiskit_addon_sqd.configuration_recovery import post_select_by_hamming_weight
+        from qiskit_addon_sqd.subsampling import postselect_and_subsample
+
+        bs_mat = post_select_by_hamming_weight(bs_mat_full, num_elec_a, num_elec_b)
+    
+        ...
+        
+        batches = postselect_and_subsample(
+            bs_mat,
+            probs_arr,
+            num_elec_a,
+            num_elec_b,
+            samples_per_batch,
+            n_batches,
+        )

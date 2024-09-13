@@ -32,8 +32,8 @@ from .configuration_recovery import post_select_by_hamming_weight
 def postselect_and_subsample(
     bitstring_matrix: np.ndarray,
     probabilities: np.ndarray,
-    hamming_left: int,
     hamming_right: int,
+    hamming_left: int,
     samples_per_batch: int,
     num_batches: int,
     rand_seed: int | None = None,
@@ -52,8 +52,8 @@ def postselect_and_subsample(
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring.
         probabilities: A 1D array specifying a probability distribution over the bitstrings
-        hamming_left: The target hamming weight for the left half of sampled bitstrings
         hamming_right: The target hamming weight for the right half of sampled bitstrings
+        hamming_left: The target hamming weight for the left half of sampled bitstrings
         samples_per_batch: The number of samples to draw for each batch
         num_batches: The number of batches to generate
         rand_seed: A seed to control random behavior

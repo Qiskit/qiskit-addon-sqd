@@ -30,7 +30,7 @@ import numpy as np
 
 
 def post_select_by_hamming_weight(
-    bitstring_matrix: np.ndarray, hamming_left: int, hamming_right: int
+    bitstring_matrix: np.ndarray, hamming_right: int, hamming_left: int
 ) -> np.ndarray:
     """
     Post-select bitstrings based on the hamming weight of each half.
@@ -38,8 +38,8 @@ def post_select_by_hamming_weight(
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring
-        hamming_left: The target hamming weight of the left half of bitstrings
         hamming_right: The target hamming weight of the right half of bitstrings
+        hamming_left: The target hamming weight of the left half of bitstrings
 
     Returns:
         A mask signifying which samples were selected from the input matrix.
@@ -60,8 +60,8 @@ def recover_configurations(
     bitstring_matrix: np.ndarray,
     probabilities: Sequence[float],
     avg_occupancies: np.ndarray,
-    hamming_left: int,
-    hamming_right: int,
+    num_elec_a: int,
+    num_elec_b: int,
     *,
     rand_seed: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -78,15 +78,15 @@ def recover_configurations(
         avg_occupancies: A 1D array containing the mean occupancy of each orbital. It is assumed
             that ``avg_occupancies[i]`` corresponds to the orbital represented by column
             ``i`` in ``bitstring_matrix``.
-        hamming_left: The target hamming weight used for the left half of the bitstring
-        hamming_right: The target hamming weight used for the right half of the bitstring
+        num_elec_a: The number of spin-up electrons in the system.
+        num_elec_b: The number of spin-down electrons in the system.
         rand_seed: A seed to control random behavior
 
     Returns:
         A corrected bitstring matrix and an updated probability array
     """
-    if hamming_left < 0 or hamming_right < 0:
-        raise ValueError("Hamming weights must be non-negative integers.")
+    if num_elec_a < 0 or num_elec_b < 0:
+        raise ValueError("The numbers of electrons must be specified as non-negative integers.")
 
     # First, we need to flip the orbitals such that
 
@@ -95,8 +95,8 @@ def recover_configurations(
         bs_corrected = _bipartite_bitstring_correcting(
             bitstring,
             avg_occupancies,
-            hamming_left,
-            hamming_right,
+            num_elec_a,
+            num_elec_b,
             rand_seed=rand_seed,
         )
         bs_str = np.array2string(bs_corrected.astype(int), separator="")[1:-1]
@@ -170,8 +170,8 @@ def _p_flip_1_to_0(ratio_exp: float, occ: float, eps: float = 0.01) -> float:
 def _bipartite_bitstring_correcting(
     bit_array: np.ndarray,
     avg_occupancies: np.ndarray,
-    hamming_left: int,
     hamming_right: int,
+    hamming_left: int,
     rand_seed: int | None = None,
 ) -> np.ndarray:
     """
@@ -180,8 +180,8 @@ def _bipartite_bitstring_correcting(
     Args:
         bit_array: A 1D array of ``bool`` representations of bit values
         avg_occupancies: A 1D array containing the mean occupancy of each orbital.
-        hamming_left: The target hamming weight used for the left half of the bitstring
-        hamming_right: The target hamming weight used for the right half of the bitstring
+        hamming_right: The target hamming weight used for the left half of the bitstring
+        hamming_left: The target hamming weight used for the right half of the bitstring
         rand_seed: A seed to control random behavior
 
     Returns:
