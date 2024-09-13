@@ -180,8 +180,8 @@ def _bipartite_bitstring_correcting(
     Args:
         bit_array: A 1D array of ``bool`` representations of bit values
         avg_occupancies: A 1D array containing the mean occupancy of each orbital.
-        hamming_right: The target hamming weight used for the left half of the bitstring
-        hamming_left: The target hamming weight used for the right half of the bitstring
+        hamming_right: The target hamming weight used for the right half of the bitstring
+        hamming_left: The target hamming weight used for the left half of the bitstring
         rand_seed: A seed to control random behavior
 
     Returns:
