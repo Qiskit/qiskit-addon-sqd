@@ -35,7 +35,7 @@ This package contains the Qiskit addon for sample-based quantum diagonalization 
 
 Classical distributed computing is used to process samples obtained from a quantum processor and to project and diagonalize a target Hamiltonian in a subspace spanned by them. This allows SQD to be robust to samples corrupted by quantum noise and deal with large Hamiltonians, such as chemistry Hamiltonians with millions of interaction terms, beyond the reach of any exact diagonalization methods. 
 
-The SQD tool can target Hamiltonians expressed as linear combination of Pauli operators, or second-quantized fermionic operators. The input samples are obtained by quantum circuits defined by the user, which are believed to be good representations of eigenstates (e.g. the ground state) of a target operator. The convergence rate of SQD as a function of the number of samples improves with the sparseness of the target eigenstate. 
+The SQD tool can target Hamiltonians expressed as linear combinations of Pauli operators, or second-quantized fermionic operators. The input samples are obtained by quantum circuits defined by the user, which are believed to be good representations of eigenstates (e.g. the ground state) of a target operator. The convergence rate of SQD as a function of the number of samples improves with the sparseness of the target eigenstate. 
 
 The projection and diagonalization steps are performed by a classical solver. We provide here two generic solvers, one for fermionic systems and another for qubit systems. Other solvers that might be more efficient for specific systems can be interfaced by the users.
 

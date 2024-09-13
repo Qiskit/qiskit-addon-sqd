@@ -32,6 +32,7 @@ from .configuration_recovery import post_select_by_hamming_weight
 def postselect_and_subsample(
     bitstring_matrix: np.ndarray,
     probabilities: np.ndarray,
+    *,
     hamming_right: int,
     hamming_left: int,
     samples_per_batch: int,
@@ -76,7 +77,9 @@ def postselect_and_subsample(
         raise ValueError("Hamming weight must be specified with a non-negative integer.")
 
     # Post-select only bitstrings with correct hamming weight
-    mask_postsel = post_select_by_hamming_weight(bitstring_matrix, hamming_left, hamming_right)
+    mask_postsel = post_select_by_hamming_weight(
+        bitstring_matrix, hamming_right=hamming_right, hamming_left=hamming_left
+    )
     bs_mat_postsel = bitstring_matrix[mask_postsel]
     probs_postsel = probabilities[mask_postsel]
     probs_postsel = np.abs(probs_postsel) / np.sum(np.abs(probs_postsel))
