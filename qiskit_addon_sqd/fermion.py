@@ -46,6 +46,7 @@ def solve_fermion(
     hcore: np.ndarray,
     eri: np.ndarray,
     *,
+    addresses: tuple[np.ndarray, np.ndarray] | None = None,
     open_shell: bool = False,
     spin_sq: int | None = None,
     max_davidson: int = 100,
@@ -60,11 +61,10 @@ def solve_fermion(
             2D array of bool representations of bit values such that each row represents a single
             bitstring. The spin-up configurations should be specified by column indices in range
             ``(N, N/2]``, and the spin-down configurations should be specified by column indices in
-            range ``(N/2, 0]``.
-
-            DEPRECATED: This may also be specified with a length-2 tuple of base-10, unsigned integers such that
+            range ``(N/2, 0]``.  This parameter can be passed as keyword or as the first positional argument.
+        addresses: (DEPRECATED) An alternative way to specify the configurations, with a length-2 tuple of base-10, unsigned integers such that
             the first element is the set of spin-up configurations and the second element is the
-            spin-down configurations.
+            spin-down configurations.  For backwards compatibility, this parameter may be passed as the first positional argument during the deprecation period.
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         open_shell: A flag specifying whether configurations from the left and right
@@ -94,7 +94,9 @@ def solve_fermion(
             stacklevel=2,
         )
         addresses = bitstring_matrix
-    else:
+    elif addresses is None:
+        # This will become the default code path after the deprecation period.
+        #
         # Flip the output so the alpha addresses are on the left with [::-1]
         addresses = bitstring_matrix_to_sorted_addresses(bitstring_matrix, open_shell=open_shell)
         addresses = addresses[::-1]
