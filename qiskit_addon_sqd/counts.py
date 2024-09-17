@@ -43,7 +43,7 @@ def counts_to_arrays(counts: dict[str, float | int]) -> tuple[np.ndarray, np.nda
               bit's value
             - A 1D array containing the probability with which each bitstring was sampled
     """
-    if counts == {}:
+    if not counts:
         return np.array([]), np.array([])
     prob_dict = normalize_counts_dict(counts)
     bs_mat = np.array([[bit == "1" for bit in bitstring] for bitstring in prob_dict])
@@ -151,9 +151,9 @@ def generate_counts_bipartite_hamming(
 
 def normalize_counts_dict(counts: dict[str, float | int]) -> dict[str, float]:
     """Convert a counts dictionary into a probability dictionary."""
-    if counts == {}:
+    if not counts:
         return counts
 
-    total_counts = float(sum(counts.values()))
+    total_counts = sum(counts.values())
 
     return {bs: count / total_counts for bs, count in counts.items()}

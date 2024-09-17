@@ -72,8 +72,11 @@ def solve_qubit(
     if bitstring_matrix.shape[1] > 63:
         raise ValueError("Bitstrings (rows) in bitstring_matrix must have length < 64.")
 
-    d, _ = bitstring_matrix.shape
+    # Projection requires the bitstring matrix be sorted in accordance with its address representation
+    bitstring_matrix = sort_and_remove_duplicates(bitstring_matrix)
 
+    # Get a sparse representation of the projected operator
+    d, _ = bitstring_matrix.shape
     ham_proj = project_operator_to_subspace(bitstring_matrix, hamiltonian, verbose=verbose)
 
     if verbose:
@@ -167,7 +170,7 @@ def matrix_elements_from_pauli(
 
     .. note::
        The bitstrings in the ``bitstring_matrix`` must be sorted and unique according
-       to their base-10 representation. Otherwise the projection will return wrong
+       to their base-10 address representation. Otherwise the projection will return wrong
        results. This function does not explicitly check for uniqueness and order because
        this can be rather time consuming. See :func:`qiskit_addon_sqd.qubit.sort_and_remove_duplicates`
        for a simple way to ensure your bitstring matrix is well-formatted.

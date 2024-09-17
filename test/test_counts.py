@@ -25,7 +25,7 @@ from qiskit_addon_sqd.counts import (
 class TestCounts(unittest.TestCase):
     def setUp(self):
         self.max_val = 16
-        self.counts = {bin(i)[2:].zfill(4): 100 for i in range(self.max_val)}
+        self.counts = {format(i, "04b"): 100 for i in range(self.max_val)}
 
     def test_counts_to_arrays(self):
         with self.subTest("Basic test"):

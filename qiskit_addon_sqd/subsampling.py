@@ -67,9 +67,10 @@ def postselect_and_subsample(
         ValueError: Hamming weights must be non-negative integers.
         ValueError: Samples per batch and number of batches must be positive integers.
     """
-    if bitstring_matrix.shape[0] < 1:
+    num_bitstrings = len(bitstring_matrix)
+    if num_bitstrings == 0:
         return [np.array([])] * num_batches
-    if len(probabilities) != bitstring_matrix.shape[0]:
+    if len(probabilities) != num_bitstrings:
         raise ValueError(
             "The number of elements in the probabilities array must match the number of rows in the bitstring matrix."
         )
