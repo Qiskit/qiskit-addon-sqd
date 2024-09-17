@@ -78,8 +78,8 @@ def solve_fermion(
     """
     addresses = _check_addresses(addresses)
 
-    num_up = bin(addresses[0][0])[2:].count("1")
-    num_dn = bin(addresses[1][0])[2:].count("1")
+    num_up = format(addresses[0][0], "b").count("1")
+    num_dn = format(addresses[1][0], "b").count("1")
 
     # Number of molecular orbitals
     norb = hcore.shape[0]
@@ -163,8 +163,8 @@ def optimize_orbitals(
     """
     addresses = _check_addresses(addresses)
 
-    num_up = bin(addresses[0][0])[2:].count("1")
-    num_dn = bin(addresses[1][0])[2:].count("1")
+    num_up = format(addresses[0][0], "b").count("1")
+    num_dn = format(addresses[1][0], "b").count("1")
 
     # TODO: Need metadata showing the optimization history
     ## hcore and eri in physicist ordering
@@ -339,17 +339,17 @@ def _check_addresses(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Make sure the hamming weight is consistent in all determinants."""
     addr_up, addr_dn = addresses
-    addr_up_ham = bin(addr_up[0])[2:].count("1")
+    addr_up_ham = format(addr_up[0], "b").count("1")
     for i, addr in enumerate(addr_up):
-        ham = bin(addr)[2:].count("1")
+        ham = format(addr, "b").count("1")
         if ham != addr_up_ham:
             raise ValueError(
                 f"Spin-up address in index 0 has hamming weight {addr_up_ham}, but address in "
                 f"index {i} has hamming weight {ham}."
             )
-    addr_dn_ham = bin(addr_dn[0])[2:].count("1")
+    addr_dn_ham = format(addr_dn[0], "b").count("1")
     for i, addr in enumerate(addr_dn):
-        ham = bin(addr)[2:].count("1")
+        ham = format(addr, "b").count("1")
         if ham != addr_dn_ham:
             raise ValueError(
                 f"Spin-down address in index 0 has hamming weight {addr_dn_ham}, but address in "
