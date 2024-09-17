@@ -2,7 +2,7 @@
 Qiskit addon: sample-based quantum diagonalization (SQD)
 ########################################################
 
-Qiskit addons are a collection of modular tools for building utility-scale workloads powered by Qiskit.
+`Qiskit addons <https://docs.quantum.ibm.com/guides/addons>`_ are a collection of modular tools for building utility-scale workloads powered by Qiskit.
 
 This package contains the Qiskit addon for sample-based quantum diagonalization -- a technique for finding eigenvalues and eigenvectors of quantum operators, such as a quantum system Hamiltonian, using quantum and distributed classical computing together.
 
