@@ -61,12 +61,15 @@ def solve_fermion(
             2D array of bool representations of bit values such that each row represents a single
             bitstring. The spin-up configurations should be specified by column indices in range
             ``(N, N/2]``, and the spin-down configurations should be specified by column indices in
-            range ``(N/2, 0]``.  This parameter can be passed as keyword or as the first positional argument.
-        addresses: (DEPRECATED) An alternative way to specify the configurations, with a length-2 tuple of base-10, unsigned integers such that
-            the first element is the set of spin-up configurations and the second element is the
-            spin-down configurations.  For backwards compatibility, this parameter may be passed as the first positional argument during the deprecation period.
+            range ``(N/2, 0]``, where ``N`` is the number of qubits.  This parameter can be passed
+            as keyword or as the first positional argument.
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
+        addresses: (DEPRECATED) An alternative way to specify the configurations, with a length-2
+            tuple of lists containing base-10, unsigned integers. The first list is the set of
+            spin-up configurations and the second list is the spin-down configurations.  For
+            backwards compatibility, this parameter may be passed as the first positional argument
+            during the deprecation period.
         open_shell: A flag specifying whether configurations from the left and right
             halves of the bitstrings should be kept separate. If ``False``, addresses
             from the left and right halves of the bitstrings are combined into a single
@@ -96,8 +99,6 @@ def solve_fermion(
         addresses = bitstring_matrix
     elif addresses is None:
         # This will become the default code path after the deprecation period.
-        #
-        # Flip the output so the alpha addresses are on the left with [::-1]
         addresses = bitstring_matrix_to_sorted_addresses(bitstring_matrix, open_shell=open_shell)
         addresses = addresses[::-1]
     addresses = _check_addresses(addresses)
