@@ -46,7 +46,6 @@ def solve_fermion(
     hcore: np.ndarray,
     eri: np.ndarray,
     *,
-    addresses: tuple[np.ndarray, np.ndarray] | None = None,
     open_shell: bool = False,
     spin_sq: int | None = None,
     max_davidson: int = 100,
@@ -57,19 +56,17 @@ def solve_fermion(
 
     Args:
         bitstring_matrix: A set of configurations defining the subspace onto which the Hamiltonian
-            will be projected and diagonalized. This may be specified with a bitstring matrix -- a
-            2D array of bool representations of bit values such that each row represents a single
-            bitstring. The spin-up configurations should be specified by column indices in range
-            ``(N, N/2]``, and the spin-down configurations should be specified by column indices in
-            range ``(N/2, 0]``, where ``N`` is the number of qubits.  This parameter can be passed
-            as keyword or as the first positional argument.
+            will be projected and diagonalized. This is a 2D array of bool representations of bit
+            values such that each row represents a single bitstring. The spin-up configurations
+            should be specified by column indices in range ``(N, N/2]``, and the spin-down
+            configurations should be specified by column indices in range ``(N/2, 0]``, where ``N``
+            is the number of qubits.
+
+            (DEPRECATED) The configurations may also be specified by a length-2 tuple of 1D arrays
+            containing base-10, unsigned integer representations of the determinants. The two lists
+            should represent the spin-up and spin-down orbitals, respectively.
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
-        addresses: (DEPRECATED) An alternative way to specify the configurations, with a length-2
-            tuple of lists containing base-10, unsigned integers. The first list is the set of
-            spin-up configurations and the second list is the spin-down configurations.  For
-            backwards compatibility, this parameter may be passed as the first positional argument
-            during the deprecation period.
         open_shell: A flag specifying whether configurations from the left and right
             halves of the bitstrings should be kept separate. If ``False``, addresses
             from the left and right halves of the bitstrings are combined into a single
@@ -91,13 +88,12 @@ def solve_fermion(
     """
     if isinstance(bitstring_matrix, tuple):
         warnings.warn(
-            "Passing a length-2 tuple of sorted addresses to define the subspace is deprecated. Users "
-            "should instead pass in the bitstring matrix defining the subspace.",
+            "Passing the input determinants as integers is deprecated. Users should instead pass a bitstring matrix defining the subspace.",
             DeprecationWarning,
             stacklevel=2,
         )
         addresses = bitstring_matrix
-    elif addresses is None:
+    else:
         # This will become the default code path after the deprecation period.
         addresses = bitstring_matrix_to_sorted_addresses(bitstring_matrix, open_shell=open_shell)
         addresses = addresses[::-1]
