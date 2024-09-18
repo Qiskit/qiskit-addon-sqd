@@ -56,15 +56,15 @@ def solve_fermion(
 
     Args:
         bitstring_matrix: A set of configurations defining the subspace onto which the Hamiltonian
-            will be projected and diagonalized. This is a 2D array of bool representations of bit
+            will be projected and diagonalized. This is a 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring. The spin-up configurations
             should be specified by column indices in range ``(N, N/2]``, and the spin-down
             configurations should be specified by column indices in range ``(N/2, 0]``, where ``N``
             is the number of qubits.
 
-            (DEPRECATED) The configurations may also be specified by a length-2 tuple of 1D arrays
-            containing base-10, unsigned integer representations of the determinants. The two lists
-            should represent the spin-up and spin-down orbitals, respectively.
+            (DEPRECATED) The configurations may also be specified by a length-2 tuple of sorted 1D
+            arrays containing base-10, unsigned integer representations of the determinants. The
+            two lists should represent the spin-up and spin-down orbitals, respectively.
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         open_shell: A flag specifying whether configurations from the left and right
@@ -158,15 +158,15 @@ def optimize_orbitals(
 
     Args:
         bitstring_matrix: A set of configurations defining the subspace onto which the Hamiltonian
-            will be projected and diagonalized. This may be specified with a bitstring matrix -- a
-            2D array of bool representations of bit values such that each row represents a single
-            bitstring. The spin-up configurations should be specified by column indices in range
-            ``(N, N/2]``, and the spin-down configurations should be specified by column indices in
-            range ``(N/2, 0]``.
+            will be projected and diagonalized. This is a 2D array of ``bool`` representations of bit
+            values such that each row represents a single bitstring. The spin-up configurations
+            should be specified by column indices in range ``(N, N/2]``, and the spin-down
+            configurations should be specified by column indices in range ``(N/2, 0]``, where ``N``
+            is the number of qubits.
 
-            DEPRECATED: This may also be specified with a length-2 tuple of base-10, unsigned integers such that
-            the first element is the set of spin-up configurations and the second element is the
-            spin-down configurations.
+            (DEPRECATED) The configurations may also be specified by a length-2 tuple of sorted 1D
+            arrays containing base-10, unsigned integer representations of the determinants. The
+            two lists should represent the spin-up and spin-down orbitals, respectively.
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         k_flat: 1D array defining the orbital transform. This array will be reshaped
