@@ -28,6 +28,8 @@ Functions for the study of fermionic systems.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from jax import Array, config, grad, jit, vmap
 from jax import numpy as jnp
@@ -39,28 +41,36 @@ config.update("jax_enable_x64", True)  # To deal with large integers
 
 
 def solve_fermion(
-    addresses: tuple[np.ndarray, np.ndarray],
+    bitstring_matrix: tuple[np.ndarray, np.ndarray] | np.ndarray,
+    /,
     hcore: np.ndarray,
     eri: np.ndarray,
     *,
+    open_shell: bool = False,
     spin_sq: int | None = None,
     max_davidson: int = 100,
     verbose: int | None = None,
 ) -> tuple[float, np.ndarray, list[np.ndarray], float]:
     """
-    Approximate the ground state given molecular integrals and Slater determinant addresses.
-
-    .. note::
-       The ``addresses`` are expected to be unique and sorted. While this will be handled
-       for the user automatically, this function could become slower if the input
-       addresses are not sorted or nearly-sorted.
+    Approximate the ground state given molecular integrals and a set of electronic configurations.
 
     Args:
-        addresses: A length-2 tuple of 1D arrays containing sorted, base-10
-            representations of bitstrings. The first array represents configurations of the
-            alpha particles, and the second array represents that of the beta particles.
+        bitstring_matrix: A set of configurations defining the subspace onto which the Hamiltonian
+            will be projected and diagonalized. This is a 2D array of ``bool`` representations of bit
+            values such that each row represents a single bitstring. The spin-up configurations
+            should be specified by column indices in range ``(N, N/2]``, and the spin-down
+            configurations should be specified by column indices in range ``(N/2, 0]``, where ``N``
+            is the number of qubits.
+
+            (DEPRECATED) The configurations may also be specified by a length-2 tuple of sorted 1D
+            arrays containing base-10, unsigned integer representations of the determinants. The
+            two lists should represent the spin-up and spin-down orbitals, respectively.
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
+        open_shell: A flag specifying whether configurations from the left and right
+            halves of the bitstrings should be kept separate. If ``False``, addresses
+            from the left and right halves of the bitstrings are combined into a single
+            set of unique configurations and used for both the alpha and beta subspaces.
         spin_sq: Target value for the total spin squared for the ground state.
             If ``None``, no spin will be imposed.
         max_davidson: The maximum number of cycles of Davidson's algorithm
@@ -76,6 +86,17 @@ def solve_fermion(
     Raises:
             ValueError: The input determinant ``addresses`` must be non-empty, sorted arrays of integers.
     """
+    if isinstance(bitstring_matrix, tuple):
+        warnings.warn(
+            "Passing the input determinants as integers is deprecated. Users should instead pass a bitstring matrix defining the subspace.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        addresses = bitstring_matrix
+    else:
+        # This will become the default code path after the deprecation period.
+        addresses = bitstring_matrix_to_sorted_addresses(bitstring_matrix, open_shell=open_shell)
+        addresses = addresses[::-1]
     addresses = _check_addresses(addresses)
 
     num_up = format(addresses[0][0], "b").count("1")
@@ -108,11 +129,13 @@ def solve_fermion(
 
 
 def optimize_orbitals(
-    addresses: tuple[np.ndarray, np.ndarray],
+    bitstring_matrix: tuple[np.ndarray, np.ndarray] | np.ndarray,
+    /,
     hcore: np.ndarray,
     eri: np.ndarray,
     k_flat: np.ndarray,
     *,
+    open_shell: bool = False,
     spin_sq: float = 0.0,
     num_iters: int = 10,
     num_steps_grad: int = 10_000,
@@ -133,20 +156,26 @@ def optimize_orbitals(
     Refer to `Sec. II A 4 <https://arxiv.org/pdf/2405.05068>`_ for more detailed
     discussion on this orbital optimization technique.
 
-    .. note::
-       The input ``addresses`` are expected to be unique and sorted. While this will be
-       handled for the user automatically, this function may become slower if the input
-       addresses are not sorted or nearly-sorted.
-
     Args:
-        addresses: A length-2 tuple of 1D arrays containing sorted, base-10
-            representations of bitstrings. The first array represents configurations of the
-            alpha particles, and the second array represents that of the beta particles.
+        bitstring_matrix: A set of configurations defining the subspace onto which the Hamiltonian
+            will be projected and diagonalized. This is a 2D array of ``bool`` representations of bit
+            values such that each row represents a single bitstring. The spin-up configurations
+            should be specified by column indices in range ``(N, N/2]``, and the spin-down
+            configurations should be specified by column indices in range ``(N/2, 0]``, where ``N``
+            is the number of qubits.
+
+            (DEPRECATED) The configurations may also be specified by a length-2 tuple of sorted 1D
+            arrays containing base-10, unsigned integer representations of the determinants. The
+            two lists should represent the spin-up and spin-down orbitals, respectively.
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         k_flat: 1D array defining the orbital transform. This array will be reshaped
             to be of shape (# orbitals, # orbitals) before being used as a
             similarity transform operator on the orbitals. Thus ``len(k_flat)=# orbitals**2``.
+        open_shell: A flag specifying whether configurations from the left and right
+            halves of the bitstrings should be kept separate. If ``False``, addresses
+            from the left and right halves of the bitstrings are combined into a single
+            set of unique configurations and used for both the alpha and beta subspaces.
         spin_sq: Target value for the total spin squared for the ground state
         num_iters: The number of iterations of orbital optimization to perform
         max_davidson: The maximum number of cycles of Davidson's algorithm to
@@ -161,6 +190,18 @@ def optimize_orbitals(
             - An optimized 1D array defining the orbital transform
             - Average orbital occupancy
     """
+    if isinstance(bitstring_matrix, tuple):
+        warnings.warn(
+            "Passing a length-2 tuple of sorted addresses to define the subspace is deprecated. Users "
+            "should instead pass in the bitstring matrix defining the subspace.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        addresses = bitstring_matrix
+    else:
+        # Flip the output so the alpha addresses are on the left with [::-1]
+        addresses = bitstring_matrix_to_sorted_addresses(bitstring_matrix, open_shell=open_shell)
+        addresses = addresses[::-1]
     addresses = _check_addresses(addresses)
 
     num_up = format(addresses[0][0], "b").count("1")
