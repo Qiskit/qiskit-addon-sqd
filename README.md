@@ -2,7 +2,7 @@
 <div align="left">
 
   [![Release](https://img.shields.io/pypi/v/qiskit-addon-sqd.svg?label=Release)](https://github.com/Qiskit/qiskit-addon-sqd/releases)
-  ![Platform](https://img.shields.io/badge/%F0%9F%92%BB%20Platform-Linux%20%7C%20macOS%20%7C%20Windows-informational)
+  ![Platform](https://img.shields.io/badge/%F0%9F%92%BB_Platform-Linux%20%7C%20macOS-blue)
   [![Python](https://img.shields.io/pypi/pyversions/qiskit-addon-sqd?label=Python&logo=python)](https://www.python.org/)
   [![Qiskit](https://img.shields.io/badge/Qiskit%20-%20%3E%3D1.2%20-%20%236133BD?logo=Qiskit)](https://github.com/Qiskit/qiskit)
 <br />
