@@ -37,6 +37,4 @@ jobs:
       - name: Test using tox environment
         shell: bash
         run: |
-          toxpyversion=$(echo ${{ matrix.python-version }} | sed -E 's/^([0-9]+)\.([0-9]+).*$/\1\2/')
-          tox -epy${toxpyversion}
-          tox -epy${toxpyversion}-notebook
+          tox -e py,notebook --parallel --parallel-no-spinner
