@@ -68,9 +68,20 @@ def recover_configurations(
     """
     Refine bitstrings based on average orbital occupancy and a target hamming weight.
 
-    This function makes the assumption that bit ``i`` represents the spin-down orbital
-    corresponding to the spin-up orbital in bit ``i + N`` where ``N`` is the number of
-    spatial orbitals and ``i < N``.
+    This function refines each bit in isolation in an attempt to transform the Hilbert space
+    represented by the input ``bitstring_matrix`` into a space closer to that which supports
+    the ground state.
+
+    .. note::
+
+        This function makes the assumption that bit ``i`` represents the spin-down orbital
+        corresponding to the spin-up orbital in bit ``i + N`` where ``N`` is the number of
+        spatial orbitals and ``i < N``.
+
+    .. note::
+
+        The output configurations may not necessarily have correct hamming weight, as each bit
+        is flipped in isolation from the other bits in the bitstring.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
@@ -84,9 +95,11 @@ def recover_configurations(
         rand_seed: A seed to control random behavior
 
     Returns:
-        A refined bitstring matrix and an updated probability array. The bitstrings in
-        the output matrix may still have incorrect hamming weight, but in the aggregate, it is
-        expected the samples better support the ground state.
+        A refined bitstring matrix and an updated probability array.
+
+    References:
+        [1]: J. Robledo-Moreno, et al., `Chemistry Beyond Exact Solutions on a Quantum-Centric Supercomputer <https://arxiv.org/abs/2405.05068>`_,
+             arXiv:2405.05068 [quant-ph].
     """
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
@@ -111,7 +124,7 @@ def recover_configurations(
     return bs_mat_out, freqs_out
 
 
-def _p_flip_0_to_1(ratio_exp: float, occ: float, eps: float = 0.01) -> float:
+def _p_flip_0_to_1(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  # pragma: no cover
     """
     Calculate the probability of flipping a bit from 0 to 1.
 
@@ -135,12 +148,14 @@ def _p_flip_0_to_1(ratio_exp: float, occ: float, eps: float = 0.01) -> float:
     # Occupancy is >= naive expectation.
     # The probability to flip the bit increases linearly from ``eps`` to
     # ``~1.0`` as the occupation deviates further from the expected ratio
+    if ratio_exp == 1.0:
+        return eps
     slope = (1 - eps) / (1 - ratio_exp)
     intercept = 1 - slope
     return occ * slope + intercept
 
 
-def _p_flip_1_to_0(ratio_exp: float, occ: float, eps: float = 0.01) -> float:
+def _p_flip_1_to_0(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  # pragma: no cover
     """
     Calculate the probability of flipping a bit from 1 to 0.
 
@@ -165,6 +180,8 @@ def _p_flip_1_to_0(ratio_exp: float, occ: float, eps: float = 0.01) -> float:
 
     # Occupancy is >= naive expectation.
     # Flip 1s to 0 with small (~eps) probability in this case
+    if ratio_exp == 0.0:
+        return 1 - eps
     slope = -eps / ratio_exp
     intercept = eps / ratio_exp
     return occ * slope + intercept
