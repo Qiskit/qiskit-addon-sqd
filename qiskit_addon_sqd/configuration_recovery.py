@@ -84,7 +84,9 @@ def recover_configurations(
         rand_seed: A seed to control random behavior
 
     Returns:
-        A corrected bitstring matrix and an updated probability array
+        A refined bitstring matrix and an updated probability array. The bitstrings in
+        the output matrix may still have incorrect hamming weight, but in the aggregate, it is
+        hoped the samples are higher quality.
     """
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
