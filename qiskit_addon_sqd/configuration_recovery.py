@@ -43,15 +43,15 @@ def post_select_by_hamming_weight(
         hamming_left: The target hamming weight of the left half of bitstrings
 
     Returns:
-        A mask signifying which samples were selected from the input matrix.
+        A mask signifying which samples (rows) were selected from the input matrix.
     """
     if hamming_left < 0 or hamming_right < 0:
         raise ValueError("Hamming weights must be non-negative integers.")
     num_bits = bitstring_matrix.shape[1]
 
     # Find the bitstrings with correct hamming weight on both halves
-    up_keepers = np.sum(bitstring_matrix[:, : num_bits // 2], axis=1) == hamming_left
-    down_keepers = np.sum(bitstring_matrix[:, num_bits // 2 :], axis=1) == hamming_right
+    up_keepers = np.sum(bitstring_matrix[:, num_bits // 2 :], axis=1) == hamming_right
+    down_keepers = np.sum(bitstring_matrix[:, : num_bits // 2], axis=1) == hamming_left
     correct_bs_mask = np.array(np.logical_and(up_keepers, down_keepers))
 
     return correct_bs_mask
@@ -86,7 +86,7 @@ def recover_configurations(
     Returns:
         A refined bitstring matrix and an updated probability array. The bitstrings in
         the output matrix may still have incorrect hamming weight, but in the aggregate, it is
-        hoped the samples are higher quality.
+        expected the samples better support the ground state.
     """
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
