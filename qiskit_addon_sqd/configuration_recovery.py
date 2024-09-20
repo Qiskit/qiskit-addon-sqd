@@ -25,6 +25,7 @@ Functions for performing self-consistent configuration recovery.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Sequence
 
 import numpy as np
@@ -106,7 +107,7 @@ def recover_configurations(
 
     # First, we need to flip the orbitals such that
 
-    corrected_dict: dict[str, float] = {}
+    corrected_dict: defaultdict[str, float] = defaultdict(float)
     for bitstring, freq in zip(bitstring_matrix, probabilities, strict=False):
         bs_corrected = _bipartite_bitstring_correcting(
             bitstring,
@@ -116,7 +117,7 @@ def recover_configurations(
             rand_seed=rand_seed,
         )
         bs_str = "".join("1" if bit else "0" for bit in bs_corrected)
-        corrected_dict[bs_str] = corrected_dict.get(bs_str, 0.0) + freq
+        corrected_dict[bs_str] += freq
     bs_mat_out = np.array([[bit == "1" for bit in bs] for bs in corrected_dict])
     freqs_out = np.array([f for f in corrected_dict.values()])
     freqs_out = np.abs(freqs_out) / np.sum(np.abs(freqs_out))
@@ -222,21 +223,17 @@ def _bipartite_bitstring_correcting(
     probs_right = np.zeros(partition_size)
     for i in range(partition_size):
         if bit_array[i]:
-            probs_left[i] = _p_flip_1_to_0(
-                hamming_left / float(partition_size), avg_occupancies[i], 0.01
-            )
+            probs_left[i] = _p_flip_1_to_0(hamming_left / partition_size, avg_occupancies[i], 0.01)
         else:
-            probs_left[i] = _p_flip_0_to_1(
-                hamming_left / float(partition_size), avg_occupancies[i], 0.01
-            )
+            probs_left[i] = _p_flip_0_to_1(hamming_left / partition_size, avg_occupancies[i], 0.01)
 
         if bit_array[i + partition_size]:
             probs_right[i] = _p_flip_1_to_0(
-                hamming_right / float(partition_size), avg_occupancies[i], 0.01
+                hamming_right / partition_size, avg_occupancies[i], 0.01
             )
         else:
             probs_right[i] = _p_flip_0_to_1(
-                hamming_right / float(partition_size), avg_occupancies[i], 0.01
+                hamming_right / partition_size, avg_occupancies[i], 0.01
             )
 
     # Normalize
