@@ -66,8 +66,8 @@ def solve_fermion(
             is the number of qubits.
 
             (DEPRECATED) The configurations may also be specified by a length-2 tuple of sorted 1D
-            arrays containing base-10, unsigned integer representations of the determinants. The
-            two lists should represent the spin-up and spin-down orbitals, respectively.
+            arrays containing unsigned integer representations of the determinants. The two lists
+            should represent the spin-up and spin-down orbitals, respectively.
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         open_shell: A flag specifying whether configurations from the left and right
@@ -165,7 +165,7 @@ def optimize_orbitals(
             is the number of qubits.
 
             (DEPRECATED) The configurations may also be specified by a length-2 tuple of sorted 1D
-            arrays containing base-10, unsigned integer representations of the determinants. The
+            arrays containing unsigned integer representations of the determinants. The
             two lists should represent the spin-up and spin-down orbitals, respectively.
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
@@ -359,7 +359,7 @@ def bitstring_matrix_to_ci_strs(
     bitstring_matrix: np.ndarray, open_shell: bool = False
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Convert bitstrings (rows) in a ``bitstring_matrix`` into base-10 integer representations of determinants.
+    Convert bitstrings (rows) in a ``bitstring_matrix`` into integer representations of determinants.
 
     This function separates each bitstring in ``bitstring_matrix`` in half, flips the
     bits and translates them into integer representations, and finally appends them to
@@ -376,8 +376,8 @@ def bitstring_matrix_to_ci_strs(
             and right bitstrings.
 
     Returns:
-        A length-2 tuple of sorted, unique base-10 determinants representing the
-        right (spin-up) and left (spin-down) halves of the bitstrings, respectively.
+        A length-2 tuple of determinant lists representing the right (spin-up) and left (spin-down)
+        halves of the bitstrings, respectively.
     """
     num_orbitals = bitstring_matrix.shape[1] // 2
     num_configs = bitstring_matrix.shape[0]
