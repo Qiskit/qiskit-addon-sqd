@@ -115,7 +115,7 @@ def recover_configurations(
             num_elec_b,
             rand_seed=rand_seed,
         )
-        bs_str = np.array2string(bs_corrected.astype(int), separator="")[1:-1]
+        bs_str = "".join("1" if bit else "0" for bit in bs_corrected)
         corrected_dict[bs_str] = corrected_dict.get(bs_str, 0.0) + freq
     bs_mat_out = np.array([[bit == "1" for bit in bs] for bs in corrected_dict])
     freqs_out = np.array([f for f in corrected_dict.values()])
