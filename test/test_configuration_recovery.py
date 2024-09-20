@@ -93,7 +93,7 @@ class TestConfigurationRecovery(unittest.TestCase):
             )
             self.assertTrue((expected_mat == mat_rec).all())
             self.assertTrue((expected_probs == probs_rec).all())
-        with self.subTest("Test with more than 73 bits. Ones to zeros."):
+        with self.subTest("Test with more than 72 bits. Ones to zeros."):
             n_bits = 74
             rng = np.random.default_rng(554)
             bs_mat = rng.integers(2, size=(1, n_bits), dtype=bool)
