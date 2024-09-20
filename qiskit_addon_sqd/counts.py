@@ -82,7 +82,7 @@ def generate_counts_uniform(
     bts_matrix = np.random.choice([0, 1], size=(num_samples, num_bits))
     for i in range(num_samples):
         bts_arr = bts_matrix[i, :].astype("int")
-        bts = np.array2string(bts_arr, separator="")[1:-1]
+        bts = "".join("1" if bit else "0" for bit in bts_arr)
         sample_dict[bts] = sample_dict.get(bts, 0) + 1
 
     return sample_dict
@@ -142,7 +142,7 @@ def generate_counts_bipartite_hamming(
         bts_arr[dn_flips] = 1
         bts_arr[up_flips + num_bits // 2] = 1
         bts_arr = bts_arr.astype("int")
-        bts = np.array2string(bts_arr, separator="")[1:-1]
+        bts = "".join("1" if bit else "0" for bit in bts_arr)
 
         # Add the bitstring to the sample dict
         sample_dict[bts] = sample_dict.get(bts, 0) + 1

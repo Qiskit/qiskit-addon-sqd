@@ -93,6 +93,21 @@ class TestConfigurationRecovery(unittest.TestCase):
             )
             self.assertTrue((expected_mat == mat_rec).all())
             self.assertTrue((expected_probs == probs_rec).all())
+        with self.subTest("Test with more than 72 bits. Ones to zeros."):
+            n_bits = 74
+            rng = np.random.default_rng(554)
+            bs_mat = rng.integers(2, size=(1, n_bits), dtype=bool)
+            probs = np.array([1.0])
+            occs = np.zeros(n_bits)
+            num_a = 0
+            num_b = 0
+            expected_mat = np.zeros((1, n_bits), dtype=bool)
+            expected_probs = np.array([1.0])
+            mat_rec, probs_rec = recover_configurations(
+                bs_mat, probs, occs, num_a, num_b, rand_seed=4224
+            )
+            self.assertTrue((expected_mat == mat_rec).all())
+            self.assertTrue((expected_probs == probs_rec).all())
         with self.subTest("Bad hamming."):
             bs_mat = np.array([[True, True, True, True]])
             probs = np.array([1.0])
