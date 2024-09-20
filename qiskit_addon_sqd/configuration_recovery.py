@@ -24,6 +24,7 @@ Functions for performing self-consistent configuration recovery.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Sequence
 
 import numpy as np
@@ -90,7 +91,7 @@ def recover_configurations(
 
     # First, we need to flip the orbitals such that
 
-    corrected_dict: dict[str, float] = {}
+    corrected_dict: defaultdict[str, float] = defaultdict(float)
     for bitstring, freq in zip(bitstring_matrix, probabilities, strict=False):
         bs_corrected = _bipartite_bitstring_correcting(
             bitstring,
@@ -100,7 +101,7 @@ def recover_configurations(
             rand_seed=rand_seed,
         )
         bs_str = np.array2string(bs_corrected.astype(int), separator="")[1:-1]
-        corrected_dict[bs_str] = corrected_dict.get(bs_str, 0.0) + freq
+        corrected_dict[bs_str] += freq
     bs_mat_out = np.array([[bit == "1" for bit in bs] for bs in corrected_dict])
     freqs_out = np.array([f for f in corrected_dict.values()])
     freqs_out = np.abs(freqs_out) / np.sum(np.abs(freqs_out))
