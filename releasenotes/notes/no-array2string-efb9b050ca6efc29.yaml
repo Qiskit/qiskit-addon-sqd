@@ -1,0 +1,4 @@
+---
+fixes:
+  - |
+    Fixes a bug that caused configuration recovery to fail on bitstrings of length greater than 72.
