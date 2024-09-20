@@ -19,7 +19,7 @@ Functions for the study of fermionic systems.
    :toctree: ../stubs/
    :nosignatures:
 
-   bitstring_matrix_to_sorted_addresses
+   bitstring_matrix_to_ci_strs
    enlarge_batch_from_transitions
    flip_orbital_occupancies
    solve_fermion
@@ -36,6 +36,7 @@ from jax import Array, config, grad, jit, vmap
 from jax import numpy as jnp
 from jax.scipy.linalg import expm
 from pyscf import fci
+from qiskit.utils import deprecate_func
 from scipy import linalg as LA
 
 config.update("jax_enable_x64", True)  # To deal with large integers
@@ -69,7 +70,7 @@ def solve_fermion(
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         open_shell: A flag specifying whether configurations from the left and right
-            halves of the bitstrings should be kept separate. If ``False``, addresses
+            halves of the bitstrings should be kept separate. If ``False``, CI strings
             from the left and right halves of the bitstrings are combined into a single
             set of unique configurations and used for both the alpha and beta subspaces.
         spin_sq: Target value for the total spin squared for the ground state.
@@ -83,9 +84,6 @@ def solve_fermion(
                 - SCI coefficients
                 - Average orbital occupancy
                 - Expectation value of spin-squared
-
-    Raises:
-            ValueError: The input determinant ``addresses`` must be non-empty, sorted arrays of integers.
     """
     if isinstance(bitstring_matrix, tuple):
         warnings.warn(
@@ -93,15 +91,15 @@ def solve_fermion(
             DeprecationWarning,
             stacklevel=2,
         )
-        addresses = bitstring_matrix
+        ci_strs = bitstring_matrix
     else:
         # This will become the default code path after the deprecation period.
-        addresses = bitstring_matrix_to_sorted_addresses(bitstring_matrix, open_shell=open_shell)
-        addresses = addresses[::-1]
-    addresses = _check_addresses(addresses)
+        ci_strs = bitstring_matrix_to_ci_strs(bitstring_matrix, open_shell=open_shell)
+        ci_strs = ci_strs[::-1]
+    ci_strs = _check_ci_strs(ci_strs)
 
-    num_up = format(addresses[0][0], "b").count("1")
-    num_dn = format(addresses[1][0], "b").count("1")
+    num_up = format(ci_strs[0][0], "b").count("1")
+    num_dn = format(ci_strs[1][0], "b").count("1")
 
     # Number of molecular orbitals
     norb = hcore.shape[0]
@@ -115,7 +113,7 @@ def solve_fermion(
         eri,
         norb,
         (num_up, num_dn),
-        ci_strs=addresses,
+        ci_strs=ci_strs,
         verbose=verbose,
         max_cycle=max_davidson,
     )
@@ -174,7 +172,7 @@ def optimize_orbitals(
             to be of shape (# orbitals, # orbitals) before being used as a
             similarity transform operator on the orbitals. Thus ``len(k_flat)=# orbitals**2``.
         open_shell: A flag specifying whether configurations from the left and right
-            halves of the bitstrings should be kept separate. If ``False``, addresses
+            halves of the bitstrings should be kept separate. If ``False``, CI strings
             from the left and right halves of the bitstrings are combined into a single
             set of unique configurations and used for both the alpha and beta subspaces.
         spin_sq: Target value for the total spin squared for the ground state
@@ -193,20 +191,20 @@ def optimize_orbitals(
     """
     if isinstance(bitstring_matrix, tuple):
         warnings.warn(
-            "Passing a length-2 tuple of sorted addresses to define the subspace is deprecated. Users "
+            "Passing a length-2 tuple of base-10 determinants to define the subspace is deprecated. Users "
             "should instead pass in the bitstring matrix defining the subspace.",
             DeprecationWarning,
             stacklevel=2,
         )
-        addresses = bitstring_matrix
+        ci_strs = bitstring_matrix
     else:
-        # Flip the output so the alpha addresses are on the left with [::-1]
-        addresses = bitstring_matrix_to_sorted_addresses(bitstring_matrix, open_shell=open_shell)
-        addresses = addresses[::-1]
-    addresses = _check_addresses(addresses)
+        # Flip the output so the alpha CI strs are on the left with [::-1]
+        ci_strs = bitstring_matrix_to_ci_strs(bitstring_matrix, open_shell=open_shell)
+        ci_strs = ci_strs[::-1]
+    ci_strs = _check_ci_strs(ci_strs)
 
-    num_up = format(addresses[0][0], "b").count("1")
-    num_dn = format(addresses[1][0], "b").count("1")
+    num_up = format(ci_strs[0][0], "b").count("1")
+    num_dn = format(ci_strs[1][0], "b").count("1")
 
     # TODO: Need metadata showing the optimization history
     ## hcore and eri in physicist ordering
@@ -227,7 +225,7 @@ def optimize_orbitals(
             eri_rot_chem,
             num_orbitals,
             (num_up, num_dn),
-            ci_strs=addresses,
+            ci_strs=ci_strs,
             max_cycle=max_davidson,
         )
 
@@ -303,6 +301,12 @@ def flip_orbital_occupancies(occupancies: np.ndarray) -> np.ndarray:
     return occ_out
 
 
+@deprecate_func(
+    removal_timeline="no sooner than qiskit-addon-sqd 0.8.0",
+    since="0.6.0",
+    package_name="qiskit-addon-sqd",
+    additional_msg="Use the bitstring_matrix_to_ci_strs function.",
+)
 def bitstring_matrix_to_sorted_addresses(
     bitstring_matrix: np.ndarray, open_shell: bool = False
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -324,8 +328,8 @@ def bitstring_matrix_to_sorted_addresses(
             and right bitstrings.
 
     Returns:
-        A length-2 tuple of sorted, unique base-10 determinant addresses representing the left
-        and right halves of the bitstrings, respectively.
+        A length-2 tuple of sorted, unique base-10 determinant addresses representing the
+        left (spin-down) and right (spin-up) halves of the bitstrings, respectively.
     """
     num_orbitals = bitstring_matrix.shape[1] // 2
     num_configs = bitstring_matrix.shape[0]
@@ -348,6 +352,53 @@ def bitstring_matrix_to_sorted_addresses(
         addresses_left = addresses_right = np.union1d(addresses_left, addresses_right)
 
     return addresses_left, addresses_right
+
+
+def bitstring_matrix_to_ci_strs(
+    bitstring_matrix: np.ndarray, open_shell: bool = False
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Convert bitstrings (rows) in a ``bitstring_matrix`` into base-10 integer representations of determinants.
+
+    This function separates each bitstring in ``bitstring_matrix`` in half, flips the
+    bits and translates them into integer representations, and finally appends them to
+    their respective (spin-up or spin-down) lists. Those lists are sorted and output
+    from this function.
+
+    Args:
+        bitstring_matrix: A 2D array of ``bool`` representations of bit
+            values such that each row represents a single bitstring
+        open_shell: A flag specifying whether unique configurations from the left and right
+            halves of the bitstrings should be kept separate. If ``False``, configurations
+            from the left and right halves of the bitstrings are combined into a single
+            set of unique configurations. That combined set will be returned for both the left
+            and right bitstrings.
+
+    Returns:
+        A length-2 tuple of sorted, unique base-10 determinants representing the
+        right (spin-up) and left (spin-down) halves of the bitstrings, respectively.
+    """
+    num_orbitals = bitstring_matrix.shape[1] // 2
+    num_configs = bitstring_matrix.shape[0]
+
+    ci_str_left = np.zeros(num_configs)
+    ci_str_right = np.zeros(num_configs)
+    bts_matrix_left = bitstring_matrix[:, :num_orbitals]
+    bts_matrix_right = bitstring_matrix[:, num_orbitals:]
+
+    # For performance, we accumulate the left and right CI strings together, column-wise,
+    # across the two halves of the input bitstring matrix.
+    for i in range(num_orbitals):
+        ci_str_left[:] += bts_matrix_left[:, i] * 2 ** (num_orbitals - 1 - i)
+        ci_str_right[:] += bts_matrix_right[:, i] * 2 ** (num_orbitals - 1 - i)
+
+    ci_strs_right = np.unique(ci_str_right.astype("longlong"))
+    ci_strs_left = np.unique(ci_str_left.astype("longlong"))
+
+    if not open_shell:
+        ci_strs_left = ci_strs_right = np.union1d(ci_strs_left, ci_strs_right)
+
+    return ci_strs_right, ci_strs_left
 
 
 def enlarge_batch_from_transitions(
@@ -376,17 +427,17 @@ def enlarge_batch_from_transitions(
     return np.array(bitstring_matrix_augmented)
 
 
-def _check_addresses(
-    addresses: tuple[np.ndarray, np.ndarray],
+def _check_ci_strs(
+    ci_strs: tuple[np.ndarray, np.ndarray],
 ) -> tuple[np.ndarray, np.ndarray]:
     """Make sure the hamming weight is consistent in all determinants."""
-    addr_up, addr_dn = addresses
+    addr_up, addr_dn = ci_strs
     addr_up_ham = format(addr_up[0], "b").count("1")
     for i, addr in enumerate(addr_up):
         ham = format(addr, "b").count("1")
         if ham != addr_up_ham:
             raise ValueError(
-                f"Spin-up address in index 0 has hamming weight {addr_up_ham}, but address in "
+                f"Spin-up CI string in index 0 has hamming weight {addr_up_ham}, but CI string in "
                 f"index {i} has hamming weight {ham}."
             )
     addr_dn_ham = format(addr_dn[0], "b").count("1")
@@ -394,7 +445,7 @@ def _check_addresses(
         ham = format(addr, "b").count("1")
         if ham != addr_dn_ham:
             raise ValueError(
-                f"Spin-down address in index 0 has hamming weight {addr_dn_ham}, but address in "
+                f"Spin-down CI string in index 0 has hamming weight {addr_dn_ham}, but CI string in "
                 f"index {i} has hamming weight {ham}."
             )
 
