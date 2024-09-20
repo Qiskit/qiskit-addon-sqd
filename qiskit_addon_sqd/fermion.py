@@ -192,8 +192,8 @@ def optimize_orbitals(
     """
     if isinstance(bitstring_matrix, tuple):
         warnings.warn(
-            "Passing a length-2 tuple of base-10 determinants to define the subspace is deprecated. Users "
-            "should instead pass in the bitstring matrix defining the subspace.",
+            "Passing a length-2 tuple of determinant lists to define the spin-up/down subspaces "
+            "is deprecated. Users should instead pass in the bitstring matrix defining the subspaces.",
             DeprecationWarning,
             stacklevel=2,
         )
