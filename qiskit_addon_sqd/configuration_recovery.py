@@ -202,21 +202,17 @@ def _bipartite_bitstring_correcting(
     probs_right = np.zeros(partition_size)
     for i in range(partition_size):
         if bit_array[i]:
-            probs_left[i] = _p_flip_1_to_0(
-                hamming_left / float(partition_size), avg_occupancies[i], 0.01
-            )
+            probs_left[i] = _p_flip_1_to_0(hamming_left / partition_size, avg_occupancies[i], 0.01)
         else:
-            probs_left[i] = _p_flip_0_to_1(
-                hamming_left / float(partition_size), avg_occupancies[i], 0.01
-            )
+            probs_left[i] = _p_flip_0_to_1(hamming_left / partition_size, avg_occupancies[i], 0.01)
 
         if bit_array[i + partition_size]:
             probs_right[i] = _p_flip_1_to_0(
-                hamming_right / float(partition_size), avg_occupancies[i], 0.01
+                hamming_right / partition_size, avg_occupancies[i], 0.01
             )
         else:
             probs_right[i] = _p_flip_0_to_1(
-                hamming_right / float(partition_size), avg_occupancies[i], 0.01
+                hamming_right / partition_size, avg_occupancies[i], 0.01
             )
 
     # Normalize
