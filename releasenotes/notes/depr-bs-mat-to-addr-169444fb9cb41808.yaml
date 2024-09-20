@@ -1,7 +1,7 @@
 ---
 deprecations:
   - |
-    The :func:`qiskit_addon_sqd.fermion.bitstring_matrix_to_sorted_addresses`_ function has been deprecated in favor of :func:`qiskit_addon_sqd.fermion.bitstring_matrix_to_ci_strs`_. These two functions behave the same with one key exception -- :func:`qiskit_addon_sqd.fermion.bitstring_matrix_to_sorted_addresses`_ returns the configurations as ``tuple(spin_dn, spin_up)``; whereas, :func:`qiskit_addon_sqd.fermion.bitstring_matrix_to_ci_strs`_ returns the configurations as ``tuple(spin_up, spin_dn)``.
+    The :func:`qiskit_addon_sqd.fermion.bitstring_matrix_to_sorted_addresses` function has been deprecated in favor of :func:`qiskit_addon_sqd.fermion.bitstring_matrix_to_ci_strs`. These two functions behave the same with one key exception -- :func:`qiskit_addon_sqd.fermion.bitstring_matrix_to_sorted_addresses` returns the configurations as ``tuple(spin_dn, spin_up)``; whereas, :func:`qiskit_addon_sqd.fermion.bitstring_matrix_to_ci_strs` returns the configurations as ``tuple(spin_up, spin_dn)``.
 
     To migrate
 

@@ -25,6 +25,7 @@ Functions for the study of fermionic systems.
    solve_fermion
    optimize_orbitals
    rotate_integrals
+   bitstring_matrix_to_sorted_addresses
 """
 
 from __future__ import annotations
