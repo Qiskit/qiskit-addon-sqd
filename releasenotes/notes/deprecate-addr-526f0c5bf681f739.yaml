@@ -1,7 +1,7 @@
 ---
 deprecations:
   - |
-    The ``addressess`` argument to :func:`qiskit_addon_sqd.fermion.solve_fermion` and :func:`qiskit_addon_sqd.fermion.optimize_orbitals` has been deprecated in favor of ``bitstring_matrix``. Users are no longer required to convert their configurations to integers; instead, they should now pass in the bitstring matrix specifying the subspace onto which to project and diagonalize the Hamiltonian. The conversion to determinant addresses will be done internally.
+    The ``addresses`` argument to :func:`qiskit_addon_sqd.fermion.solve_fermion` and :func:`qiskit_addon_sqd.fermion.optimize_orbitals` has been deprecated in favor of ``bitstring_matrix``. Users are no longer required to convert their configurations to integers; instead, they should now pass in the bitstring matrix specifying the subspace onto which to project and diagonalize the Hamiltonian. The conversion to the integer representation of determinants will be done internally.
 upgrade:
   - |
     Specifying ``addresses`` as a keyword argument to :func:`qiskit_addon_sqd.fermion.solve_fermion` and :func:`qiskit_addon_sqd.fermion.optimize_orbitals` is no longer supported. Users may still pass ``addresses`` as the first positional argument; however, this usage is deprecated. Users are encouraged to pass the bitstring matrix defining the subspace as the first positional arguments to these functions, as shown below.
