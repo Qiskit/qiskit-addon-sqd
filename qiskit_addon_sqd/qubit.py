@@ -156,9 +156,9 @@ def sort_and_remove_duplicates(bitstring_matrix: np.ndarray, inplace: bool = Tru
     if not inplace:
         bitstring_matrix = bitstring_matrix.copy()
 
-    base_10 = _base_10_conversion_from_bts_matrix_vmap(bitstring_matrix)
+    bsmat_asints = _int_conversion_from_bts_matrix_vmap(bitstring_matrix)
 
-    _, indices = np.unique(base_10, return_index=True)
+    _, indices = np.unique(bsmat_asints, return_index=True)
 
     return bitstring_matrix[indices, :]
 
@@ -205,21 +205,21 @@ def matrix_elements_from_pauli(
 
     diag, sign, imag = _pauli_to_bool(pauli.to_label()[::-1])
 
-    base_10_array_rows = _base_10_conversion_from_bts_matrix_vmap(bitstring_matrix)
+    int_array_rows = _int_conversion_from_bts_matrix_vmap(bitstring_matrix)
 
     bs_mat_conn, matrix_elements = _connected_elements_and_amplitudes_bool_vmap(
         bitstring_matrix, diag, sign, imag
     )
 
-    base_10_array_cols = _base_10_conversion_from_bts_matrix_vmap(bs_mat_conn)
+    int_array_cols = _int_conversion_from_bts_matrix_vmap(bs_mat_conn)
 
-    indices = np.isin(base_10_array_cols, base_10_array_rows, assume_unique=True, kind="sort")
+    indices = np.isin(int_array_cols, int_array_rows, assume_unique=True, kind="sort")
 
     matrix_elements = matrix_elements[indices]
     row_array = row_array[indices]
-    base_10_array_cols = base_10_array_cols[indices]
+    int_array_cols = int_array_cols[indices]
 
-    col_array = np.searchsorted(base_10_array_rows, base_10_array_cols)
+    col_array = np.searchsorted(int_array_rows, int_array_cols)
 
     return matrix_elements, row_array, col_array
 
@@ -301,9 +301,9 @@ _connected_elements_and_amplitudes_bool_vmap = jit(
 )
 
 
-def _base_10_conversion_from_bts_array(bit_array: np.ndarray) -> Any:
+def _int_conversion_from_bts_array(bit_array: np.ndarray) -> Any:
     """
-    Convert a bit array to a base-10 representation.
+    Convert a bit array to an integer representation.
 
     NOTE: This can only handle up to 63 qubits. Then the integer will overflow
 
@@ -311,14 +311,14 @@ def _base_10_conversion_from_bts_array(bit_array: np.ndarray) -> Any:
         bit_array: A 1D array of ``bool`` representations of bit values.
 
     Returns:
-        Base-10 representation of the bit array.
+        Integer representation of the bit array.
     """
     n_qubits = len(bit_array)
-    base_10_array = 0.0
+    bitarray_asint = 0.0
     for i in range(n_qubits):
-        base_10_array = base_10_array + bit_array[i] * 2 ** (n_qubits - 1 - i)
+        bitarray_asint = bitarray_asint + bit_array[i] * 2 ** (n_qubits - 1 - i)
 
-    return base_10_array.astype("longlong")  # type: ignore
+    return bitarray_asint.astype("longlong")  # type: ignore
 
 
-_base_10_conversion_from_bts_matrix_vmap = jit(vmap(_base_10_conversion_from_bts_array, 0, 0))
+_int_conversion_from_bts_matrix_vmap = jit(vmap(_int_conversion_from_bts_array, 0, 0))
