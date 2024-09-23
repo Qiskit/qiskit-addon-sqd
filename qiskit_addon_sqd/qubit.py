@@ -73,7 +73,7 @@ def solve_qubit(
     if bitstring_matrix.shape[1] > 63:
         raise ValueError("Bitstrings (rows) in bitstring_matrix must have length < 64.")
 
-    # Projection requires the bitstring matrix be sorted in accordance with its base-10 representation
+    # Projection requires the bitstring matrix be sorted in ascending order by their unsigned integer representation
     bitstring_matrix = sort_and_remove_duplicates(bitstring_matrix)
 
     # Get a sparse representation of the projected operator
@@ -170,8 +170,8 @@ def matrix_elements_from_pauli(
     Find the matrix elements of a Pauli operator in the subspace defined by the bitstrings.
 
     .. note::
-       The bitstrings in the ``bitstring_matrix`` must be sorted and unique according
-       to their base-10 CI string representation. Otherwise the projection will return wrong
+       The bitstrings in the ``bitstring_matrix`` must be unique and sorted in ascending order
+       according to their unsigned integer representation. Otherwise the projection will return wrong
        results. This function does not explicitly check for uniqueness and order because
        this can be rather time consuming. See :func:`qiskit_addon_sqd.qubit.sort_and_remove_duplicates`
        for a simple way to ensure your bitstring matrix is well-formatted.
@@ -185,7 +185,7 @@ def matrix_elements_from_pauli(
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring.
             The bitstrings in the matrix must be sorted according to
-            their base-10 representation. Otherwise the projection will return
+            their unsigned integer representations. Otherwise the projection will return
             wrong results.
         pauli: A Pauli operator.
 
