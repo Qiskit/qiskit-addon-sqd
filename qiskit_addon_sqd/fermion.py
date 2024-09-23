@@ -312,7 +312,7 @@ def bitstring_matrix_to_sorted_addresses(
     bitstring_matrix: np.ndarray, open_shell: bool = False
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Convert a bitstring matrix into a sorted array of unique, unsigned base-10 representations.
+    Convert a bitstring matrix into a sorted array of unique, unsigned integers.
 
     This function separates each bitstring in ``bitstring_matrix`` in half, flips the
     bits and translates them into integer representations, and finally appends them to
@@ -329,8 +329,8 @@ def bitstring_matrix_to_sorted_addresses(
             and right bitstrings.
 
     Returns:
-        A length-2 tuple of sorted, unique base-10 determinant addresses representing the
-        left (spin-down) and right (spin-up) halves of the bitstrings, respectively.
+        A length-2 tuple of sorted, unique determinants representing the left (spin-down) and
+        right (spin-up) halves of the bitstrings, respectively.
     """
     num_orbitals = bitstring_matrix.shape[1] // 2
     num_configs = bitstring_matrix.shape[0]
