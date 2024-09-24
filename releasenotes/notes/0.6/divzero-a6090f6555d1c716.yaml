@@ -1,0 +1,4 @@
+---
+fixes:
+  - |
+    Fixed a bug in :func:`qiskit_addon_sqd.configuration_recovery.recover_configurations` which would sometimes cause a divide-by-zero error when calculating individual bit-flip probability.

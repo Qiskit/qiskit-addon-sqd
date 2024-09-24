@@ -7,8 +7,10 @@ deprecations:
 
     .. code-block:: python
         
-        from qiskit_addon_sqd.fermion.bitstring_matrix_to_sorted_addresses
-        from qiskit_addon_sqd.fermion.bitstring_matrix_to_ci_strs
+        from qiskit_addon_sqd.fermion import (
+            bitstring_matrix_to_sorted_addresses,
+            bitstring_matrix_to_ci_strs,
+        )
 
         # DEPRECATED CODE
         bs_matrix = ...
