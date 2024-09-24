@@ -9,9 +9,13 @@ upgrade:
     To upgrade, change this code
 
     .. code-block:: python
-
-        from qiskit_addon_sqd.fermion import bitstring_matrix_to_sorted_addresses
-        from qiskit_addon_sqd.fermion import solve_fermion, optimize_orbitals
+        
+        # DEPRECATED CODE
+        from qiskit_addon_sqd.fermion import (
+            bitstring_matrix_to_sorted_addresses,
+            solve_fermion,
+            optimize_orbitals,
+        )
 
         bitstring_matrix = ...
         addresses = bitstring_matrix_to_sorted_addresses(bitstring_matrix, open_shell=open_shell)
@@ -27,10 +31,9 @@ upgrade:
                                       eri=eri,
                                   )
 
-    ...to this code
+        ### SHOULD BECOME ###
 
-    .. code-block:: python
-
+        # NEW CODE
         from qiskit_addon_sqd.fermion import solve_fermion, optimize_orbitals
 
         bitstring_matrix = ...
