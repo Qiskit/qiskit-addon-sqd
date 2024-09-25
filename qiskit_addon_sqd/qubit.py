@@ -203,7 +203,9 @@ def matrix_elements_from_pauli(
     d, n_qubits = bitstring_matrix.shape
     row_array = np.arange(d)
 
-    diag, sign, imag = _pauli_to_bool(pauli.to_label()[::-1])
+    diag = np.logical_not(pauli.x)
+    sign = pauli.z
+    imag = np.logical_and(pauli.x, pauli.z)
 
     int_array_rows = _int_conversion_from_bts_matrix_vmap(bitstring_matrix)
 
@@ -222,47 +224,6 @@ def matrix_elements_from_pauli(
     col_array = np.searchsorted(int_array_rows, int_array_cols)
 
     return matrix_elements, row_array, col_array
-
-
-def _pauli_to_bool(pauli_str: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Transform sequences of Pauli strings into arrays.
-
-    A Pauli operator will be transformed into 3 arrays which represent
-    the diagonal terms of the Pauli operator.
-
-    Args:
-        pauli_str: A Pauli string such that index ``0`` corresponds to qubit ``0``.
-
-    Returns:
-        A 3-tuple:
-            - A mask signifying the diagonal Pauli terms (I, Z).
-            - A mask signifying whether there is a change in sign between the two rows
-                of the Pauli matrix (Y, Z).
-            - A mask signifying whether the Pauli matrix elements are purely imaginary.
-    """
-    diag = []
-    sign = []
-    imag = []
-    for p in pauli_str:
-        if p == "I":
-            diag.append(True)
-            sign.append(False)
-            imag.append(False)
-        if p == "X":
-            diag.append(False)
-            sign.append(False)
-            imag.append(False)
-        if p == "Y":
-            diag.append(False)
-            sign.append(True)
-            imag.append(True)
-        if p == "Z":
-            diag.append(True)
-            sign.append(True)
-            imag.append(False)
-
-    return np.array(diag), np.array(sign), np.array(imag)
 
 
 def _connected_elements_and_amplitudes_bool(
