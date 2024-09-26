@@ -190,10 +190,15 @@ def matrix_elements_from_pauli(
         pauli: A Pauli operator.
 
     Returns:
-        A 1D array corresponding to the nonzero matrix elements
-        A 1D array corresponding to the row indices of the elements
-        A 1D array corresponding to the column indices of the elements
+        - An array of ``amplitudes`` corresponding to the nonzero bitstring matrix elements
+        - An array of ``input_configuration_ids`` specifying which configurations
+          (bitstring matrix rows) are connected elements of the Pauli operator.
+        - An array of ``connected element ids`` mapping the amplitudes to their respective
+          input configuration. For example:
 
+          ``amplitudes[i]`` is associated with the input configuration (row) at index
+          ``input_config_ids[connected_element_ids[i]]``
+        
     Raises:
         ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
     """
@@ -201,29 +206,36 @@ def matrix_elements_from_pauli(
         raise ValueError("Bitstrings (rows) in bitstring_matrix must have length < 64.")
 
     d, n_qubits = bitstring_matrix.shape
-    row_array = np.arange(d)
+    row_ids = np.arange(d)
 
+    # Get a qubit-wise representation of the Pauli properties
     diag = np.logical_not(pauli.x)
     sign = pauli.z
     imag = np.logical_and(pauli.x, pauli.z)
-
+    
+    # Convert bitstrings to integers
     int_array_rows = _int_conversion_from_bts_matrix_vmap(bitstring_matrix)
 
-    bs_mat_conn, matrix_elements = _connected_elements_and_amplitudes_bool_vmap(
+    # The bitstrings in bs_mat_conn are "agreement maps" between the original bitstring
+    # and the "diag" operator mask, which guarantees they are unique, since the original
+    # bitstring matrix is expected to be unique.
+    bs_mat_conn, amplitudes = _connected_elements_and_amplitudes_bool_vmap(
         bitstring_matrix, diag, sign, imag
     )
+    # After we calculate the "connected elements" above, we will get the indices
+    # of connected elements which appeared in the original set of samples
+    int_array_conn = _int_conversion_from_bts_matrix_vmap(bs_mat_conn)
+    conn_ele_mask = np.isin(int_array_conn, int_array_rows, assume_unique=True, kind="sort")
 
-    int_array_cols = _int_conversion_from_bts_matrix_vmap(bs_mat_conn)
+    # Retain configurations which are represented both in the original samples and connected elements
+    amplitudes = amplitudes[conn_ele_mask]
+    int_array_conn = int_array_conn[conn_ele_mask]
+    row_ids = row_ids[conn_ele_mask]
 
-    indices = np.isin(int_array_cols, int_array_rows, assume_unique=True, kind="sort")
+    # Get indices in which int_array_conn should be placed in int_array_rows to maintain order
+    col_array = np.searchsorted(int_array_rows, int_array_conn)
 
-    matrix_elements = matrix_elements[indices]
-    row_array = row_array[indices]
-    int_array_cols = int_array_cols[indices]
-
-    col_array = np.searchsorted(int_array_rows, int_array_cols)
-
-    return matrix_elements, row_array, col_array
+    return amplitudes, row_ids, col_array
 
 
 def _connected_elements_and_amplitudes_bool(

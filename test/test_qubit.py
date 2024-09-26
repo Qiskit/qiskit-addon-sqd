@@ -16,5 +16,5 @@ import unittest
 
 
 class TestQubit(unittest.TestCase):
-    def test_qubit(self):
-        pass
+    def test_matrix_elements_from_pauli(self):
+        
