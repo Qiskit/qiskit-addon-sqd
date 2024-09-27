@@ -14,7 +14,27 @@
 
 import unittest
 
+import numpy as np
+from qiskit.quantum_info import Pauli
+from qiskit_addon_sqd.qubit import matrix_elements_from_pauli
+
 
 class TestQubit(unittest.TestCase):
     def test_matrix_elements_from_pauli(self):
-        
+        with self.subTest("Basic test"):
+            pauli = Pauli("XZ")
+            bs_mat = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+            # Flip sign on 1's corresponding to diagonal operator terms
+            # Add an imaginary factor to all qubit msmts corresponding to Y terms
+            # Take product of all terms to get component amplitude
+            amps_test = np.array([(1 + 0j), (-1 + 0j), (1 + 0j), (-1 + 0j)])
+            # All rows represent a connected component to the operator
+            rows_test = np.array([0, 1, 2, 3])
+            # All columns represent a connected component to the operator
+            cols_test = np.array([2, 3, 0, 1])
+
+            amps, rows, cols = matrix_elements_from_pauli(bs_mat, pauli)
+
+            self.assertTrue((amps_test == amps).all())
+            self.assertTrue((rows_test == rows).all())
+            self.assertTrue((cols_test == cols).all())
