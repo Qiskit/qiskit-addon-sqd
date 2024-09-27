@@ -167,7 +167,7 @@ def matrix_elements_from_pauli(
     bitstring_matrix: np.ndarray, pauli: Pauli
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Find the matrix elements of a Pauli operator in the subspace defined by the bitstrings.
+    Find the sparse matrix elements of a Pauli operator in the subspace defined by the bitstrings.
 
     .. note::
        The bitstrings in the ``bitstring_matrix`` must be unique and sorted in ascending order
@@ -187,17 +187,12 @@ def matrix_elements_from_pauli(
             The bitstrings in the matrix must be sorted according to
             their unsigned integer representations. Otherwise the projection will return
             wrong results.
-        pauli: A Pauli operator.
+        pauli: A Pauli operator for which to find connected elements
 
     Returns:
-        - An array of ``amplitudes`` corresponding to the nonzero bitstring matrix elements
-        - An array of ``input_configuration_ids`` specifying which configurations
-          (bitstring matrix rows) are connected elements of the Pauli operator.
-        - An array of ``connected element ids`` mapping the amplitudes to their respective
-          input configuration. For example:
-
-          ``amplitudes[i]`` is associated with the input configuration (row) at index
-          ``input_config_ids[connected_element_ids[i]]``
+        - An array of amplitudes corresponding to the nonzero matrix elements
+        - The row indices corresponding to non-zero matrix elements
+        - The column indices corresponding to non-zero matrix elements
 
     Raises:
         ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
@@ -232,7 +227,7 @@ def matrix_elements_from_pauli(
     int_array_conn = int_array_conn[conn_ele_mask]
     row_ids = row_ids[conn_ele_mask]
 
-    # Get indices in which int_array_conn should be placed in int_array_rows to maintain order
+    # Get column indices of non-zero matrix elements
     col_array = np.searchsorted(int_array_rows, int_array_conn)
 
     return amplitudes, row_ids, col_array
