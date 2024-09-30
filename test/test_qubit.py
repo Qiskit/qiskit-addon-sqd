@@ -14,11 +14,11 @@
 
 import unittest
 
-import pytest
 import numpy as np
+import pytest
+from qiskit.quantum_info import Pauli, SparsePauliOp
+from qiskit_addon_sqd.qubit import matrix_elements_from_pauli, project_operator_to_subspace
 from scipy.sparse import coo_matrix
-from qiskit.quantum_info import SparsePauliOp, Pauli
-from qiskit_addon_sqd.qubit import project_operator_to_subspace, matrix_elements_from_pauli
 
 
 class TestQubit(unittest.TestCase):
