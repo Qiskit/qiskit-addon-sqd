@@ -109,7 +109,7 @@ def project_operator_to_subspace(
             values such that each row represents a single bitstring. This set of
             bitstrings specifies the subspace into which the ``hamiltonian`` will be
             projected and diagonalized.
-        operator: A Pauli operator to project onto a Hilbert subspace defined by ``bitstring_matrix``.
+        hamiltonian: A Pauli operator to project onto a Hilbert subspace defined by ``bitstring_matrix``.
         verbose: Whether to print the stage of the subroutine.
 
     Return:
