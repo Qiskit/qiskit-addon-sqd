@@ -94,21 +94,29 @@ def project_operator_to_subspace(
     verbose: bool = False,
 ) -> spmatrix:
     """
-    Projects a Pauli operator into a subspace.
+    Project a Pauli operator onto a Hilbert subspace defined by the computational basis states (rows) in ``bitstring_matrix``.
 
-    The subspace is defined by a collection of computational basis states, which
-    are specified by the bitstrings (rows) in ``bitstring_matrix``.
+    The output sparse matrix, ``A``, represents an ``NxN`` matrix s.t. ``N`` is the number of rows
+    in ``bitstring_matrix``. The rows of ``A`` represent the input configurations, and the columns
+    represent the connected component associated with the configuration in the corresponding row. The
+    non-zero elements of the matrix represent the complex amplitudes associated with the connected components.
+
+    The subspace is defined by a collection of computational basis states, which are specified by the bitstrings
+    (rows) in ``bitstring_matrix``.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring. This set of
             bitstrings specifies the subspace into which the ``hamiltonian`` will be
             projected and diagonalized.
-        hamiltonian: A Hamiltonian specified as a Pauli operator.
-        verbose: whether to print the stage of the subroutine.
+        operator: A Pauli operator to project onto a Hilbert subspace defined by ``bitstring_matrix``.
+        verbose: Whether to print the stage of the subroutine.
 
     Return:
-        A `scipy.sparse.coo_matrix <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html#coo-matrix>`_ representing the operator projected in the subspace.
+        A `scipy.sparse.coo_matrix <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html#coo-matrix>`_ representing the operator projected in the subspace. The rows
+        represent the input configurations, and the columns represent the connected component associated with the
+        configuration in the corresponding row. The non-zero elements of the matrix represent the complex amplitudes
+        associated with the pairs of connected components.
 
     Raises:
         ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
@@ -169,6 +177,13 @@ def matrix_elements_from_pauli(
     """
     Find the sparse matrix elements of a Pauli operator in the subspace defined by the bitstrings.
 
+    The sparse matrix, ``A``, defined by the outputs represents an ``NxN`` matrix s.t. ``N`` is the number
+    of rows in ``bitstring_matrix``. The rows of ``A`` represent the input configurations, and the columns
+    represent the connected component associated with the configuration in the corresponding row. The output
+    arrays define the sparse matrix, ``A``, as follows:
+
+    ``A[rows[k], cols[k]] = amplutides[k]``.
+
     .. note::
        The bitstrings in the ``bitstring_matrix`` must be unique and sorted in ascending order
        according to their unsigned integer representation. Otherwise the projection will return wrong
@@ -184,13 +199,12 @@ def matrix_elements_from_pauli(
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring.
-            The bitstrings in the matrix must be sorted according to
-            their unsigned integer representations. Otherwise the projection will return
-            wrong results.
+            The bitstrings in the matrix must be sorted according to their unsigned integer representations.
+            Otherwise the projection will return wrong results.
         pauli: A Pauli operator for which to find connected elements
 
     Returns:
-        - An array of amplitudes corresponding to the nonzero matrix elements
+        - The complex amplitudes corresponding to the nonzero matrix elements
         - The row indices corresponding to non-zero matrix elements
         - The column indices corresponding to non-zero matrix elements
 

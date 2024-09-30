@@ -16,11 +16,49 @@ import unittest
 
 import pytest
 import numpy as np
-from qiskit.quantum_info import Pauli
-from qiskit_addon_sqd.qubit import matrix_elements_from_pauli
+from scipy.sparse import coo_matrix
+from qiskit.quantum_info import SparsePauliOp, Pauli
+from qiskit_addon_sqd.qubit import project_operator_to_subspace, matrix_elements_from_pauli
 
 
 class TestQubit(unittest.TestCase):
+    def test_project_operator_to_subspace(self):
+        with self.subTest("Basic test"):
+            op = SparsePauliOp("XZIY", coeffs=[0.5])
+            bs_mat = np.array(
+                [
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 1],
+                    [0, 0, 1, 0],
+                    [0, 0, 1, 1],
+                    [0, 1, 0, 0],
+                    [1, 0, 0, 0],
+                    [1, 1, 0, 0],
+                ]
+            )
+            # Flip sign on 1's corresponding to Z operator terms
+            # Add an imaginary factor to all qubit msmts corresponding to Y terms
+            # Take product of all terms to get component amplitude
+            amps_test = np.array([(-0.5j), (0.5j)])
+            rows_test = np.array([1, 5])
+            cols_test = np.array([5, 1])
+            num_configs = bs_mat.shape[0]
+            coo_matrix_test = coo_matrix(
+                (amps_test, (rows_test, cols_test)), (num_configs, num_configs)
+            )
+            coo_mat = project_operator_to_subspace(bs_mat, op)
+            self.assertTrue(np.allclose(coo_matrix_test.data, coo_mat.data))
+            self.assertEqual(coo_matrix_test.shape, coo_mat.shape)
+        with self.subTest("64 qubits"):
+            op = SparsePauliOp("Z" * 64)
+            bs_mat = np.array([[1] * 64])
+            with pytest.raises(ValueError) as e_info:
+                project_operator_to_subspace(bs_mat, op)
+            assert (
+                e_info.value.args[0]
+                == "Bitstrings (rows) in bitstring_matrix must have length < 64."
+            )
+
     def test_matrix_elements_from_pauli(self):
         with self.subTest("Basic test"):
             pauli = Pauli("XZ")
@@ -41,7 +79,17 @@ class TestQubit(unittest.TestCase):
             self.assertTrue((cols_test == cols).all())
         with self.subTest("All Paulis"):
             pauli = Pauli("XZIY")
-            bs_mat = np.array([[0, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0], [0, 0, 1, 1], [0, 1, 0, 0], [1, 0, 0, 0], [1, 1, 0, 0]])
+            bs_mat = np.array(
+                [
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 1],
+                    [0, 0, 1, 0],
+                    [0, 0, 1, 1],
+                    [0, 1, 0, 0],
+                    [1, 0, 0, 0],
+                    [1, 1, 0, 0],
+                ]
+            )
             # Flip sign on 1's corresponding to Z operator terms
             # Add an imaginary factor to all qubit msmts corresponding to Y terms
             # Take product of all terms to get component amplitude
@@ -53,8 +101,11 @@ class TestQubit(unittest.TestCase):
             self.assertTrue(np.allclose(rows_test, rows))
             self.assertTrue(np.allclose(cols_test, cols))
         with self.subTest("64 qubits"):
-            pauli = Pauli("Z"*64)
-            bs_mat = np.array([[1]*64])
+            pauli = Pauli("Z" * 64)
+            bs_mat = np.array([[1] * 64])
             with pytest.raises(ValueError) as e_info:
                 matrix_elements_from_pauli(bs_mat, pauli)
-            assert e_info.value.args[0] == "Bitstrings (rows) in bitstring_matrix must have length < 64."
+            assert (
+                e_info.value.args[0]
+                == "Bitstrings (rows) in bitstring_matrix must have length < 64."
+            )
