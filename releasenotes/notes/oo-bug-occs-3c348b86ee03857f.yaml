@@ -1,0 +1,4 @@
+---
+fixes:
+  - |
+    Fixed a bug in open-shell workflows where the spin-up/spin-down average orbital occupancies returned from :func:`qiskit_addon_sqd.fermion.optimize_orbitals` both reflected the occupancies of the alpha particles, rather than returning the occupancies of the alpha and beta particles.
