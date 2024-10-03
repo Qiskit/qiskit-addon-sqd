@@ -80,7 +80,7 @@ def solve_qubit(
     d, _ = bitstring_matrix.shape
     ham_proj = project_operator_to_subspace(bitstring_matrix, hamiltonian, verbose=verbose)
 
-    if verbose:
+    if verbose:  # pragma: no cover
         print("Diagonalizing Hamiltonian in the subspace...")
     energies, eigenstates = eigsh(ham_proj, **scipy_kwargs)
 
@@ -129,7 +129,7 @@ def project_operator_to_subspace(
 
     for i, pauli in enumerate(hamiltonian.paulis):
         coefficient = hamiltonian.coeffs[i]
-        if verbose:
+        if verbose:  # pragma: no cover
             (
                 print(
                     f"Projecting term {i+1} out of {hamiltonian.size}: {coefficient} * "
@@ -147,7 +147,7 @@ def project_operator_to_subspace(
     return operator
 
 
-def sort_and_remove_duplicates(bitstring_matrix: np.ndarray, inplace: bool = True) -> np.ndarray:
+def sort_and_remove_duplicates(bitstring_matrix: np.ndarray) -> np.ndarray:
     """
     Sort a bitstring matrix and remove duplicate entries.
 
@@ -156,14 +156,10 @@ def sort_and_remove_duplicates(bitstring_matrix: np.ndarray, inplace: bool = Tru
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring.
-        inplace: Whether to modify the input array in place.
 
     Returns:
         Sorted version of ``bitstring_matrix`` without repeated rows.
     """
-    if not inplace:
-        bitstring_matrix = bitstring_matrix.copy()
-
     bsmat_asints = _int_conversion_from_bts_matrix_vmap(bitstring_matrix)
 
     _, indices = np.unique(bsmat_asints, return_index=True)
