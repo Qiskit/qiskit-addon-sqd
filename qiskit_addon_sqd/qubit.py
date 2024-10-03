@@ -101,9 +101,6 @@ def project_operator_to_subspace(
     represent the connected component associated with the configuration in the corresponding row. The
     non-zero elements of the matrix represent the complex amplitudes associated with the connected components.
 
-    The subspace is defined by a collection of computational basis states, which are specified by the bitstrings
-    (rows) in ``bitstring_matrix``.
-
     .. note::
        The bitstrings in the ``bitstring_matrix`` must be unique and sorted in ascending order
        according to their unsigned integer representation. Otherwise the projection will return wrong
