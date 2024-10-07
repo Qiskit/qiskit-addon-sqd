@@ -233,7 +233,7 @@ def optimize_orbitals(
         # Generate the one and two-body reduced density matrices from latest wavefunction amplitudes
         dm1, dm2_chem = myci.make_rdm12(amplitudes, num_orbitals, (num_up, num_dn))
         dm2 = np.asarray(dm2_chem.transpose(0, 2, 3, 1), order="C")
-        dm1a, dm2b = myci.make_rdm1s(amplitudes, num_orbitals, (num_up, num_dn))
+        dm1a, dm1b = myci.make_rdm1s(amplitudes, num_orbitals, (num_up, num_dn))
 
         # TODO: Expose the momentum parameter as an input option
         # Optimize the basis rotations
@@ -241,7 +241,7 @@ def optimize_orbitals(
             k_flat, learning_rate, 0.9, num_steps_grad, dm1, dm2, hcore, eri_phys
         )
 
-    return e_qsci, k_flat, [np.diagonal(dm1a), np.diagonal(dm2b)]
+    return e_qsci, k_flat, [np.diagonal(dm1a), np.diagonal(dm1b)]
 
 
 def rotate_integrals(
