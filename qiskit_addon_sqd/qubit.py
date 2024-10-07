@@ -80,7 +80,7 @@ def solve_qubit(
     d, _ = bitstring_matrix.shape
     ham_proj = project_operator_to_subspace(bitstring_matrix, hamiltonian, verbose=verbose)
 
-    if verbose:
+    if verbose:  # pragma: no cover
         print("Diagonalizing Hamiltonian in the subspace...")
     energies, eigenstates = eigsh(ham_proj, **scipy_kwargs)
 
@@ -94,21 +94,38 @@ def project_operator_to_subspace(
     verbose: bool = False,
 ) -> spmatrix:
     """
-    Projects a Pauli operator into a subspace.
+    Project a Pauli operator onto a Hilbert subspace defined by the computational basis states (rows) in ``bitstring_matrix``.
 
-    The subspace is defined by a collection of computational basis states, which
-    are specified by the bitstrings (rows) in ``bitstring_matrix``.
+    The output sparse matrix, ``A``, represents an ``NxN`` matrix s.t. ``N`` is the number of rows
+    in ``bitstring_matrix``. The rows of ``A`` represent the input configurations, and the columns
+    represent the connected component associated with the configuration in the corresponding row. The
+    non-zero elements of the matrix represent the complex amplitudes associated with the connected components.
+
+    .. note::
+       The bitstrings in the ``bitstring_matrix`` must be unique and sorted in ascending order
+       according to their unsigned integer representation. Otherwise the projection will return wrong
+       results. This function does not explicitly check for uniqueness and order because
+       this can be rather time consuming. See :func:`qiskit_addon_sqd.qubit.sort_and_remove_duplicates`
+       for a simple way to ensure your bitstring matrix is well-formatted.
+
+    .. note::
+       This function relies on ``jax`` to efficiently perform some calculations. ``jax``
+       converts the bit arrays to ``int64_t``, which means the bit arrays in
+       ``bitstring_matrix`` may not have length greater than ``63``.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring. This set of
             bitstrings specifies the subspace into which the ``hamiltonian`` will be
             projected and diagonalized.
-        hamiltonian: A Hamiltonian specified as a Pauli operator.
-        verbose: whether to print the stage of the subroutine.
+        hamiltonian: A Pauli operator to project onto a Hilbert subspace defined by ``bitstring_matrix``.
+        verbose: Whether to print the stage of the subroutine.
 
     Return:
-        A `scipy.sparse.coo_matrix <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html#coo-matrix>`_ representing the operator projected in the subspace.
+        A `scipy.sparse.coo_matrix <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html#coo-matrix>`_ representing the operator projected in the subspace. The rows
+        represent the input configurations, and the columns represent the connected component associated with the
+        configuration in the corresponding row. The non-zero elements of the matrix represent the complex amplitudes
+        associated with the pairs of connected components.
 
     Raises:
         ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
@@ -121,7 +138,7 @@ def project_operator_to_subspace(
 
     for i, pauli in enumerate(hamiltonian.paulis):
         coefficient = hamiltonian.coeffs[i]
-        if verbose:
+        if verbose:  # pragma: no cover
             (
                 print(
                     f"Projecting term {i+1} out of {hamiltonian.size}: {coefficient} * "
@@ -139,7 +156,7 @@ def project_operator_to_subspace(
     return operator
 
 
-def sort_and_remove_duplicates(bitstring_matrix: np.ndarray, inplace: bool = True) -> np.ndarray:
+def sort_and_remove_duplicates(bitstring_matrix: np.ndarray) -> np.ndarray:
     """
     Sort a bitstring matrix and remove duplicate entries.
 
@@ -148,14 +165,10 @@ def sort_and_remove_duplicates(bitstring_matrix: np.ndarray, inplace: bool = Tru
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring.
-        inplace: Whether to modify the input array in place.
 
     Returns:
         Sorted version of ``bitstring_matrix`` without repeated rows.
     """
-    if not inplace:
-        bitstring_matrix = bitstring_matrix.copy()
-
     bsmat_asints = _int_conversion_from_bts_matrix_vmap(bitstring_matrix)
 
     _, indices = np.unique(bsmat_asints, return_index=True)
@@ -167,7 +180,14 @@ def matrix_elements_from_pauli(
     bitstring_matrix: np.ndarray, pauli: Pauli
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Find the matrix elements of a Pauli operator in the subspace defined by the bitstrings.
+    Find the sparse matrix elements of a Pauli operator in the subspace defined by the bitstrings.
+
+    The sparse matrix, ``A``, defined by the outputs represents an ``NxN`` matrix s.t. ``N`` is the number
+    of rows in ``bitstring_matrix``. The rows of ``A`` represent the input configurations, and the columns
+    represent the connected component associated with the configuration in the corresponding row. The output
+    arrays define the sparse matrix, ``A``, as follows:
+
+    ``A[rows[k], cols[k]] = amplutides[k]``.
 
     .. note::
        The bitstrings in the ``bitstring_matrix`` must be unique and sorted in ascending order
@@ -184,15 +204,14 @@ def matrix_elements_from_pauli(
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring.
-            The bitstrings in the matrix must be sorted according to
-            their unsigned integer representations. Otherwise the projection will return
-            wrong results.
-        pauli: A Pauli operator.
+            The bitstrings in the matrix must be sorted according to their unsigned integer representations.
+            Otherwise the projection will return wrong results.
+        pauli: A Pauli operator for which to find connected elements
 
     Returns:
-        A 1D array corresponding to the nonzero matrix elements
-        A 1D array corresponding to the row indices of the elements
-        A 1D array corresponding to the column indices of the elements
+        - The complex amplitudes corresponding to the nonzero matrix elements
+        - The row indices corresponding to non-zero matrix elements
+        - The column indices corresponding to non-zero matrix elements
 
     Raises:
         ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
@@ -201,29 +220,36 @@ def matrix_elements_from_pauli(
         raise ValueError("Bitstrings (rows) in bitstring_matrix must have length < 64.")
 
     d, n_qubits = bitstring_matrix.shape
-    row_array = np.arange(d)
+    row_ids = np.arange(d)
 
-    diag = np.logical_not(pauli.x)
-    sign = pauli.z
-    imag = np.logical_and(pauli.x, pauli.z)
+    # Get a qubit-wise representation of the Pauli properties
+    diag = np.logical_not(pauli.x)[::-1]
+    sign = pauli.z[::-1]
+    imag = np.logical_and(pauli.x, pauli.z)[::-1]
 
+    # Convert bitstrings to integers
     int_array_rows = _int_conversion_from_bts_matrix_vmap(bitstring_matrix)
 
-    bs_mat_conn, matrix_elements = _connected_elements_and_amplitudes_bool_vmap(
+    # The bitstrings in bs_mat_conn are "agreement maps" between the original bitstring
+    # and the "diag" operator mask, which guarantees they are unique, since the original
+    # bitstring matrix is expected to be unique.
+    bs_mat_conn, amplitudes = _connected_elements_and_amplitudes_bool_vmap(
         bitstring_matrix, diag, sign, imag
     )
+    # After we calculate the "connected elements" above, we will get the indices
+    # of connected elements which appeared in the original set of samples
+    int_array_conn = _int_conversion_from_bts_matrix_vmap(bs_mat_conn)
+    conn_ele_mask = np.isin(int_array_conn, int_array_rows, assume_unique=True, kind="sort")
 
-    int_array_cols = _int_conversion_from_bts_matrix_vmap(bs_mat_conn)
+    # Retain configurations which are represented both in the original samples and connected elements
+    amplitudes = amplitudes[conn_ele_mask]
+    int_array_conn = int_array_conn[conn_ele_mask]
+    row_ids = row_ids[conn_ele_mask]
 
-    indices = np.isin(int_array_cols, int_array_rows, assume_unique=True, kind="sort")
+    # Get column indices of non-zero matrix elements
+    col_array = np.searchsorted(int_array_rows, int_array_conn)
 
-    matrix_elements = matrix_elements[indices]
-    row_array = row_array[indices]
-    int_array_cols = int_array_cols[indices]
-
-    col_array = np.searchsorted(int_array_rows, int_array_cols)
-
-    return matrix_elements, row_array, col_array
+    return amplitudes, row_ids, col_array
 
 
 def _connected_elements_and_amplitudes_bool(
