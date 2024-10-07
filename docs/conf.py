@@ -148,9 +148,7 @@ def linkcode_resolve(domain, info):
         return None
 
     def is_valid_code_object(obj):
-        return (
-            inspect.isclass(obj) or inspect.ismethod(obj) or inspect.isfunction(obj)
-        )
+        return inspect.isclass(obj) or inspect.ismethod(obj) or inspect.isfunction(obj)
 
     obj = module
     for part in info["fullname"].split("."):
@@ -163,7 +161,7 @@ def linkcode_resolve(domain, info):
 
     # Unwrap decorators. This requires they used `functools.wrap()`.
     while hasattr(obj, "__wrapped__"):
-        obj = getattr(obj, "__wrapped__")
+        obj = obj.__wrapped__
         if not is_valid_code_object(obj):
             return None
 
