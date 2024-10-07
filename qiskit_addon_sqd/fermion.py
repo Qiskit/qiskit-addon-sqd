@@ -198,7 +198,6 @@ def optimize_orbitals(
         )
         ci_strs = bitstring_matrix
     else:
-        # Flip the output so the alpha CI strs are on the left with [::-1]
         ci_strs = bitstring_matrix_to_ci_strs(bitstring_matrix, open_shell=open_shell)
     ci_strs = _check_ci_strs(ci_strs)
 
