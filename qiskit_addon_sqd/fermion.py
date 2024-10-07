@@ -96,7 +96,6 @@ def solve_fermion(
     else:
         # This will become the default code path after the deprecation period.
         ci_strs = bitstring_matrix_to_ci_strs(bitstring_matrix, open_shell=open_shell)
-        ci_strs = ci_strs[::-1]
     ci_strs = _check_ci_strs(ci_strs)
 
     num_up = format(ci_strs[0][0], "b").count("1")
@@ -201,7 +200,6 @@ def optimize_orbitals(
     else:
         # Flip the output so the alpha CI strs are on the left with [::-1]
         ci_strs = bitstring_matrix_to_ci_strs(bitstring_matrix, open_shell=open_shell)
-        ci_strs = ci_strs[::-1]
     ci_strs = _check_ci_strs(ci_strs)
 
     num_up = format(ci_strs[0][0], "b").count("1")
