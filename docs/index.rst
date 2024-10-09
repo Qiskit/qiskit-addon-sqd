@@ -46,6 +46,14 @@ The subspace dimension is set indirectly
 
 In this package, the user controls the number of bitstrings contained in each subspace with the `samples_per_batch` argument in :func:`.qiskit_addon_sqd.subsampling.postselect_and_subsample`. The value of this argument sets an upper bound to the subspace dimension in the case of quantum chemistry applications. See this `example <how_tos/select_open_closed_shell.ipynb>`_ for more details.
 
+Citing this project
+-------------------
+
+If you use this package in your research, please cite it according to ``CITATON.bib`` file included in this repository:
+
+.. literalinclude:: ../CITATION.bib
+   :language: bibtex
+
 Deprecation Policy
 ------------------
 
