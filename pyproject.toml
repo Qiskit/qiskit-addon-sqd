@@ -127,7 +127,7 @@ testpaths = ["./qiskit_addon_sqd/", "./test/"]
 [tool.ruff]
 line-length = 100
 src = ["qiskit_addon_sqd", "test"]
-target-version = "py310"
+target-version = "py39"
 
 [tool.ruff.lint]
 select = [
