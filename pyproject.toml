@@ -97,14 +97,14 @@ only-include = [
 allow-direct-references = true
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.9"
 show_error_codes = true
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
 
 [tool.pylint.main]
-py-version = "3.10"
+py-version = "3.9"
 
 [tool.pylint."messages control"]
 disable = ["all"]
