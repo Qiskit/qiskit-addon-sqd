@@ -64,7 +64,7 @@ notebook-dependencies = [
     "qiskit-addon-sqd",
     "qiskit-addon-utils",
     "matplotlib",
-    "ffsim",
+    "ffsim>=0.0.47",
     "qiskit",
     "qiskit-ibm-runtime",
 ]
