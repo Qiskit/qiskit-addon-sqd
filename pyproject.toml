@@ -28,9 +28,9 @@ dependencies = [
     "qiskit>=1.2",
     "numpy>=1.26",
     "pyscf>=2.5",
-    "jaxlib<=0.4.30",
-    "jax<=0.4.30",
-    "scipy<=1.13.1",
+    "jaxlib>=0.4.30",
+    "jax>=0.4.30",
+    "scipy>=1.13.1",
 ]
 
 [project.optional-dependencies]
