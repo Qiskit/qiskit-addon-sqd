@@ -14,6 +14,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -21,15 +22,15 @@ classifiers = [
 ]
 
 
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 
 dependencies = [
     "qiskit>=1.2",
     "numpy>=1.26",
     "pyscf>=2.5",
-    "jaxlib>=0.4.31",
-    "jax>=0.4.31",
-    "scipy>=1.14.1",
+    "jaxlib>=0.4.30",
+    "jax>=0.4.30",
+    "scipy>=1.13.1",
 ]
 
 [project.optional-dependencies]
@@ -103,7 +104,7 @@ warn_unused_configs = true
 ignore_missing_imports = true
 
 [tool.pylint.main]
-py-version = "3.10"
+py-version = "3.9"
 
 [tool.pylint."messages control"]
 disable = ["all"]
@@ -126,7 +127,7 @@ testpaths = ["./qiskit_addon_sqd/", "./test/"]
 [tool.ruff]
 line-length = 100
 src = ["qiskit_addon_sqd", "test"]
-target-version = "py310"
+target-version = "py39"
 
 [tool.ruff.lint]
 select = [
