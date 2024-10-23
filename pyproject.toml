@@ -55,7 +55,6 @@ style = [
 ]
 lint = [
     "qiskit-addon-sqd[style]",
-    "pydocstyle==6.3.0",
     "mypy==1.11.2",
     "pylint==3.3.1",
     "reno>=4.1",
@@ -167,3 +166,6 @@ notice-rgx = """
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals\\.
 """
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
