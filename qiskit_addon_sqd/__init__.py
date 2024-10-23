@@ -10,8 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""
-Primary SQD functionality.
+"""Primary SQD functionality.
 
 .. currentmodule:: qiskit_addon_sqd
 
