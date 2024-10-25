@@ -131,7 +131,6 @@ _inlined_apis = [
     ("qiskit_addon_sqd.qubit", "project_operator_to_subspace"),
     ("qiskit_addon_sqd.qubit", "sort_and_remove_duplicates"),
     ("qiskit_addon_sqd.qubit", "matrix_elements_from_pauli"),
-    ("qiskit_addon_sqd.qubit", "sort_and_remove_duplicates"),
     ("qiskit_addon_sqd.subsampling", "subsample"),
     ("qiskit_addon_sqd.subsampling", "postselect_and_subsample"),
 ]
