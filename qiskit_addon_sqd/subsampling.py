@@ -10,17 +10,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Functions for creating batches of samples from a bitstring matrix.
-
-.. currentmodule:: qiskit_addon_sqd.subsampling
-
-.. autosummary::
-   :toctree: ../stubs/
-   :nosignatures:
-
-   subsample
-   postselect_and_subsample
-"""
+# Reminder: update the RST file in docs/apidocs when adding new interfaces.
+"""Functions for creating batches of samples from a bitstring matrix."""
 
 from __future__ import annotations
 

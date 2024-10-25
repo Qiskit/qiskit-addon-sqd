@@ -10,17 +10,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Functions for performing self-consistent configuration recovery.
-
-.. currentmodule:: qiskit_addon_sqd.configuration_recovery
-
-.. autosummary::
-   :toctree: ../stubs/
-   :nosignatures:
-
-   post_select_by_hamming_weight
-   recover_configurations
-"""
+# Reminder: update the RST file in docs/apidocs when adding new interfaces.
+"""Functions for performing self-consistent configuration recovery."""
 
 from __future__ import annotations
 

@@ -10,22 +10,4 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Primary SQD functionality.
-
-.. currentmodule:: qiskit_addon_sqd
-
-.. autosummary::
-   :toctree: ../stubs/
-   :nosignatures:
-
-Modules
-=======
-.. autosummary::
-   :toctree:
-
-   configuration_recovery
-   subsampling
-   counts
-   fermion
-   qubit
-"""
+"""Primary SQD functionality."""

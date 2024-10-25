@@ -10,20 +10,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Functions for handling quantum samples.
-
-.. currentmodule:: qiskit_addon_sqd.qubit
-
-.. autosummary::
-   :toctree: ../stubs/
-   :nosignatures:
-
-   solve_qubit
-   project_operator_to_subspace
-   sort_and_remove_duplicates
-   matrix_elements_from_pauli
-   sort_and_remove_duplicates
-"""
+# Reminder: update the RST file in docs/apidocs when adding new interfaces.
+"""Functions for handling quantum samples."""
 
 from typing import Any
 

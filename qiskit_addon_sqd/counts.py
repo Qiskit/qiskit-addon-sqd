@@ -10,19 +10,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Functions for transforming counts dictionaries.
-
-.. currentmodule:: qiskit_addon_sqd.counts
-
-.. autosummary::
-   :toctree: ../stubs/
-   :nosignatures:
-
-   counts_to_arrays
-   generate_counts_uniform
-   generate_counts_bipartite_hamming
-   normalize_counts_dict
-"""
+# Reminder: update the RST file in docs/apidocs when adding new interfaces.
+"""Functions for transforming counts dictionaries."""
 
 from __future__ import annotations
 
