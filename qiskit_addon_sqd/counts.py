@@ -25,11 +25,10 @@ def counts_to_arrays(counts: dict[str, float | int]) -> tuple[np.ndarray, np.nda
         counts: The counts dictionary to convert
 
     Returns:
-        A tuple containing:
-            - A 2D array representing the sampled bitstrings. Each row represents a
-              bitstring, and each element is a ``bool`` representation of the
-              bit's value
-            - A 1D array containing the probability with which each bitstring was sampled
+        - A 2D array representing the sampled bitstrings. Each row represents a
+          bitstring, and each element is a ``bool`` representation of the
+          bit's value
+        - A 1D array containing the probability with which each bitstring was sampled
 
     """
     if not counts:

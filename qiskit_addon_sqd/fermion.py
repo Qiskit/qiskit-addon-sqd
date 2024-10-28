@@ -64,11 +64,10 @@ def solve_fermion(
         verbose: A verbosity level between 0 and 10
 
     Returns:
-            A tuple containing:
-                - Minimum energy from SCI calculation
-                - SCI coefficients
-                - Average orbital occupancy
-                - Expectation value of spin-squared
+        - Minimum energy from SCI calculation
+        - SCI coefficients
+        - Average orbital occupancy
+        - Expectation value of spin-squared
 
     """
     if isinstance(bitstring_matrix, tuple):
@@ -168,10 +167,9 @@ def optimize_orbitals(
         learning_rate: The learning rate to use during gradient descent
 
     Returns:
-        A tuple containing:
-            - The groundstate energy found during the last optimization iteration
-            - An optimized 1D array defining the orbital transform
-            - Average orbital occupancy
+        - The groundstate energy found during the last optimization iteration
+        - An optimized 1D array defining the orbital transform
+        - Average orbital occupancy
 
     """
     if isinstance(bitstring_matrix, tuple):
