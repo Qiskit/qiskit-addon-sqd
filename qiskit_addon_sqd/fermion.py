@@ -134,7 +134,7 @@ def solve_fermion(
 
     # Compute total spin
     spin_squared = myci.spin_square(sci_vec, norb, (num_up, num_dn))[0]
-    
+
     # Convert the PySCF SCIVector to internal format
     sci_state = SCIState(
         amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
