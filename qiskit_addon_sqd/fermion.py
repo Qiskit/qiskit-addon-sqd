@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Sequence
+from typing import NamedTuple
 
 import numpy as np
 from jax import Array, config, grad, jit, vmap
@@ -29,36 +29,28 @@ from scipy import linalg as LA
 config.update("jax_enable_x64", True)  # To deal with large integers
 
 
-class SCIState(fci.selected_ci.SCIvector):
-    """An immutable, lightweight wrapper for the ``pyscf.fci.selected_ci.SCIvector`` class."""
+class SCIState(NamedTuple):
+    """The amplitudes and determinants describing a quantum state.
 
-    def __init__(self, *args, **kwargs):
-        """Instantiate an SCIState object."""
-        super().__init__(*args, **kwargs)
+    ``amplitudes`` is an ``MxN`` array such that ``amplitudes[i][j]`` corresponds
+    to the amplitude of the determinant pair (``ci_strs_a[i]``, ``ci_strs_b[j]``).
+    """
 
-        # Light check on `_strs` structure once during initialization
-        if not (isinstance(self._strs, Sequence) and len(self._strs) == 2) or not all(
-            isinstance(strs, np.ndarray) for strs in self._strs
-        ):
-            raise ValueError("Cannot instantiate SCIState with input _strs field: {self._strs}.")
-        if self.shape != (len(self._strs[0]), len(self._strs[1])):
-            raise ValueError(
-                "Cannot instantiate SCIState with array shape ({self.shape}) and CI "
-                "string shape ({len(self._strs[0])}, {len(self._strs[1])})."
-            )
+    amplitudes: np.ndarray
+    ci_strs_a: np.ndarray
+    ci_strs_b: np.ndarray
 
-        # Don't allow the array to be mutated
-        self.flags.writeable = False
+    def save(self, filename):
+        """Save the SCIState object to an .npz file."""
+        np.savez(
+            filename, amplitudes=self.amplitudes, ci_strs_a=self.ci_strs_a, ci_strs_b=self.ci_strs_b
+        )
 
-    @property
-    def ci_strs_a(self):
-        """The alpha determinants."""
-        return self._strs[0]
-
-    @property
-    def ci_strs_b(self):
-        """The beta determinants."""
-        return self._strs[1]
+    @classmethod
+    def load(cls, filename):
+        """Load an SCIState object from an .npz file."""
+        with np.load(filename) as data:
+            return cls(data["amplitudes"], data["ci_strs_a"], data["ci_strs_b"])
 
 
 def solve_fermion(
@@ -136,7 +128,9 @@ def solve_fermion(
         max_cycle=max_davidson,
     )
     # Convert the PySCF SCIVector to internal format
-    sci_state = sci_vec.view(SCIState)
+    sci_state = SCIState(
+        amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
+    )
 
     # Calculate the avg occupancy of each orbital
     dm1 = myci.make_rdm1s(sci_state, norb, (num_up, num_dn))
