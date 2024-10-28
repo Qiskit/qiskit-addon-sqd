@@ -1,0 +1,4 @@
+upgrade:
+  - |
+    The ground state returned by :func:`qiskit_addon_sqd.fermion.solve_fermion` will now be an instance of :class:`qiskit_addon_sqd.fermion.SCIState`, rather than a PySCF ``SCIVector`` instance.
+
