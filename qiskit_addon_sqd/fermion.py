@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import NamedTuple
+from dataclasses import dataclass
 
 import numpy as np
 from jax import Array, config, grad, jit, vmap
@@ -29,7 +29,8 @@ from scipy import linalg as LA
 config.update("jax_enable_x64", True)  # To deal with large integers
 
 
-class SCIState(NamedTuple):
+@dataclass(frozen=True)
+class SCIState:
     """The amplitudes and determinants describing a quantum state.
 
     ``amplitudes`` is an ``MxN`` array such that ``M`` = ``len(ci_strs_a)``
@@ -40,6 +41,17 @@ class SCIState(NamedTuple):
     amplitudes: np.ndarray
     ci_strs_a: np.ndarray
     ci_strs_b: np.ndarray
+
+    def __post_init__(self):
+        """Validate dimensions of inputs."""
+        object.__setattr__(
+            self, "amplitudes", np.asarray(self.amplitudes)
+        )  # Convert to ndarray if not already
+        if self.amplitudes.shape != (len(self.ci_strs_a), len(self.ci_strs_b)):
+            raise ValueError(
+                f"'amplitudes' shape must be ({len(self.ci_strs_a)}, {len(self.ci_strs_b)}) "
+                f"but got {self.amplitudes.shape}"
+            )
 
     def save(self, filename):
         """Save the SCIState object to an .npz file."""
