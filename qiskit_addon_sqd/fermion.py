@@ -127,17 +127,18 @@ def solve_fermion(
         verbose=verbose,
         max_cycle=max_davidson,
     )
+
+    # Calculate the avg occupancy of each orbital
+    dm1 = myci.make_rdm1s(sci_vec, norb, (num_up, num_dn))
+    avg_occupancy = [np.diagonal(dm1[0]), np.diagonal(dm1[1])]
+
+    # Compute total spin
+    spin_squared = myci.spin_square(sci_vec, norb, (num_up, num_dn))[0]
+    
     # Convert the PySCF SCIVector to internal format
     sci_state = SCIState(
         amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
     )
-
-    # Calculate the avg occupancy of each orbital
-    dm1 = myci.make_rdm1s(sci_state, norb, (num_up, num_dn))
-    avg_occupancy = [np.diagonal(dm1[0]), np.diagonal(dm1[1])]
-
-    # Compute total spin
-    spin_squared = myci.spin_square(sci_state, norb, (num_up, num_dn))[0]
 
     return e_sci, sci_state, avg_occupancy, spin_squared
 
