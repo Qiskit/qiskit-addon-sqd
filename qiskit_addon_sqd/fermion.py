@@ -29,8 +29,8 @@ from scipy import linalg as LA
 config.update("jax_enable_x64", True)  # To deal with large integers
 
 
-class SCIState(fci.selected_ci.SCIVector):
-    """An immutable, lightweight wrapper for the ``pyscf.fci.selected_ci.SCIVector`` class."""
+class SCIState(fci.selected_ci.SCIvector):
+    """An immutable, lightweight wrapper for the ``pyscf.fci.selected_ci.SCIvector`` class."""
 
     def __init__(self, *args, **kwargs):
         """Instantiate an SCIState object."""
