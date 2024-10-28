@@ -10,18 +10,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""
-Functions for performing self-consistent configuration recovery.
-
-.. currentmodule:: qiskit_addon_sqd.configuration_recovery
-
-.. autosummary::
-   :toctree: ../stubs/
-   :nosignatures:
-
-   post_select_by_hamming_weight
-   recover_configurations
-"""
+# Reminder: update the RST file in docs/apidocs when adding new interfaces.
+"""Functions for performing self-consistent configuration recovery."""
 
 from __future__ import annotations
 
@@ -34,8 +24,7 @@ import numpy as np
 def post_select_by_hamming_weight(
     bitstring_matrix: np.ndarray, *, hamming_right: int, hamming_left: int
 ) -> np.ndarray:
-    """
-    Post-select bitstrings based on the hamming weight of each half.
+    """Post-select bitstrings based on the hamming weight of each half.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
@@ -45,6 +34,7 @@ def post_select_by_hamming_weight(
 
     Returns:
         A mask signifying which samples (rows) were selected from the input matrix.
+
     """
     if hamming_left < 0 or hamming_right < 0:
         raise ValueError("Hamming weights must be non-negative integers.")
@@ -66,8 +56,7 @@ def recover_configurations(
     num_elec_b: int,
     rand_seed: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Refine bitstrings based on average orbital occupancy and a target hamming weight.
+    """Refine bitstrings based on average orbital occupancy and a target hamming weight.
 
     This function refines each bit in isolation in an attempt to transform the Hilbert space
     represented by the input ``bitstring_matrix`` into a space closer to that which supports
@@ -101,6 +90,7 @@ def recover_configurations(
     References:
         [1]: J. Robledo-Moreno, et al., `Chemistry Beyond Exact Solutions on a Quantum-Centric Supercomputer <https://arxiv.org/abs/2405.05068>`_,
              arXiv:2405.05068 [quant-ph].
+
     """
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
@@ -126,8 +116,7 @@ def recover_configurations(
 
 
 def _p_flip_0_to_1(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  # pragma: no cover
-    """
-    Calculate the probability of flipping a bit from 0 to 1.
+    """Calculate the probability of flipping a bit from 0 to 1.
 
     This function will more aggressively flip bits which are in disagreement
     with the occupation information.
@@ -140,6 +129,7 @@ def _p_flip_0_to_1(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  #
 
     Returns:
         The probability with which to flip the bit
+
     """
     # Occupancy is < than naive expectation.
     # Flip 0s to 1 with small (~eps) probability in this case
@@ -157,8 +147,7 @@ def _p_flip_0_to_1(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  #
 
 
 def _p_flip_1_to_0(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  # pragma: no cover
-    """
-    Calculate the probability of flipping a bit from 1 to 0.
+    """Calculate the probability of flipping a bit from 1 to 0.
 
     This function will more aggressively flip bits which are in disagreement
     with the occupation information.
@@ -171,6 +160,7 @@ def _p_flip_1_to_0(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  #
 
     Returns:
         The probability with which to flip the bit
+
     """
     # Occupancy is < naive expectation.
     # The probability to flip the bit increases linearly from ``eps`` to
@@ -195,8 +185,7 @@ def _bipartite_bitstring_correcting(
     hamming_left: int,
     rand_seed: int | None = None,
 ) -> np.ndarray:
-    """
-    Use occupancy information and target hamming weight to correct a bitstring.
+    """Use occupancy information and target hamming weight to correct a bitstring.
 
     Args:
         bit_array: A 1D array of ``bool`` representations of bit values
@@ -207,6 +196,7 @@ def _bipartite_bitstring_correcting(
 
     Returns:
         A corrected bitstring
+
     """
     # This function must not mutate the input arrays.
     bit_array = bit_array.copy()

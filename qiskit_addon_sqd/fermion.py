@@ -10,23 +10,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""
-Functions for the study of fermionic systems.
-
-.. currentmodule:: qiskit_addon_sqd.fermion
-
-.. autosummary::
-   :toctree: ../stubs/
-   :nosignatures:
-
-   bitstring_matrix_to_ci_strs
-   enlarge_batch_from_transitions
-   flip_orbital_occupancies
-   solve_fermion
-   optimize_orbitals
-   rotate_integrals
-   bitstring_matrix_to_sorted_addresses
-"""
+# Reminder: update the RST file in docs/apidocs when adding new interfaces.
+"""Functions for the study of fermionic systems."""
 
 from __future__ import annotations
 
@@ -115,6 +100,7 @@ def solve_fermion(
                 - The SCI ground state
                 - Average occupancy of the alpha and beta orbitals, respectively
                 - Expectation value of spin-squared
+
     """
     if isinstance(bitstring_matrix, tuple):
         warnings.warn(
@@ -173,8 +159,7 @@ def optimize_orbitals(
     learning_rate: float = 0.01,
     max_davidson: int = 100,
 ) -> tuple[float, np.ndarray, list[np.ndarray]]:
-    """
-    Optimize orbitals to produce a minimal ground state.
+    """Optimize orbitals to produce a minimal ground state.
 
     The process involves iterating over 3 steps:
 
@@ -220,6 +205,7 @@ def optimize_orbitals(
             - The groundstate energy found during the last optimization iteration
             - An optimized 1D array defining the orbital transform
             - Average orbital occupancy
+
     """
     if isinstance(bitstring_matrix, tuple):
         warnings.warn(
@@ -276,8 +262,7 @@ def optimize_orbitals(
 def rotate_integrals(
     hcore: np.ndarray, eri: np.ndarray, k_flat: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""
-    Perform a similarity transform on the integrals.
+    r"""Perform a similarity transform on the integrals.
 
     The transformation is described as:
 
@@ -297,6 +282,7 @@ def rotate_integrals(
     Returns:
         - The rotated core Hamiltonian matrix
         - The rotated ERI matrix
+
     """
     num_orbitals = hcore.shape[0]
     p = np.reshape(k_flat, (num_orbitals, num_orbitals))
@@ -309,8 +295,7 @@ def rotate_integrals(
 
 
 def flip_orbital_occupancies(occupancies: np.ndarray) -> np.ndarray:
-    """
-    Flip an orbital occupancy array to match the indexing of a bitstring.
+    """Flip an orbital occupancy array to match the indexing of a bitstring.
 
     This function reformats a 1D array of spin-orbital occupancies formatted like:
 
@@ -341,8 +326,7 @@ def flip_orbital_occupancies(occupancies: np.ndarray) -> np.ndarray:
 def bitstring_matrix_to_sorted_addresses(
     bitstring_matrix: np.ndarray, open_shell: bool = False
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Convert a bitstring matrix into a sorted array of unique, unsigned integers.
+    """Convert a bitstring matrix into a sorted array of unique, unsigned integers.
 
     This function separates each bitstring in ``bitstring_matrix`` in half, flips the
     bits and translates them into integer representations, and finally appends them to
@@ -361,6 +345,7 @@ def bitstring_matrix_to_sorted_addresses(
     Returns:
         A length-2 tuple of sorted, unique determinants representing the left (spin-down) and
         right (spin-up) halves of the bitstrings, respectively.
+
     """
     num_orbitals = bitstring_matrix.shape[1] // 2
     num_configs = bitstring_matrix.shape[0]
@@ -388,8 +373,7 @@ def bitstring_matrix_to_sorted_addresses(
 def bitstring_matrix_to_ci_strs(
     bitstring_matrix: np.ndarray, open_shell: bool = False
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Convert bitstrings (rows) in a ``bitstring_matrix`` into integer representations of determinants.
+    """Convert bitstrings (rows) in a ``bitstring_matrix`` into integer representations of determinants.
 
     This function separates each bitstring in ``bitstring_matrix`` in half, flips the
     bits and translates them into integer representations, and finally appends them to
@@ -408,6 +392,7 @@ def bitstring_matrix_to_ci_strs(
     Returns:
         A length-2 tuple of determinant lists representing the right (spin-up) and left (spin-down)
         halves of the bitstrings, respectively.
+
     """
     num_orbitals = bitstring_matrix.shape[1] // 2
     num_configs = bitstring_matrix.shape[0]
@@ -435,8 +420,7 @@ def bitstring_matrix_to_ci_strs(
 def enlarge_batch_from_transitions(
     bitstring_matrix: np.ndarray, transition_operators: np.ndarray
 ) -> np.ndarray:
-    """
-    Apply the set of transition operators to the configurations represented in ``bitstring_matrix``.
+    """Apply the set of transition operators to the configurations represented in ``bitstring_matrix``.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
@@ -448,6 +432,7 @@ def enlarge_batch_from_transitions(
     Returns:
         Bitstring matrix representing the augmented set of electronic configurations after applying
         the excitation operators.
+
     """
     diag, create, annihilate = _transition_str_to_bool(transition_operators)
 
@@ -493,8 +478,7 @@ def _optimize_orbitals_sci(
     hcore: np.ndarray,
     eri: np.ndarray,
 ) -> None:
-    """
-    Optimize orbital rotation parameters in-place using gradient descent.
+    """Optimize orbital rotation parameters in-place using gradient descent.
 
     This procedure is described in `Sec. II A 4 <https://arxiv.org/pdf/2405.05068>`_.
     """
@@ -514,8 +498,7 @@ def _SCISCF_Energy_contract(
     num_orbitals: int,
     k_flat: np.ndarray,
 ) -> Array:
-    """
-    Calculate gradient.
+    """Calculate gradient.
 
     The gradient can be calculated by contracting the bare one and two-body
     reduced density matrices with the gradients of the of the one and two-body
@@ -554,8 +537,7 @@ apply_excitations = jit(vmap(_apply_excitation, (None, 0, 0, 0), 0))
 
 
 def _transition_str_to_bool(string_rep: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Transform string representations of a transition operator into bool representation.
+    """Transform string representations of a transition operator into bool representation.
 
     Transform sequences of identity ("I"), creation ("+"), annihilation ("-"), and number ("n")
     characters into the internal representation used to apply the transitions into electronic
@@ -570,6 +552,7 @@ def _transition_str_to_bool(string_rep: np.ndarray) -> tuple[np.ndarray, np.ndar
             - A mask signifying the diagonal terms (I).
             - A mask signifying whether there is a creation operator (+).
             - A mask signifying whether there is an annihilation operator (-).
+
     """
     diag = np.logical_or(string_rep == "I", string_rep == "n")
     create = np.logical_or(string_rep == "+", string_rep == "n")

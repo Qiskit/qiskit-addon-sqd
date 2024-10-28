@@ -10,18 +10,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""
-Functions for creating batches of samples from a bitstring matrix.
-
-.. currentmodule:: qiskit_addon_sqd.subsampling
-
-.. autosummary::
-   :toctree: ../stubs/
-   :nosignatures:
-
-   subsample
-   postselect_and_subsample
-"""
+# Reminder: update the RST file in docs/apidocs when adding new interfaces.
+"""Functions for creating batches of samples from a bitstring matrix."""
 
 from __future__ import annotations
 
@@ -40,8 +30,7 @@ def postselect_and_subsample(
     num_batches: int,
     rand_seed: int | None = None,
 ) -> list[np.ndarray]:
-    """
-    Subsample batches of bit arrays with correct hamming weight from an input ``bitstring_matrix``.
+    """Subsample batches of bit arrays with correct hamming weight from an input ``bitstring_matrix``.
 
     Bitstring samples with incorrect hamming weight on either their left or right half will not
     be sampled.
@@ -67,6 +56,7 @@ def postselect_and_subsample(
         ValueError: The number of elements in ``probabilities`` must equal the number of rows in ``bitstring_matrix``.
         ValueError: Hamming weights must be non-negative integers.
         ValueError: Samples per batch and number of batches must be positive integers.
+
     """
     num_bitstrings = len(bitstring_matrix)
     if num_bitstrings == 0:
@@ -99,8 +89,7 @@ def subsample(
     num_batches: int,
     rand_seed: int | None = None,
 ) -> list[np.ndarray]:
-    """
-    Subsample batches of bit arrays from an input ``bitstring_matrix``.
+    """Subsample batches of bit arrays from an input ``bitstring_matrix``.
 
     Each individual batch will be sampled without replacement from the input ``bitstring_matrix``.
     Samples will be replaced after creation of each batch, so different batches may contain
@@ -120,6 +109,7 @@ def subsample(
     Raises:
         ValueError: The number of elements in ``probabilities`` must equal the number of rows in ``bitstring_matrix``.
         ValueError: Samples per batch and number of batches must be positive integers.
+
     """
     if bitstring_matrix.shape[0] < 1:
         return [np.array([])] * num_batches

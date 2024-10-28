@@ -10,20 +10,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""
-Functions for transforming counts dictionaries.
-
-.. currentmodule:: qiskit_addon_sqd.counts
-
-.. autosummary::
-   :toctree: ../stubs/
-   :nosignatures:
-
-   counts_to_arrays
-   generate_counts_uniform
-   generate_counts_bipartite_hamming
-   normalize_counts_dict
-"""
+# Reminder: update the RST file in docs/apidocs when adding new interfaces.
+"""Functions for transforming counts dictionaries."""
 
 from __future__ import annotations
 
@@ -31,8 +19,7 @@ import numpy as np
 
 
 def counts_to_arrays(counts: dict[str, float | int]) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Convert a counts dictionary into a bitstring matrix and a probability array.
+    """Convert a counts dictionary into a bitstring matrix and a probability array.
 
     Args:
         counts: The counts dictionary to convert
@@ -43,6 +30,7 @@ def counts_to_arrays(counts: dict[str, float | int]) -> tuple[np.ndarray, np.nda
               bitstring, and each element is a ``bool`` representation of the
               bit's value
             - A 1D array containing the probability with which each bitstring was sampled
+
     """
     if not counts:
         return np.array([]), np.array([])
@@ -56,8 +44,7 @@ def counts_to_arrays(counts: dict[str, float | int]) -> tuple[np.ndarray, np.nda
 def generate_counts_uniform(
     num_samples: int, num_bits: int, rand_seed: None | int = None
 ) -> dict[str, int]:
-    """
-    Generate a bitstring counts dictionary of samples drawn from the uniform distribution.
+    """Generate a bitstring counts dictionary of samples drawn from the uniform distribution.
 
     Args:
         num_samples: The number of samples to draw
@@ -70,6 +57,7 @@ def generate_counts_uniform(
 
     Raises:
         ValueError: ``num_samples`` and ``num_bits`` must be positive integers.
+
     """
     if num_samples < 1:
         raise ValueError("The number of samples must be specified with a positive integer.")
@@ -96,8 +84,7 @@ def generate_counts_bipartite_hamming(
     hamming_left: int,
     rand_seed: None | int = None,
 ) -> dict[str, int]:
-    """
-    Generate a bitstring counts dictionary with specified bipartite hamming weight.
+    """Generate a bitstring counts dictionary with specified bipartite hamming weight.
 
     Args:
         num_samples: The number of samples to draw
@@ -115,6 +102,7 @@ def generate_counts_bipartite_hamming(
         ValueError: ``num_bits`` and ``num_samples`` must be positive integers.
         ValueError: Hamming weights must be specified as non-negative integers.
         ValueError: ``num_bits`` must be even.
+
     """
     if num_bits % 2 != 0:
         raise ValueError("The number of bits must be specified with an even integer.")
