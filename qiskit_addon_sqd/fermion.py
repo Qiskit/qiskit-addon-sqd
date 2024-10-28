@@ -32,8 +32,9 @@ config.update("jax_enable_x64", True)  # To deal with large integers
 class SCIState(NamedTuple):
     """The amplitudes and determinants describing a quantum state.
 
-    ``amplitudes`` is an ``MxN`` array such that ``amplitudes[i][j]`` corresponds
-    to the amplitude of the determinant pair (``ci_strs_a[i]``, ``ci_strs_b[j]``).
+    ``amplitudes`` is an ``MxN`` array such that ``M`` = ``len(ci_strs_a)``
+    and ``N`` = ``len(ci_strs_b)``. ``amplitudes[i][j]`` corresponds to the
+    amplitude of the determinant pair (``ci_strs_a[i]``, ``ci_strs_b[j]``).
     """
 
     amplitudes: np.ndarray
