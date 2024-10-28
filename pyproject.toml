@@ -54,7 +54,6 @@ style = [
 ]
 lint = [
     "qiskit-addon-sqd[style]",
-    "pydocstyle==6.3.0",
     "mypy==1.11.2",
     "pylint==3.3.1",
     "reno>=4.1",
@@ -133,6 +132,7 @@ select = [
     "I",   # isort
     "E",   # pycodestyle
     "W",   # pycodestyle
+    "D",   # pydocstyle
     "F",   # pyflakes
     "RUF", # ruff
     "UP",  # pyupgrade
@@ -148,8 +148,12 @@ ignore = [
 max-args = 6
 
 [tool.ruff.lint.extend-per-file-ignores]
+"test/**.py" = [
+    "D",  # pydocstyle
+]
 "docs/**/*" = [
     "E402", # module level import not at top of file
+    "D",    # pydocstyle
 ]
 
 [tool.ruff.lint.flake8-copyright]
@@ -166,3 +170,6 @@ notice-rgx = """
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals\\.
 """
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
