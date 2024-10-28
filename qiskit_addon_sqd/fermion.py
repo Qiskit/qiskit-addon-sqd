@@ -10,22 +10,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Functions for the study of fermionic systems.
-
-.. currentmodule:: qiskit_addon_sqd.fermion
-
-.. autosummary::
-   :toctree: ../stubs/
-   :nosignatures:
-
-   bitstring_matrix_to_ci_strs
-   enlarge_batch_from_transitions
-   flip_orbital_occupancies
-   solve_fermion
-   optimize_orbitals
-   rotate_integrals
-   bitstring_matrix_to_sorted_addresses
-"""
+# Reminder: update the RST file in docs/apidocs when adding new interfaces.
+"""Functions for the study of fermionic systems."""
 
 from __future__ import annotations
 

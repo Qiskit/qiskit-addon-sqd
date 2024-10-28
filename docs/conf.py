@@ -59,6 +59,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "matplotlib.sphinxext.plot_directive",
     "sphinx_copybutton",
+    "sphinx_reredirects",
     "reno.sphinxext",
     "nbsphinx",
     "qiskit_sphinx_theme",
@@ -106,6 +107,41 @@ intersphinx_mapping = {
 
 plot_working_directory = "."
 plot_html_show_source_link = False
+
+# ----------------------------------------------------------------------------------
+# Redirects
+# ----------------------------------------------------------------------------------
+
+_inlined_apis = [
+    ("qiskit_addon_sqd.configuration_recovery", "post_select_by_hamming_weight"),
+    ("qiskit_addon_sqd.configuration_recovery", "recover_configurations"),
+    ("qiskit_addon_sqd.counts", "counts_to_arrays"),
+    ("qiskit_addon_sqd.counts", "generate_counts_uniform"),
+    ("qiskit_addon_sqd.counts", "generate_counts_bipartite_hamming"),
+    ("qiskit_addon_sqd.counts", "normalize_counts_dict"),
+    ("qiskit_addon_sqd.fermion", "bitstring_matrix_to_ci_strs"),
+    ("qiskit_addon_sqd.fermion", "enlarge_batch_from_transitions"),
+    ("qiskit_addon_sqd.fermion", "flip_orbital_occupancies"),
+    ("qiskit_addon_sqd.fermion", "solve_fermion"),
+    ("qiskit_addon_sqd.fermion", "optimize_orbitals"),
+    ("qiskit_addon_sqd.fermion", "rotate_integrals"),
+    ("qiskit_addon_sqd.fermion", "bitstring_matrix_to_sorted_addresses"),
+    ("qiskit_addon_sqd.qubit", "solve_qubit"),
+    ("qiskit_addon_sqd.qubit", "project_operator_to_subspace"),
+    ("qiskit_addon_sqd.qubit", "project_operator_to_subspace"),
+    ("qiskit_addon_sqd.qubit", "sort_and_remove_duplicates"),
+    ("qiskit_addon_sqd.qubit", "matrix_elements_from_pauli"),
+    ("qiskit_addon_sqd.subsampling", "subsample"),
+    ("qiskit_addon_sqd.subsampling", "postselect_and_subsample"),
+]
+
+redirects = {
+    "apidocs/qiskit_addon_sqd": "./index.html",
+    **{
+        f"stubs/{module}.{name}": f"../apidocs/{module}.html#{module}.{name}"
+        for module, name in _inlined_apis
+    },
+}
 
 # ----------------------------------------------------------------------------------
 # Source code links
