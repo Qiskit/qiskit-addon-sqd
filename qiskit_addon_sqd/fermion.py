@@ -136,7 +136,8 @@ def solve_fermion(
         max_cycle=max_davidson,
     )
     # Convert the PySCF SCIVector to internal format
-    sci_state = SCIState(sci_vec)
+    sci_state = sci_vec.view(SCIState)
+
     # Calculate the avg occupancy of each orbital
     dm1 = myci.make_rdm1s(sci_state, norb, (num_up, num_dn))
     avg_occupancy = [np.diagonal(dm1[0]), np.diagonal(dm1[1])]
