@@ -31,14 +31,16 @@ config.update("jax_enable_x64", True)  # To deal with large integers
 
 class SCIState(fci.selected_ci.SCIVector):
     """An immutable, lightweight wrapper for the ``pyscf.fci.selected_ci.SCIVector`` class."""
+
     def __init__(self, *args, **kwargs):
+        """Instantiate an SCIState object."""
         super().__init__(*args, **kwargs)
 
         # Light check on `_strs` structure once during initialization
-        if not (isinstance(self._strs, Sequence) and len(self._strs) == 2) or not all(isinstance(strs, np.ndarray) for strs in self._strs):
-            raise ValueError(
-                "Cannot instantiate SCIState with input _strs field: {self._strs}."
-            )
+        if not (isinstance(self._strs, Sequence) and len(self._strs) == 2) or not all(
+            isinstance(strs, np.ndarray) for strs in self._strs
+        ):
+            raise ValueError("Cannot instantiate SCIState with input _strs field: {self._strs}.")
         if self.shape != (len(self._strs[0]), len(self._strs[1])):
             raise ValueError(
                 "Cannot instantiate SCIState with array shape ({self.shape}) and CI "
@@ -52,6 +54,7 @@ class SCIState(fci.selected_ci.SCIVector):
     def ci_strs_a(self):
         """The alpha determinants."""
         return self._strs[0]
+
     @property
     def ci_strs_b(self):
         """The beta determinants."""
@@ -69,8 +72,7 @@ def solve_fermion(
     max_davidson: int = 100,
     verbose: int | None = None,
 ) -> tuple[float, SCIState, list[np.ndarray], float]:
-    """
-    Approximate the ground state given molecular integrals and a set of electronic configurations.
+    """Approximate the ground state given molecular integrals and a set of electronic configurations.
 
     Args:
         bitstring_matrix: A set of configurations defining the subspace onto which the Hamiltonian
