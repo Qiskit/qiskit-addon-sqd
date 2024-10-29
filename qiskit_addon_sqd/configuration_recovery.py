@@ -201,7 +201,7 @@ def _bipartite_bitstring_correcting(
     # This function must not mutate the input arrays.
     bit_array = bit_array.copy()
 
-    np.random.seed(rand_seed)
+    rng = np.random.default_rng(rand_seed)
 
     # The number of bits should be even
     num_bits = bit_array.shape[0]
@@ -246,7 +246,7 @@ def _bipartite_bitstring_correcting(
             probs_left[bit_array[:partition_size]]
         )
         # Correct the hamming by probabilistically flipping some bits to flip to 0
-        indices_to_flip = np.random.choice(
+        indices_to_flip = rng.choice(
             indices_occupied, size=round(n_diff), replace=False, p=p_choice
         )
         bit_array[:partition_size][indices_to_flip] = False
@@ -259,7 +259,7 @@ def _bipartite_bitstring_correcting(
             probs_left[np.logical_not(bit_array[:partition_size])]
         )
         # Correct the hamming by probabilistically flipping some bits to flip to 1
-        indices_to_flip = np.random.choice(
+        indices_to_flip = rng.choice(
             indices_empty, size=round(np.abs(n_diff)), replace=False, p=p_choice
         )
         bit_array[:partition_size][indices_to_flip] = np.logical_not(
@@ -280,7 +280,7 @@ def _bipartite_bitstring_correcting(
             probs_right[bit_array[partition_size:]]
         )
         # Correct the hamming by probabilistically flipping some bits to flip to 0
-        indices_to_flip = np.random.choice(
+        indices_to_flip = rng.choice(
             indices_occupied, size=round(n_diff), replace=False, p=p_choice
         )
         bit_array[partition_size:][indices_to_flip] = np.logical_not(
@@ -295,7 +295,7 @@ def _bipartite_bitstring_correcting(
             probs_right[np.logical_not(bit_array[partition_size:])]
         )
         # Correct the hamming by probabilistically flipping some bits to flip to 1
-        indices_to_flip = np.random.choice(
+        indices_to_flip = rng.choice(
             indices_empty, size=round(np.abs(n_diff)), replace=False, p=p_choice
         )
         bit_array[partition_size:][indices_to_flip] = np.logical_not(

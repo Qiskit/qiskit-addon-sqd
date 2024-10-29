@@ -122,7 +122,6 @@ def subsample(
     if num_batches < 1:
         raise ValueError("The number of batches must be specified with a positive integer.")
 
-    np.random.seed(rand_seed)
     num_bitstrings = bitstring_matrix.shape[0]
 
     # If the number of requested samples is >= the number of bitstrings, return
@@ -136,7 +135,8 @@ def subsample(
     batches = []
     for _ in range(num_batches):
         if randomly_sample:
-            indices = np.random.choice(
+            rng = np.random.default_rng(rand_seed)
+            indices = rng.choice(
                 np.arange(num_bitstrings).astype("int"),
                 samples_per_batch,
                 replace=False,
