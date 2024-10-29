@@ -31,16 +31,19 @@ config.update("jax_enable_x64", True)  # To deal with large integers
 
 @dataclass(frozen=True)
 class SCIState:
-    r"""The amplitudes and determinants describing a quantum state.
-
-    ``amplitudes`` is an :math:`M \\times N` array where :math:`M =` len(``ci_strs_a``)
-    and :math:`N` = len(``ci_strs_b``). ``amplitudes[i][j]`` is the amplitude of the
-    determinant pair (``ci_strs_a[i]``, ``ci_strs_b[j]``).
-    """
+    """The amplitudes and determinants describing a quantum state."""
 
     amplitudes: np.ndarray
+    """An :math:`M \\times N` array where :math:`M =` len(``ci_strs_a``)
+    and :math:`N` = len(``ci_strs_b``). ``amplitudes[i][j]`` is the
+    amplitude of the determinant pair (``ci_strs_a[i]``, ``ci_strs_b[j]``).
+    """
+
     ci_strs_a: np.ndarray
+    """The alpha determinants."""
+
     ci_strs_b: np.ndarray
+    """The beta determinants."""
 
     def __post_init__(self):
         """Validate dimensions of inputs."""
