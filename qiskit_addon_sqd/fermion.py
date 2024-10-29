@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import warnings
+from dataclasses import dataclass
 
 import numpy as np
 from jax import Array, config, grad, jit, vmap
@@ -28,6 +29,46 @@ from scipy import linalg as LA
 config.update("jax_enable_x64", True)  # To deal with large integers
 
 
+@dataclass(frozen=True)
+class SCIState:
+    """The amplitudes and determinants describing a quantum state."""
+
+    amplitudes: np.ndarray
+    """An :math:`M \\times N` array where :math:`M =` len(``ci_strs_a``)
+    and :math:`N` = len(``ci_strs_b``). ``amplitudes[i][j]`` is the
+    amplitude of the determinant pair (``ci_strs_a[i]``, ``ci_strs_b[j]``).
+    """
+
+    ci_strs_a: np.ndarray
+    """The alpha determinants."""
+
+    ci_strs_b: np.ndarray
+    """The beta determinants."""
+
+    def __post_init__(self):
+        """Validate dimensions of inputs."""
+        object.__setattr__(
+            self, "amplitudes", np.asarray(self.amplitudes)
+        )  # Convert to ndarray if not already
+        if self.amplitudes.shape != (len(self.ci_strs_a), len(self.ci_strs_b)):
+            raise ValueError(
+                f"'amplitudes' shape must be ({len(self.ci_strs_a)}, {len(self.ci_strs_b)}) "
+                f"but got {self.amplitudes.shape}"
+            )
+
+    def save(self, filename):
+        """Save the SCIState object to an .npz file."""
+        np.savez(
+            filename, amplitudes=self.amplitudes, ci_strs_a=self.ci_strs_a, ci_strs_b=self.ci_strs_b
+        )
+
+    @classmethod
+    def load(cls, filename):
+        """Load an SCIState object from an .npz file."""
+        with np.load(filename) as data:
+            return cls(data["amplitudes"], data["ci_strs_a"], data["ci_strs_b"])
+
+
 def solve_fermion(
     bitstring_matrix: tuple[np.ndarray, np.ndarray] | np.ndarray,
     /,
@@ -38,7 +79,7 @@ def solve_fermion(
     spin_sq: int | None = None,
     max_davidson: int = 100,
     verbose: int | None = None,
-) -> tuple[float, np.ndarray, list[np.ndarray], float]:
+) -> tuple[float, SCIState, list[np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
 
     Args:
@@ -65,8 +106,8 @@ def solve_fermion(
 
     Returns:
         - Minimum energy from SCI calculation
-        - SCI coefficients
-        - Average orbital occupancy
+        - The SCI ground state
+        - Average occupancy of the alpha and beta orbitals, respectively
         - Expectation value of spin-squared
 
     """
@@ -91,7 +132,7 @@ def solve_fermion(
     myci = fci.selected_ci.SelectedCI()
     if spin_sq is not None:
         myci = fci.addons.fix_spin_(myci, ss=spin_sq)
-    e_sci, coeffs_sci = fci.selected_ci.kernel_fixed_space(
+    e_sci, sci_vec = fci.selected_ci.kernel_fixed_space(
         myci,
         hcore,
         eri,
@@ -101,14 +142,24 @@ def solve_fermion(
         verbose=verbose,
         max_cycle=max_davidson,
     )
+
     # Calculate the avg occupancy of each orbital
-    dm1 = myci.make_rdm1s(coeffs_sci, norb, (num_up, num_dn))
+    dm1 = myci.make_rdm1s(sci_vec, norb, (num_up, num_dn))
     avg_occupancy = [np.diagonal(dm1[0]), np.diagonal(dm1[1])]
 
     # Compute total spin
-    spin_squared = myci.spin_square(coeffs_sci, norb, (num_up, num_dn))[0]
+    spin_squared = myci.spin_square(sci_vec, norb, (num_up, num_dn))[0]
 
-    return e_sci, coeffs_sci, avg_occupancy, spin_squared
+    # Convert the PySCF SCIVector to internal format. We access a private field here,
+    # so we assert that we expect the SCIVector output from kernel_fixed_space to
+    # have its _strs field populated with alpha and beta strings.
+    assert isinstance(sci_vec._strs[0], np.ndarray) and isinstance(sci_vec._strs[1], np.ndarray)
+    assert sci_vec.shape == (len(sci_vec._strs[0]), len(sci_vec._strs[1]))
+    sci_state = SCIState(
+        amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
+    )
+
+    return e_sci, sci_state, avg_occupancy, spin_squared
 
 
 def optimize_orbitals(

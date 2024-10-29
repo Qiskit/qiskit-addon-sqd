@@ -9,6 +9,7 @@ Fermion (:mod:`qiskit_addon_sqd.fermion`)
 
 .. currentmodule:: qiskit_addon_sqd.fermion
 
+.. autoclass:: SCIState
 .. autofunction:: bitstring_matrix_to_ci_strs
 .. autofunction:: enlarge_batch_from_transitions
 .. autofunction:: flip_orbital_occupancies
