@@ -82,7 +82,7 @@ def recover_configurations(
             ``i`` in ``bitstring_matrix``.
         num_elec_a: The number of spin-up electrons in the system.
         num_elec_b: The number of spin-down electrons in the system.
-        rand_seed: A random number generator
+        rand_seed: A seed for controlling randomness
 
     Returns:
         A refined bitstring matrix and an updated probability array.
