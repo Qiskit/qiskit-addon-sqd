@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections import defaultdict
 from collections.abc import Sequence
 
@@ -54,7 +55,7 @@ def recover_configurations(
     avg_occupancies: np.ndarray,
     num_elec_a: int,
     num_elec_b: int,
-    rand_seed: int | None = None,
+    rand_seed: np.random.Generator | int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Refine bitstrings based on average orbital occupancy and a target hamming weight.
 
@@ -82,7 +83,7 @@ def recover_configurations(
             ``i`` in ``bitstring_matrix``.
         num_elec_a: The number of spin-up electrons in the system.
         num_elec_b: The number of spin-down electrons in the system.
-        rand_seed: A seed to control random behavior
+        rand_seed: A random number generator
 
     Returns:
         A refined bitstring matrix and an updated probability array.
@@ -92,6 +93,9 @@ def recover_configurations(
              arXiv:2405.05068 [quant-ph].
 
     """
+    if isinstance(rand_seed, int) or rand_seed is None:
+        rand_seed = np.random.default_rng(rand_seed)
+
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
 
@@ -104,7 +108,7 @@ def recover_configurations(
             avg_occupancies,
             num_elec_a,
             num_elec_b,
-            rand_seed=rand_seed,
+            rng=rand_seed,
         )
         bs_str = "".join("1" if bit else "0" for bit in bs_corrected)
         corrected_dict[bs_str] += freq
@@ -183,7 +187,7 @@ def _bipartite_bitstring_correcting(
     avg_occupancies: np.ndarray,
     hamming_right: int,
     hamming_left: int,
-    rand_seed: int | None = None,
+    rng: np.random.Generator,
 ) -> np.ndarray:
     """Use occupancy information and target hamming weight to correct a bitstring.
 
@@ -192,7 +196,7 @@ def _bipartite_bitstring_correcting(
         avg_occupancies: A 1D array containing the mean occupancy of each orbital.
         hamming_right: The target hamming weight used for the right half of the bitstring
         hamming_left: The target hamming weight used for the left half of the bitstring
-        rand_seed: A seed to control random behavior
+        rng: A random number generator
 
     Returns:
         A corrected bitstring
@@ -200,8 +204,6 @@ def _bipartite_bitstring_correcting(
     """
     # This function must not mutate the input arrays.
     bit_array = bit_array.copy()
-
-    rng = np.random.default_rng(rand_seed)
 
     # The number of bits should be even
     num_bits = bit_array.shape[0]

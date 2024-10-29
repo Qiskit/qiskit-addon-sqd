@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 
@@ -41,7 +43,7 @@ def counts_to_arrays(counts: dict[str, float | int]) -> tuple[np.ndarray, np.nda
 
 
 def generate_counts_uniform(
-    num_samples: int, num_bits: int, rand_seed: None | int = None
+    num_samples: int, num_bits: int, rand_seed: np.random.Generator | int | None = None
 ) -> dict[str, int]:
     """Generate a bitstring counts dictionary of samples drawn from the uniform distribution.
 
@@ -62,11 +64,14 @@ def generate_counts_uniform(
         raise ValueError("The number of samples must be specified with a positive integer.")
     if num_bits < 1:
         raise ValueError("The number of bits must be specified with a positive integer.")
-    rng = np.random.default_rng(rand_seed)
+
+    if isinstance(rand_seed, int) or rand_seed is None:
+        rand_seed = np.random.default_rng(rand_seed)
+
     sample_dict: dict[str, int] = {}
     # Use numpy to generate a random matrix of bit values and
     # convert it to a dictionary of bitstring samples
-    bts_matrix = rng.choice([0, 1], size=(num_samples, num_bits))
+    bts_matrix = rand_seed.choice([0, 1], size=(num_samples, num_bits))
     for i in range(num_samples):
         bts_arr = bts_matrix[i, :].astype("int")
         bts = "".join("1" if bit else "0" for bit in bts_arr)
@@ -81,7 +86,7 @@ def generate_counts_bipartite_hamming(
     *,
     hamming_right: int,
     hamming_left: int,
-    rand_seed: None | int = None,
+    rand_seed: np.random.Generator | int | None = None,
 ) -> dict[str, int]:
     """Generate a bitstring counts dictionary with specified bipartite hamming weight.
 
@@ -112,13 +117,18 @@ def generate_counts_bipartite_hamming(
     if hamming_left < 0 or hamming_right < 0:
         raise ValueError("Hamming weights must be specified as non-negative integers.")
 
-    rng = np.random.default_rng(rand_seed)
+    if isinstance(rand_seed, int) or rand_seed is None:
+        rand_seed = np.random.default_rng(rand_seed)
 
     sample_dict: dict[str, int] = {}
     for _ in range(num_samples):
         # Pick random bits to flip such that the left and right hamming weights are correct
-        up_flips = rng.choice(np.arange(num_bits // 2), hamming_right, replace=False).astype("int")
-        dn_flips = rng.choice(np.arange(num_bits // 2), hamming_left, replace=False).astype("int")
+        up_flips = rand_seed.choice(np.arange(num_bits // 2), hamming_right, replace=False).astype(
+            "int"
+        )
+        dn_flips = rand_seed.choice(np.arange(num_bits // 2), hamming_left, replace=False).astype(
+            "int"
+        )
 
         # Create a bitstring with the chosen bits flipped
         bts_arr = np.zeros(num_bits)

@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 from .configuration_recovery import post_select_by_hamming_weight
@@ -28,7 +30,7 @@ def postselect_and_subsample(
     hamming_left: int,
     samples_per_batch: int,
     num_batches: int,
-    rand_seed: int | None = None,
+    rand_seed: np.random.Generator | int | None = None,
 ) -> list[np.ndarray]:
     """Subsample batches of bit arrays with correct hamming weight from an input ``bitstring_matrix``.
 
@@ -68,6 +70,9 @@ def postselect_and_subsample(
     if hamming_left < 0 or hamming_right < 0:
         raise ValueError("Hamming weight must be specified with a non-negative integer.")
 
+    if isinstance(rand_seed, int) or rand_seed is None:
+        rand_seed = np.random.default_rng(rand_seed)
+
     # Post-select only bitstrings with correct hamming weight
     mask_postsel = post_select_by_hamming_weight(
         bitstring_matrix, hamming_right=hamming_right, hamming_left=hamming_left
@@ -79,7 +84,9 @@ def postselect_and_subsample(
     if len(probs_postsel) == 0:
         return [np.array([])] * num_batches
 
-    return subsample(bs_mat_postsel, probs_postsel, samples_per_batch, num_batches, rand_seed)
+    return subsample(
+        bs_mat_postsel, probs_postsel, samples_per_batch, num_batches, rand_seed=rand_seed
+    )
 
 
 def subsample(
@@ -87,7 +94,7 @@ def subsample(
     probabilities: np.ndarray,
     samples_per_batch: int,
     num_batches: int,
-    rand_seed: int | None = None,
+    rand_seed: np.random.Generator | int | None = None,
 ) -> list[np.ndarray]:
     """Subsample batches of bit arrays from an input ``bitstring_matrix``.
 
@@ -122,6 +129,9 @@ def subsample(
     if num_batches < 1:
         raise ValueError("The number of batches must be specified with a positive integer.")
 
+    if isinstance(rand_seed, int) or rand_seed is None:
+        rand_seed = np.random.default_rng(rand_seed)
+
     num_bitstrings = bitstring_matrix.shape[0]
 
     # If the number of requested samples is >= the number of bitstrings, return
@@ -135,8 +145,7 @@ def subsample(
     batches = []
     for _ in range(num_batches):
         if randomly_sample:
-            rng = np.random.default_rng(rand_seed)
-            indices = rng.choice(
+            indices = rand_seed.choice(
                 np.arange(num_bitstrings).astype("int"),
                 samples_per_batch,
                 replace=False,
