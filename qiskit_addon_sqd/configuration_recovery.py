@@ -54,7 +54,7 @@ def recover_configurations(
     avg_occupancies: np.ndarray,
     num_elec_a: int,
     num_elec_b: int,
-    rand_seed: int | None = None,
+    rand_seed: np.random.Generator | int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Refine bitstrings based on average orbital occupancy and a target hamming weight.
 
@@ -82,7 +82,7 @@ def recover_configurations(
             ``i`` in ``bitstring_matrix``.
         num_elec_a: The number of spin-up electrons in the system.
         num_elec_b: The number of spin-down electrons in the system.
-        rand_seed: A seed to control random behavior
+        rand_seed: A seed for controlling randomness
 
     Returns:
         A refined bitstring matrix and an updated probability array.
@@ -92,6 +92,8 @@ def recover_configurations(
              arXiv:2405.05068 [quant-ph].
 
     """
+    rng = np.random.default_rng(rand_seed)
+
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
 
@@ -104,7 +106,7 @@ def recover_configurations(
             avg_occupancies,
             num_elec_a,
             num_elec_b,
-            rand_seed=rand_seed,
+            rng=rng,
         )
         bs_str = "".join("1" if bit else "0" for bit in bs_corrected)
         corrected_dict[bs_str] += freq
@@ -183,7 +185,7 @@ def _bipartite_bitstring_correcting(
     avg_occupancies: np.ndarray,
     hamming_right: int,
     hamming_left: int,
-    rand_seed: int | None = None,
+    rng: np.random.Generator,
 ) -> np.ndarray:
     """Use occupancy information and target hamming weight to correct a bitstring.
 
@@ -192,7 +194,7 @@ def _bipartite_bitstring_correcting(
         avg_occupancies: A 1D array containing the mean occupancy of each orbital.
         hamming_right: The target hamming weight used for the right half of the bitstring
         hamming_left: The target hamming weight used for the left half of the bitstring
-        rand_seed: A seed to control random behavior
+        rng: A random number generator
 
     Returns:
         A corrected bitstring
@@ -200,8 +202,6 @@ def _bipartite_bitstring_correcting(
     """
     # This function must not mutate the input arrays.
     bit_array = bit_array.copy()
-
-    np.random.seed(rand_seed)
 
     # The number of bits should be even
     num_bits = bit_array.shape[0]
@@ -246,7 +246,7 @@ def _bipartite_bitstring_correcting(
             probs_left[bit_array[:partition_size]]
         )
         # Correct the hamming by probabilistically flipping some bits to flip to 0
-        indices_to_flip = np.random.choice(
+        indices_to_flip = rng.choice(
             indices_occupied, size=round(n_diff), replace=False, p=p_choice
         )
         bit_array[:partition_size][indices_to_flip] = False
@@ -259,7 +259,7 @@ def _bipartite_bitstring_correcting(
             probs_left[np.logical_not(bit_array[:partition_size])]
         )
         # Correct the hamming by probabilistically flipping some bits to flip to 1
-        indices_to_flip = np.random.choice(
+        indices_to_flip = rng.choice(
             indices_empty, size=round(np.abs(n_diff)), replace=False, p=p_choice
         )
         bit_array[:partition_size][indices_to_flip] = np.logical_not(
@@ -280,7 +280,7 @@ def _bipartite_bitstring_correcting(
             probs_right[bit_array[partition_size:]]
         )
         # Correct the hamming by probabilistically flipping some bits to flip to 0
-        indices_to_flip = np.random.choice(
+        indices_to_flip = rng.choice(
             indices_occupied, size=round(n_diff), replace=False, p=p_choice
         )
         bit_array[partition_size:][indices_to_flip] = np.logical_not(
@@ -295,7 +295,7 @@ def _bipartite_bitstring_correcting(
             probs_right[np.logical_not(bit_array[partition_size:])]
         )
         # Correct the hamming by probabilistically flipping some bits to flip to 1
-        indices_to_flip = np.random.choice(
+        indices_to_flip = rng.choice(
             indices_empty, size=round(np.abs(n_diff)), replace=False, p=p_choice
         )
         bit_array[partition_size:][indices_to_flip] = np.logical_not(
