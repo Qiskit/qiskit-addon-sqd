@@ -34,8 +34,8 @@ class SCIState:
     r"""The amplitudes and determinants describing a quantum state.
 
     ``amplitudes`` is an :math:`M \\times N` array where :math:`M =` len(``ci_strs_a``)
-    and :math:`N` = len(``ci_strs_b``). ``amplitudes[i][j]`` corresponds to the
-    amplitude of the determinant pair (``ci_strs_a[i]``, ``ci_strs_b[j]``).
+    and :math:`N` = len(``ci_strs_b``). ``amplitudes[i][j]`` is the amplitude of the
+    determinant pair (``ci_strs_a[i]``, ``ci_strs_b[j]``).
     """
 
     amplitudes: np.ndarray
