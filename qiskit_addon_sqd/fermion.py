@@ -31,7 +31,7 @@ config.update("jax_enable_x64", True)  # To deal with large integers
 
 @dataclass(frozen=True)
 class SCIState:
-    """The amplitudes and determinants describing a quantum state.
+    r"""The amplitudes and determinants describing a quantum state.
 
     ``amplitudes`` is an :math:`M \\times N` array where :math:`M =` len(``ci_strs_a``)
     and :math:`N` = len(``ci_strs_b``). ``amplitudes[i][j]`` corresponds to the
