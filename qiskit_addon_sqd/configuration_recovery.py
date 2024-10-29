@@ -92,8 +92,7 @@ def recover_configurations(
              arXiv:2405.05068 [quant-ph].
 
     """
-    if isinstance(rand_seed, int) or rand_seed is None:
-        rand_seed = np.random.default_rng(rand_seed)
+    rng = np.random.default_rng(rand_seed)
 
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
@@ -107,7 +106,7 @@ def recover_configurations(
             avg_occupancies,
             num_elec_a,
             num_elec_b,
-            rng=rand_seed,
+            rng=rng,
         )
         bs_str = "".join("1" if bit else "0" for bit in bs_corrected)
         corrected_dict[bs_str] += freq

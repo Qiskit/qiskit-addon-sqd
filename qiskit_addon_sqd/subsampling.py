@@ -68,8 +68,7 @@ def postselect_and_subsample(
     if hamming_left < 0 or hamming_right < 0:
         raise ValueError("Hamming weight must be specified with a non-negative integer.")
 
-    if isinstance(rand_seed, int) or rand_seed is None:
-        rand_seed = np.random.default_rng(rand_seed)
+    rng = np.random.default_rng(rand_seed)
 
     # Post-select only bitstrings with correct hamming weight
     mask_postsel = post_select_by_hamming_weight(
@@ -82,9 +81,7 @@ def postselect_and_subsample(
     if len(probs_postsel) == 0:
         return [np.array([])] * num_batches
 
-    return subsample(
-        bs_mat_postsel, probs_postsel, samples_per_batch, num_batches, rand_seed=rand_seed
-    )
+    return subsample(bs_mat_postsel, probs_postsel, samples_per_batch, num_batches, rand_seed=rng)
 
 
 def subsample(
@@ -127,8 +124,7 @@ def subsample(
     if num_batches < 1:
         raise ValueError("The number of batches must be specified with a positive integer.")
 
-    if isinstance(rand_seed, int) or rand_seed is None:
-        rand_seed = np.random.default_rng(rand_seed)
+    rng = np.random.default_rng(rand_seed)
 
     num_bitstrings = bitstring_matrix.shape[0]
 
@@ -143,7 +139,7 @@ def subsample(
     batches = []
     for _ in range(num_batches):
         if randomly_sample:
-            indices = rand_seed.choice(
+            indices = rng.choice(
                 np.arange(num_bitstrings).astype("int"),
                 samples_per_batch,
                 replace=False,
