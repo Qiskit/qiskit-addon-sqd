@@ -150,7 +150,11 @@ def solve_fermion(
     # Compute total spin
     spin_squared = myci.spin_square(sci_vec, norb, (num_up, num_dn))[0]
 
-    # Convert the PySCF SCIVector to internal format
+    # Convert the PySCF SCIVector to internal format. We access a private field here,
+    # so we assert that we expect the SCIVector output from kernel_fixed_space to
+    # have its _strs field populated with alpha and beta strings.
+    assert isinstance(sci_vec._strs[0], np.ndarray) and isinstance(sci_vec._strs[1], np.ndarray)
+    assert sci_vec.shape == (len(sci_vec._strs[0]), len(sci_vec._strs[1]))
     sci_state = SCIState(
         amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
     )
