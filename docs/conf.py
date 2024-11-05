@@ -74,16 +74,16 @@ rst_prolog = f"""
 .. |version| replace:: {release}
 """
 
-# Options for autodoc. These reflect the values from Terra.
+# Options for autodoc. These reflect the values from Qiskit SDK and Runtime.
 autosummary_generate = True
 autosummary_generate_overwrite = False
 autoclass_content = "both"
 autodoc_typehints = "description"
-autodoc_typehints_description_target = "documented_params"
-autodoc_member_order = "bysource"
 autodoc_default_options = {
     "inherited-members": None,
 }
+napoleon_google_docstring = True
+napoleon_numpy_docstring = False
 
 
 # This adds numbers to the captions for figures, tables,
