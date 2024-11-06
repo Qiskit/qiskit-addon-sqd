@@ -334,7 +334,7 @@ def flip_orbital_occupancies(occupancies: np.ndarray) -> np.ndarray:
 
 
 @deprecate_func(
-    removal_timeline="no sooner than qiskit-addon-sqd 0.8.0",
+    removal_timeline="no sooner than qiskit-addon-sqd 0.9.0",
     since="0.6.0",
     package_name="qiskit-addon-sqd",
     additional_msg="Use the bitstring_matrix_to_ci_strs function.",
