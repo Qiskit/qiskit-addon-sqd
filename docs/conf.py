@@ -81,6 +81,7 @@ autoclass_content = "both"
 autodoc_typehints = "description"
 autodoc_default_options = {
     "inherited-members": None,
+    "show-inheritance": True,
 }
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
