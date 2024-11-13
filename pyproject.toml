@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "qiskit-addon-sqd"
-version = "0.8.0"
+version = "0.8.1"
 readme = "README.md"
 description = "Classically postprocess noisy quantum samples to yield more accurate energy estimations"
 license = {file = "LICENSE.txt"}
@@ -27,7 +27,7 @@ requires-python = ">=3.9"
 dependencies = [
     "qiskit>=1.2",
     "numpy>=1.26",
-    "pyscf>=2.5",
+    "pyscf>=2.5; sys_platform != 'win32'",
     "jaxlib>=0.4.30",
     "jax>=0.4.30",
     "scipy>=1.13.1",
