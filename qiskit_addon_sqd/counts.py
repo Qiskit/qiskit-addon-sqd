@@ -123,10 +123,9 @@ def generate_counts_bipartite_hamming(
         dn_flips = rng.choice(np.arange(num_bits // 2), hamming_left, replace=False).astype("int")
 
         # Create a bitstring with the chosen bits flipped
-        bts_arr = np.zeros(num_bits)
+        bts_arr = np.zeros(num_bits, dtype=int)
         bts_arr[dn_flips] = 1
         bts_arr[up_flips + num_bits // 2] = 1
-        bts_arr = bts_arr.astype("int")
         bts = "".join("1" if bit else "0" for bit in bts_arr)
 
         # Add the bitstring to the sample dict
