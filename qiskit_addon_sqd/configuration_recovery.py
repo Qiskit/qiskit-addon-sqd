@@ -68,11 +68,6 @@ def recover_configurations(
         corresponding to the spin-up orbital in bit ``i + N`` where ``N`` is the number of
         spatial orbitals and ``i < N``.
 
-    .. note::
-
-        The output configurations may not necessarily have correct hamming weight, as each bit
-        is flipped in isolation from the other bits in the bitstring.
-
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring
