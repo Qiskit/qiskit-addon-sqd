@@ -126,7 +126,7 @@ def generate_counts_bipartite_hamming(
         bts_arr = np.zeros(num_bits)
         bts_arr[dn_flips] = 1
         bts_arr[up_flips + num_bits // 2] = 1
-        bts_arr = bts_arr.astype("int")
+        bts_arr = bts_arr.astype("int")  # type: ignore
         bts = "".join("1" if bit else "0" for bit in bts_arr)
 
         # Add the bitstring to the sample dict

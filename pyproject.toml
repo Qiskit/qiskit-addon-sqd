@@ -110,7 +110,6 @@ py-version = "3.9"
 disable = ["all"]
 enable = [
     "reimported",
-    "no-self-use",
     "no-else-raise",
     "redefined-argument-from-local",
     "redefined-builtin",
