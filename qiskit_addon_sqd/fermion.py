@@ -301,7 +301,7 @@ def rotate_integrals(
 
     """
     num_orbitals = hcore.shape[0]
-    p = np.reshape(k_flat, (num_orbitals, num_orbitals))
+    p = _antisymmetric_matrix_from_upper_tri(k_flat)
     K = (p - np.transpose(p)) / 2.0
     U = LA.expm(K)
     hcore_rot = np.matmul(np.transpose(U), np.matmul(hcore, U))
@@ -459,6 +459,19 @@ def enlarge_batch_from_transitions(
     return np.array(bitstring_matrix_augmented)
 
 
+def _antisymmetric_matrix_from_upper_tri(k_flat: np.ndarray) -> np.ndarray:
+    """Create an anti-symmetric matrix given the upper triangle."""
+    n = int((1 + np.sqrt(1 + 8 * len(k_flat))) // 2)
+    K = np.zeros((num_orbitals, num_orbitals))
+    upper_indices = np.triu_indices(num_orbitals, k=1)
+    lower_indices = np.tril_indices(num_orbitals, k=-1)
+    K[upper_indices] = k_flat
+    K[lower_indices] = -k_flat
+    K = (K - jnp.transpose(K)) / 2.0
+
+    return K
+
+
 def _check_ci_strs(
     ci_strs: tuple[np.ndarray, np.ndarray],
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -520,8 +533,7 @@ def _SCISCF_Energy_contract(
     reduced density matrices with the gradients of the of the one and two-body
     integrals with respect to the rotation parameters, ``k_flat``.
     """
-    p = jnp.reshape(k_flat, (num_orbitals, num_orbitals))
-    K = (p - jnp.transpose(p)) / 2.0
+    K = _antisymmetric_matrix_from_upper_tri(k_flat)
     U = expm(K)
     hcore_rot = jnp.matmul(jnp.transpose(U), jnp.matmul(hcore, U))
     eri_rot = jnp.einsum("pqrs, pi, qj, rk, sl->ijkl", eri, U, U, U, U)
