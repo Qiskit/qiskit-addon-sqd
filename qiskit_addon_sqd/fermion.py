@@ -300,7 +300,6 @@ def rotate_integrals(
         - The rotated ERI matrix
 
     """
-    num_orbitals = hcore.shape[0]
     p = _antisymmetric_matrix_from_upper_tri(k_flat)
     K = (p - np.transpose(p)) / 2.0
     U = LA.expm(K)
@@ -461,10 +460,10 @@ def enlarge_batch_from_transitions(
 
 def _antisymmetric_matrix_from_upper_tri(k_flat: np.ndarray) -> np.ndarray:
     """Create an anti-symmetric matrix given the upper triangle."""
-    n = int((1 + np.sqrt(1 + 8 * len(k_flat))) // 2)
-    K = np.zeros((num_orbitals, num_orbitals))
-    upper_indices = np.triu_indices(num_orbitals, k=1)
-    lower_indices = np.tril_indices(num_orbitals, k=-1)
+    num_rows = int((1 + np.sqrt(1 + 8 * len(k_flat))) // 2)  # quadratic formula
+    K = np.zeros((num_rows, num_rows))
+    upper_indices = np.triu_indices(num_rows, k=1)
+    lower_indices = np.tril_indices(num_rows, k=-1)
     K[upper_indices] = k_flat
     K[lower_indices] = -k_flat
     K = (K - jnp.transpose(K)) / 2.0
