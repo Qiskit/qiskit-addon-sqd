@@ -521,9 +521,8 @@ def _optimize_orbitals_sci(
     This procedure is described in `Sec. II A 4 <https://arxiv.org/pdf/2405.05068>`_.
     """
     prev_update = np.zeros(len(k_flat))
-    num_orbitals = dm1.shape[0]
     for _ in range(num_steps):
-        grad = _SCISCF_Energy_contract_grad(dm1, dm2, hcore, eri, num_orbitals, k_flat)
+        grad = _SCISCF_Energy_contract_grad(dm1, dm2, hcore, eri, k_flat)
         prev_update = learning_rate * grad + momentum * prev_update
         k_flat -= prev_update
 
@@ -533,7 +532,6 @@ def _SCISCF_Energy_contract(
     dm2: np.ndarray,
     hcore: np.ndarray,
     eri: np.ndarray,
-    num_orbitals: int,
     k_flat: np.ndarray,
 ) -> Array:
     """Calculate gradient.
@@ -551,7 +549,7 @@ def _SCISCF_Energy_contract(
     return grad
 
 
-_SCISCF_Energy_contract_grad = jit(grad(_SCISCF_Energy_contract, argnums=5), static_argnums=4)
+_SCISCF_Energy_contract_grad = jit(grad(_SCISCF_Energy_contract, argnums=4))
 
 
 def _apply_excitation_single(
