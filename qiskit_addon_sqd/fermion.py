@@ -202,9 +202,8 @@ def optimize_orbitals(
             two lists should represent the spin-up and spin-down orbitals, respectively.
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
-        k_flat: 1D array defining the orbital transform. This array will be reshaped
-            to be of shape (# orbitals, # orbitals) before being used as a
-            similarity transform operator on the orbitals. Thus ``len(k_flat)=# orbitals**2``.
+        k_flat: 1D array defining the orbital transform, ``K``. The array should specify the upper
+            triangle of the anti-symmetric transform operator in row-major order, excluding the diagonal.
         open_shell: A flag specifying whether configurations from the left and right
             halves of the bitstrings should be kept separate. If ``False``, CI strings
             from the left and right halves of the bitstrings are combined into a single
@@ -223,6 +222,13 @@ def optimize_orbitals(
         - Average orbital occupancy
 
     """
+    k_dim = int((1 + np.sqrt(1 + 8 * len(k_flat))) // 2)  # quadratic formula
+    num_orbitals = hcore.shape[0]
+    if k_dim != num_orbitals:
+        raise ValueError(
+            f"k_flat must specify the upper triangle of the transform matrix. k_flat length is {len(k_flat)}. "
+            f"Expected {(num_orbitals**2 - num_orbitals) // 2}."
+        )
     if isinstance(bitstring_matrix, tuple):
         warnings.warn(
             "Passing a length-2 tuple of determinant lists to define the spin-up/down subspaces "
@@ -240,7 +246,6 @@ def optimize_orbitals(
 
     # TODO: Need metadata showing the optimization history
     ## hcore and eri in physicist ordering
-    num_orbitals = hcore.shape[0]
     k_flat = k_flat.copy()
     eri_phys = np.asarray(eri.transpose(0, 2, 3, 1), order="C")  # physicist ordering
     for _ in range(num_iters):
@@ -292,16 +297,22 @@ def rotate_integrals(
     Args:
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
-        k_flat: 1D array defining the orbital transform. Refer to `Sec. II A 4 <https://arxiv.org/pdf/2405.05068>`_
-            for more information on how these values are used to generate the transform operator.
+        k_flat: 1D array defining the orbital transform, ``K``. The array should specify the upper
+            triangle of the anti-symmetric transform operator in row-major order, excluding the diagonal.
 
     Returns:
         - The rotated core Hamiltonian matrix
         - The rotated ERI matrix
 
     """
-    p = _antisymmetric_matrix_from_upper_tri(k_flat)
-    K = (p - np.transpose(p)) / 2.0
+    k_dim = int((1 + np.sqrt(1 + 8 * len(k_flat))) // 2)  # quadratic formula
+    norb = hcore.shape[0]
+    if k_dim != norb:
+        raise ValueError(
+            f"k_flat must specify the upper triangle of the transform matrix. k_flat length is {len(k_flat)}. "
+            f"Expected {(norb**2 - norb) // 2}."
+        )
+    K = _antisymmetric_matrix_from_upper_tri(k_flat)
     U = LA.expm(K)
     hcore_rot = np.matmul(np.transpose(U), np.matmul(hcore, U))
     eri_rot = np.einsum("pqrs, pi, qj, rk, sl->ijkl", eri, U, U, U, U, optimize=True)
@@ -458,15 +469,14 @@ def enlarge_batch_from_transitions(
     return np.array(bitstring_matrix_augmented)
 
 
-def _antisymmetric_matrix_from_upper_tri(k_flat: np.ndarray) -> np.ndarray:
+def _antisymmetric_matrix_from_upper_tri(k_flat: np.ndarray) -> Array:
     """Create an anti-symmetric matrix given the upper triangle."""
     num_rows = int((1 + np.sqrt(1 + 8 * len(k_flat))) // 2)  # quadratic formula
-    K = np.zeros((num_rows, num_rows))
-    upper_indices = np.triu_indices(num_rows, k=1)
-    lower_indices = np.tril_indices(num_rows, k=-1)
-    K[upper_indices] = k_flat
-    K[lower_indices] = -k_flat
-    K = (K - jnp.transpose(K)) / 2.0
+    K = jnp.zeros((num_rows, num_rows))
+    upper_indices = jnp.triu_indices(num_rows, k=1)
+    lower_indices = jnp.tril_indices(num_rows, k=-1)
+    K = K.at[upper_indices].set(k_flat)
+    K = K.at[lower_indices].set(-k_flat)
 
     return K
 
@@ -546,7 +556,7 @@ _SCISCF_Energy_contract_grad = jit(grad(_SCISCF_Energy_contract, argnums=5), sta
 
 def _apply_excitation_single(
     single_bts: np.ndarray, diag: np.ndarray, create: np.ndarray, annihilate: np.ndarray
-) -> tuple[jnp.ndarray, Array]:
+) -> tuple[Array, Array]:
     falses = jnp.array([False for _ in range(len(diag))])
 
     bts_ret = single_bts == diag

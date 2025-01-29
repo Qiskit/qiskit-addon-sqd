@@ -1,0 +1,4 @@
+---
+upgrade:
+  - |
+    :func:`qiskit_addon_sqd.fermion.optimize_orbitals` and :func:`qiskit_addon_sqd.fermion.rotate_integrals` now require ``k_flat`` to specify the upper triangle (not including diagonal) of the rotation matrix, rather than the entire matrix.
