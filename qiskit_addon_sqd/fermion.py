@@ -222,12 +222,12 @@ def optimize_orbitals(
         - Average orbital occupancy
 
     """
-    k_dim = int((1 + np.sqrt(1 + 8 * len(k_flat))) // 2)  # quadratic formula
     num_orbitals = hcore.shape[0]
-    if k_dim != num_orbitals:
+    num_params = (num_orbitals**2 - num_orbitals) // 2
+    if len(k_flat) != num_params:
         raise ValueError(
             f"k_flat must specify the upper triangle of the transform matrix. k_flat length is {len(k_flat)}. "
-            f"Expected {(num_orbitals**2 - num_orbitals) // 2}."
+            f"Expected {num_params}."
         )
     if isinstance(bitstring_matrix, tuple):
         warnings.warn(
