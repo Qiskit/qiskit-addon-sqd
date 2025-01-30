@@ -222,8 +222,8 @@ def optimize_orbitals(
         - Average orbital occupancy
 
     """
-    num_orbitals = hcore.shape[0]
-    num_params = (num_orbitals**2 - num_orbitals) // 2
+    norb = hcore.shape[0]
+    num_params = (norb**2 - norb) // 2
     if len(k_flat) != num_params:
         raise ValueError(
             f"k_flat must specify the upper triangle of the transform matrix. k_flat length is {len(k_flat)}. "
@@ -260,16 +260,16 @@ def optimize_orbitals(
             myci,
             hcore_rot,
             eri_rot_chem,
-            num_orbitals,
+            norb,
             (num_up, num_dn),
             ci_strs=ci_strs,
             max_cycle=max_davidson,
         )
 
         # Generate the one and two-body reduced density matrices from latest wavefunction amplitudes
-        dm1, dm2_chem = myci.make_rdm12(amplitudes, num_orbitals, (num_up, num_dn))
+        dm1, dm2_chem = myci.make_rdm12(amplitudes, norb, (num_up, num_dn))
         dm2 = np.asarray(dm2_chem.transpose(0, 2, 3, 1), order="C")
-        dm1a, dm1b = myci.make_rdm1s(amplitudes, num_orbitals, (num_up, num_dn))
+        dm1a, dm1b = myci.make_rdm1s(amplitudes, norb, (num_up, num_dn))
 
         # TODO: Expose the momentum parameter as an input option
         # Optimize the basis rotations
@@ -305,14 +305,14 @@ def rotate_integrals(
         - The rotated ERI matrix
 
     """
-    k_dim = int((1 + np.sqrt(1 + 8 * len(k_flat))) // 2)  # quadratic formula
     norb = hcore.shape[0]
-    if k_dim != norb:
+    num_params = (norb**2 - norb) // 2
+    if len(k_flat) != num_params:
         raise ValueError(
             f"k_flat must specify the upper triangle of the transform matrix. k_flat length is {len(k_flat)}. "
-            f"Expected {(norb**2 - norb) // 2}."
+            f"Expected {num_params}."
         )
-    K = _antisymmetric_matrix_from_upper_tri(k_flat)
+    K = _antisymmetric_matrix_from_upper_tri(k_flat, norb)
     U = LA.expm(K)
     hcore_rot = np.matmul(np.transpose(U), np.matmul(hcore, U))
     eri_rot = np.einsum("pqrs, pi, qj, rk, sl->ijkl", eri, U, U, U, U, optimize=True)
@@ -333,12 +333,12 @@ def flip_orbital_occupancies(occupancies: np.ndarray) -> np.ndarray:
 
     where ``N`` is the number of spatial orbitals.
     """
-    num_orbitals = occupancies.shape[0] // 2
-    occ_up = occupancies[:num_orbitals]
-    occ_dn = occupancies[num_orbitals:]
-    occ_out = np.zeros(2 * num_orbitals)
-    occ_out[:num_orbitals] = np.flip(occ_up)
-    occ_out[num_orbitals:] = np.flip(occ_dn)
+    norb = occupancies.shape[0] // 2
+    occ_up = occupancies[:norb]
+    occ_dn = occupancies[norb:]
+    occ_out = np.zeros(2 * norb)
+    occ_out[:norb] = np.flip(occ_up)
+    occ_out[norb:] = np.flip(occ_dn)
 
     return occ_out
 
@@ -373,19 +373,19 @@ def bitstring_matrix_to_sorted_addresses(
         right (spin-up) halves of the bitstrings, respectively.
 
     """
-    num_orbitals = bitstring_matrix.shape[1] // 2
+    norb = bitstring_matrix.shape[1] // 2
     num_configs = bitstring_matrix.shape[0]
 
     address_left = np.zeros(num_configs)
     address_right = np.zeros(num_configs)
-    bts_matrix_left = bitstring_matrix[:, :num_orbitals]
-    bts_matrix_right = bitstring_matrix[:, num_orbitals:]
+    bts_matrix_left = bitstring_matrix[:, :norb]
+    bts_matrix_right = bitstring_matrix[:, norb:]
 
     # For performance, we accumulate the left and right addresses together, column-wise,
     # across the two halves of the input bitstring matrix.
-    for i in range(num_orbitals):
-        address_left[:] += bts_matrix_left[:, i] * 2 ** (num_orbitals - 1 - i)
-        address_right[:] += bts_matrix_right[:, i] * 2 ** (num_orbitals - 1 - i)
+    for i in range(norb):
+        address_left[:] += bts_matrix_left[:, i] * 2 ** (norb - 1 - i)
+        address_right[:] += bts_matrix_right[:, i] * 2 ** (norb - 1 - i)
 
     addresses_right = np.unique(address_right.astype("longlong"))
     addresses_left = np.unique(address_left.astype("longlong"))
@@ -420,19 +420,19 @@ def bitstring_matrix_to_ci_strs(
         halves of the bitstrings, respectively.
 
     """
-    num_orbitals = bitstring_matrix.shape[1] // 2
+    norb = bitstring_matrix.shape[1] // 2
     num_configs = bitstring_matrix.shape[0]
 
     ci_str_left = np.zeros(num_configs)
     ci_str_right = np.zeros(num_configs)
-    bts_matrix_left = bitstring_matrix[:, :num_orbitals]
-    bts_matrix_right = bitstring_matrix[:, num_orbitals:]
+    bts_matrix_left = bitstring_matrix[:, :norb]
+    bts_matrix_right = bitstring_matrix[:, norb:]
 
     # For performance, we accumulate the left and right CI strings together, column-wise,
     # across the two halves of the input bitstring matrix.
-    for i in range(num_orbitals):
-        ci_str_left[:] += bts_matrix_left[:, i] * 2 ** (num_orbitals - 1 - i)
-        ci_str_right[:] += bts_matrix_right[:, i] * 2 ** (num_orbitals - 1 - i)
+    for i in range(norb):
+        ci_str_left[:] += bts_matrix_left[:, i] * 2 ** (norb - 1 - i)
+        ci_str_right[:] += bts_matrix_right[:, i] * 2 ** (norb - 1 - i)
 
     ci_strs_right = np.unique(ci_str_right.astype("longlong"))
     ci_strs_left = np.unique(ci_str_left.astype("longlong"))
@@ -469,12 +469,11 @@ def enlarge_batch_from_transitions(
     return np.array(bitstring_matrix_augmented)
 
 
-def _antisymmetric_matrix_from_upper_tri(k_flat: np.ndarray) -> Array:
+def _antisymmetric_matrix_from_upper_tri(k_flat: np.ndarray, k_dim: int) -> Array:
     """Create an anti-symmetric matrix given the upper triangle."""
-    num_rows = int((1 + np.sqrt(1 + 8 * len(k_flat))) // 2)  # quadratic formula
-    K = jnp.zeros((num_rows, num_rows))
-    upper_indices = jnp.triu_indices(num_rows, k=1)
-    lower_indices = jnp.tril_indices(num_rows, k=-1)
+    K = jnp.zeros((k_dim, k_dim))
+    upper_indices = jnp.triu_indices(k_dim, k=1)
+    lower_indices = jnp.tril_indices(k_dim, k=-1)
     K = K.at[upper_indices].set(k_flat)
     K = K.at[lower_indices].set(-k_flat)
 
@@ -540,7 +539,7 @@ def _SCISCF_Energy_contract(
     reduced density matrices with the gradients of the of the one and two-body
     integrals with respect to the rotation parameters, ``k_flat``.
     """
-    K = _antisymmetric_matrix_from_upper_tri(k_flat)
+    K = _antisymmetric_matrix_from_upper_tri(k_flat, hcore.shape[0])
     U = expm(K)
     hcore_rot = jnp.matmul(jnp.transpose(U), jnp.matmul(hcore, U))
     eri_rot = jnp.einsum("pqrs, pi, qj, rk, sl->ijkl", eri, U, U, U, U)
