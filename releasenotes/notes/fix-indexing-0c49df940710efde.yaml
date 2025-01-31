@@ -1,0 +1,3 @@
+fixes:
+  - |
+    Fixed an indexing error in :func:`qiskit_addon_sqd.configuration_recovery` which caused bits in the right half of the bitstring to be flipped with respect to the occupancies of the oritals associated with the left half of the bitstring.
