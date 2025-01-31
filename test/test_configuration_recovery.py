@@ -93,6 +93,19 @@ class TestConfigurationRecovery(unittest.TestCase):
             )
             self.assertTrue((expected_mat == mat_rec).all())
             self.assertTrue((expected_probs == probs_rec).all())
+        with self.subTest("Basic test. Mismatching orbitals."):
+            bs_mat = np.array([[True, True, True, True]])
+            probs = np.array([1.0])
+            occs = [0.0, 1.0, 0.0, 0.0]
+            num_a = 0
+            num_b = 1
+            expected_mat = np.array([[False, True, False, False]])
+            expected_probs = np.array([1.0])
+            mat_rec, probs_rec = recover_configurations(
+                bs_mat, probs, occs, num_a, num_b, rand_seed=4224
+            )
+            self.assertTrue((expected_mat == mat_rec).all())
+            self.assertTrue((expected_probs == probs_rec).all())
         with self.subTest("Test with more than 72 bits. Ones to zeros."):
             n_bits = 74
             rng = np.random.default_rng(554)
