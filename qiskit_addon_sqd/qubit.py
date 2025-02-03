@@ -128,7 +128,7 @@ def project_operator_to_subspace(
         if verbose:  # pragma: no cover
             (
                 print(
-                    f"Projecting term {i+1} out of {hamiltonian.size}: {coefficient} * "
+                    f"Projecting term {i + 1} out of {hamiltonian.size}: {coefficient} * "
                     + "".join(pauli.to_label())
                     + " ..."
                 )
