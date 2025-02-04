@@ -76,7 +76,7 @@ def solve_fermion(
     eri: np.ndarray,
     *,
     open_shell: bool = False,
-    spin_sq: int | None = None,
+    spin_sq: float | None = None,
     max_davidson: int = 100,
     verbose: int | None = None,
 ) -> tuple[float, SCIState, list[np.ndarray], float]:
