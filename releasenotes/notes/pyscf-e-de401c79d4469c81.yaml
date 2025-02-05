@@ -1,0 +1,4 @@
+---
+fixes:
+  - |
+    Fixed a bug which would cause the energy output from :func:`qiskit_addon_sqd.fermion.solve_fermion` to be incorrect when the input ``spin_sq`` deviates from the spin^2 of the output wavefunction.
