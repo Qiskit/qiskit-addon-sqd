@@ -132,7 +132,11 @@ def solve_fermion(
     myci = fci.selected_ci.SelectedCI()
     if spin_sq is not None:
         myci = fci.addons.fix_spin_(myci, ss=spin_sq)
-    e_sci, sci_vec = fci.selected_ci.kernel_fixed_space(
+    # The energy returned from this function is not guaranteed to be
+    # the energy of the returned wavefunction when the spin^2 deviates
+    # from the value requested. We will calculate the energy from the
+    # RDMs below and ignore this value to be safe.
+    _, sci_vec = fci.selected_ci.kernel_fixed_space(
         myci,
         hcore,
         eri,
@@ -144,8 +148,13 @@ def solve_fermion(
     )
 
     # Calculate the avg occupancy of each orbital
-    dm1 = myci.make_rdm1s(sci_vec, norb, (num_up, num_dn))
-    avg_occupancy = [np.diagonal(dm1[0]), np.diagonal(dm1[1])]
+    dm1s = myci.make_rdm1s(sci_vec, norb, (num_up, num_dn))
+    avg_occupancy = [np.diagonal(dm1s[0]), np.diagonal(dm1s[1])]
+
+    # Calculate energy from RDMs
+    dm1 = myci.make_rdm1(sci_vec, norb, (num_up, num_dn))
+    dm2 = myci.make_rdm2(sci_vec, norb, (num_up, num_dn))
+    e_sci = np.einsum("pr,pr->", dm1, hcore) + 0.5 * np.einsum("prqs,prqs->", dm2, eri)
 
     # Compute total spin
     spin_squared = myci.spin_square(sci_vec, norb, (num_up, num_dn))[0]
