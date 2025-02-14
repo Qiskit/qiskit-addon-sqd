@@ -25,6 +25,9 @@ from jax.scipy.linalg import expm
 from pyscf import fci
 from qiskit.utils import deprecate_func
 from scipy import linalg as LA
+import itertools
+from itertools import combinations
+from typing import Optional
 
 config.update("jax_enable_x64", True)  # To deal with large integers
 
@@ -79,6 +82,10 @@ def solve_fermion(
     spin_sq: float | None = None,
     max_davidson: int = 100,
     verbose: int | None = None,
+    subspace: bool = False,
+    subspace_orb: Optional[int] = None,
+    subspace_alpha: Optional[int] = None,
+    subspace_beta: Optional[int] = None,
 ) -> tuple[float, SCIState, list[np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
 
@@ -125,9 +132,19 @@ def solve_fermion(
 
     num_up = format(ci_strs[0][0], "b").count("1")
     num_dn = format(ci_strs[1][0], "b").count("1")
+    
 
     # Number of molecular orbitals
     norb = hcore.shape[0]
+        
+    #If subspace true, append the CIs if not found
+    if subspace:                                
+        subspace_m = generate_bitstrings(norb, num_up,num_dn, subspace_orb, subspace_alpha, subspace_beta)
+        subspace_ci = bitstring_matrix_to_ci_strs(subspace_m, open_shell=open_shell)
+        for ind in range(len(subspace_ci[0])):
+            ci_strs = np.append(ci_strs[0],subspace_ci[0][ind]) if subspace_ci[0][ind] not in ci_strs[0] else ci_strs[0],np.append(ci_strs[1],subspace_ci[1][ind]) if subspace_ci[1][ind] not in ci_strs[1] else ci_strs[1]
+            ci_strs = np.sort(ci_strs)
+
     # Call the projection + eigenstate finder
     myci = fci.selected_ci.SelectedCI()
     if spin_sq is not None:
@@ -593,3 +610,17 @@ def _transition_str_to_bool(string_rep: np.ndarray) -> tuple[np.ndarray, np.ndar
     annihilate = np.logical_or(string_rep == "-", string_rep == "n")
 
     return diag, create, annihilate
+
+def generate_bitstrings(norb, neleca,nelecb, n_orb, n_alpha, n_beta):
+    def get_strings(n, k):
+        return [''.join('1' if i in comb else '0' for i in range(n))
+                for comb in combinations(range(n), k)]
+    alpha_strings = get_strings(n_orb, n_alpha)
+    beta_strings = get_strings(n_orb, n_beta)
+    d_orb = neleca+nelecb - n_alpha - n_beta
+    doubly_occ = [''.join(seq) for seq in itertools.product('1', repeat=int(d_orb/2))]
+    virtual_occ = [''.join(seq) for seq in itertools.product('0', repeat=int(norb - n_orb - d_orb/2))]
+    bitstrings = [v + b +d +v + a + d for a in alpha_strings for b in beta_strings for d in doubly_occ for v in virtual_occ]
+    core_bistrings = [b + a for a in alpha_strings for b in beta_strings]
+    bitstrings_bool = np.array([[bit == '1' for bit in bs] for bs in bitstrings], dtype=bool)
+    return bitstrings_bool
