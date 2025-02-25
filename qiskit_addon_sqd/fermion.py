@@ -25,6 +25,8 @@ from jax.scipy.linalg import expm
 from pyscf import fci
 from qiskit.utils import deprecate_func
 from scipy import linalg as LA
+import itertools
+from itertools import combinations
 
 config.update("jax_enable_x64", True)  # To deal with large integers
 
@@ -79,6 +81,10 @@ def solve_fermion(
     spin_sq: float | None = None,
     max_davidson: int = 100,
     verbose: int | None = None,
+    subspace: bool = False,
+    subspace_orb: int | None = None,
+    subspace_alpha: int | None = None,
+    subspace_beta: int | None = None,
 ) -> tuple[float, SCIState, list[np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
 
@@ -103,6 +109,10 @@ def solve_fermion(
             If ``None``, no spin will be imposed.
         max_davidson: The maximum number of cycles of Davidson's algorithm
         verbose: A verbosity level between 0 and 10
+        subspace: A flag that turns on and off the feature that adds some user-defined bistrings to the sample
+        subspace_orb: Number of orbitals in a user-defined subspace
+        subspace_alpha: Number of alpha electrons in a user-defined subsapce
+        subspace_beta: Number of beta electrons in a user-defined subspace
 
     Returns:
         - Minimum energy from SCI calculation
@@ -128,6 +138,24 @@ def solve_fermion(
 
     # Number of molecular orbitals
     norb = hcore.shape[0]
+
+    # If subspace true, append the CIs if not found
+    if subspace:
+        subspace_m = _generate_bitstrings(
+            norb, num_up, num_dn, subspace_orb, subspace_alpha, subspace_beta
+        )
+        subspace_ci = bitstring_matrix_to_ci_strs(subspace_m, open_shell=open_shell)
+        for ind in range(len(subspace_ci[0])):
+            ci_strs = (
+                np.append(ci_strs[0], subspace_ci[0][ind])
+                if subspace_ci[0][ind] not in ci_strs[0]
+                else ci_strs[0],
+                np.append(ci_strs[1], subspace_ci[1][ind])
+                if subspace_ci[1][ind] not in ci_strs[1]
+                else ci_strs[1],
+            )
+            ci_strs = np.sort(ci_strs)
+
     # Call the projection + eigenstate finder
     myci = fci.selected_ci.SelectedCI()
     if spin_sq is not None:
@@ -593,3 +621,47 @@ def _transition_str_to_bool(string_rep: np.ndarray) -> tuple[np.ndarray, np.ndar
     annihilate = np.logical_or(string_rep == "-", string_rep == "n")
 
     return diag, create, annihilate
+
+
+def _generate_bitstrings(norb, neleca, nelecb, n_orb, n_alpha, n_beta) -> np.ndarray:
+    """classical generate all configurations in a user-defined subspace to ensure some core configruations are always present in batches:
+        e.g. (4e,4o)
+        one can define a 'subspace' (2e,2o) and have doubly occupied (2e,1o) and virtual (0e,1o)
+        all possible configurations can be generated for that subspace, then sandwiched with '0' and '1's.
+        Currently we only consider the situations described above, i.e. even number of electrons left for the doubly occupied space
+
+    Args:
+        norb: Number of orbitals of the original system
+        neleca: Number of alpha electrons of the original system
+        nelecb: Number of beta electrons of the original system
+        n_orb: User-defined number of orbitals, a subspace of the original system
+        n_alpha: User-defined number of alpha electrons that belong to the subspace
+        n_beta: User-defined number of beta electrons that belong to the subspace
+
+    Returns:
+        bitstring_matrix: A 2D array of ``bool`` representations of bit values such that each row represents a single bitstring,
+        so that it is compatible with rest of the diagonalization
+
+    """
+
+    def _get_strings(n, k):
+        return [
+            "".join("1" if i in comb else "0" for i in range(n))
+            for comb in combinations(range(n), k)
+        ]
+
+    alpha_strings = _get_strings(n_orb, n_alpha)
+    beta_strings = _get_strings(n_orb, n_beta)
+    d_orb = neleca + nelecb - n_alpha - n_beta
+    doubly_occ = ["1" * int(d_orb / 2)]
+    virtual_occ = ["0" * int(norb - n_orb - d_orb / 2)]
+    bitstrings = [
+        v + b + d + v + a + d
+        for a in alpha_strings
+        for b in beta_strings
+        for d in doubly_occ
+        for v in virtual_occ
+    ]
+    core_bistrings = [b + a for a in alpha_strings for b in beta_strings]
+    bitstrings_bool = np.array([[bit == "1" for bit in bs] for bs in bitstrings], dtype=bool)
+    return bitstrings_bool
