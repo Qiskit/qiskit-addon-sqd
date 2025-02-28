@@ -280,7 +280,7 @@ def optimize_orbitals(
             k_flat, learning_rate, 0.9, num_steps_grad, dm1, dm2, hcore, eri_phys
         )
 
-    return e_qsci, k_flat, [np.diagonal(dm1a), np.diagonal(dm1b)]
+    return e_qsci, k_flat, [np.flip(np.diagonal(dm1b)), np.flip(np.diagonal(dm1a))]
 
 
 def rotate_integrals(
