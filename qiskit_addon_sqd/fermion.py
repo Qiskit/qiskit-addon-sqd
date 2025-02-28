@@ -158,7 +158,7 @@ def solve_fermion(
     sci_state = SCIState(
         amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
     )
-    
+
     # Flip the occupancies to match the order of the bitstrings
     avg_occupancy = list(np.flip(avg_occupancy))
 
