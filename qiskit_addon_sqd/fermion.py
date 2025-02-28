@@ -79,7 +79,7 @@ def solve_fermion(
     spin_sq: float | None = None,
     max_davidson: int = 100,
     verbose: int | None = None,
-) -> tuple[float, SCIState, list[np.ndarray], float]:
+) -> tuple[float, SCIState, np.ndarray, float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
 
     Args:
@@ -107,7 +107,7 @@ def solve_fermion(
     Returns:
         - Minimum energy from SCI calculation
         - The SCI ground state
-        - Average occupancy of the alpha and beta orbitals, respectively
+        - Average occupancy of the orbitals. Occupancy ``i`` is associated with column ``i`` in ``bitstring_matrix``.
         - Expectation value of spin-squared
 
     """
@@ -145,7 +145,7 @@ def solve_fermion(
 
     # Calculate the avg occupancy of each orbital
     dm1 = myci.make_rdm1s(sci_vec, norb, (num_up, num_dn))
-    avg_occupancy = [np.diagonal(dm1[0]), np.diagonal(dm1[1])]
+    avg_occupancy = np.concatenate(np.flip(np.diagonal(dm1[1])), np.flip(np.diagonal(dm1[0])))
 
     # Compute total spin
     spin_squared = myci.spin_square(sci_vec, norb, (num_up, num_dn))[0]
@@ -158,9 +158,6 @@ def solve_fermion(
     sci_state = SCIState(
         amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
     )
-
-    # Flip the occupancies to match the order of the bitstrings
-    avg_occupancy = list(np.flip(avg_occupancy))
 
     return e_sci, sci_state, avg_occupancy, spin_squared
 
@@ -222,7 +219,7 @@ def optimize_orbitals(
     Returns:
         - The groundstate energy found during the last optimization iteration
         - An optimized 1D array defining the orbital transform
-        - Average orbital occupancy
+        - Average occupancy of the orbitals. Occupancy ``i`` is associated with column ``i`` in ``bitstring_matrix``.
 
     """
     norb = hcore.shape[0]
@@ -272,7 +269,8 @@ def optimize_orbitals(
         # Generate the one and two-body reduced density matrices from latest wavefunction amplitudes
         dm1, dm2_chem = myci.make_rdm12(amplitudes, norb, (num_up, num_dn))
         dm2 = np.asarray(dm2_chem.transpose(0, 2, 3, 1), order="C")
-        dm1a, dm1b = myci.make_rdm1s(amplitudes, norb, (num_up, num_dn))
+        dm1 = myci.make_rdm1s(amplitudes, norb, (num_up, num_dn))
+        avg_occupancy = np.concatenate(np.flip(np.diagonal(dm1[1])), np.flip(np.diagonal(dm1[0])))
 
         # TODO: Expose the momentum parameter as an input option
         # Optimize the basis rotations
@@ -280,7 +278,7 @@ def optimize_orbitals(
             k_flat, learning_rate, 0.9, num_steps_grad, dm1, dm2, hcore, eri_phys
         )
 
-    return e_qsci, k_flat, [np.flip(np.diagonal(dm1b)), np.flip(np.diagonal(dm1a))]
+    return e_qsci, k_flat, avg_occupancy
 
 
 def rotate_integrals(
