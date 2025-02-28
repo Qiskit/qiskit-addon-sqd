@@ -158,6 +158,9 @@ def solve_fermion(
     sci_state = SCIState(
         amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
     )
+    
+    # Flip the occupancies to match the order of the bitstrings
+    avg_occupancy = np.flip(avg_occupancy)
 
     return e_sci, sci_state, avg_occupancy, spin_squared
 
@@ -318,29 +321,6 @@ def rotate_integrals(
     eri_rot = np.einsum("pqrs, pi, qj, rk, sl->ijkl", eri, U, U, U, U, optimize=True)
 
     return np.array(hcore_rot), np.array(eri_rot)
-
-
-def flip_orbital_occupancies(occupancies: np.ndarray) -> np.ndarray:
-    """Flip an orbital occupancy array to match the indexing of a bitstring.
-
-    This function reformats a 1D array of spin-orbital occupancies formatted like:
-
-        ``[occ_a_1, occ_a_2, ..., occ_a_N, occ_b_1, ..., occ_b_N]``
-
-    To an array formatted like:
-
-        ``[occ_a_N, ..., occ_a_1, occ_b_N, ..., occ_b_1]``
-
-    where ``N`` is the number of spatial orbitals.
-    """
-    norb = occupancies.shape[0] // 2
-    occ_up = occupancies[:norb]
-    occ_dn = occupancies[norb:]
-    occ_out = np.zeros(2 * norb)
-    occ_out[:norb] = np.flip(occ_up)
-    occ_out[norb:] = np.flip(occ_dn)
-
-    return occ_out
 
 
 @deprecate_func(
