@@ -160,7 +160,7 @@ def solve_fermion(
     )
     
     # Flip the occupancies to match the order of the bitstrings
-    avg_occupancy = np.flip(avg_occupancy)
+    avg_occupancy = list(np.flip(avg_occupancy))
 
     return e_sci, sci_state, avg_occupancy, spin_squared
 
