@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections import defaultdict
 from collections.abc import Sequence
 
@@ -87,7 +88,7 @@ def recover_configurations(
              arXiv:2405.05068 [quant-ph].
     """
     rng = np.random.default_rng(rand_seed)
-    
+
     occ_dims = len(np.array(avg_occupancies).shape)
     if occ_dims == 1:
         warnings.warn(
@@ -95,11 +96,11 @@ def recover_configurations(
             DeprecationWarning,
             stacklevel=2,
         )
+        norb = bitstring_matrix.shape[1] // 2
         avg_occupancies = (np.flip(avg_occupancies[norb:]), np.flip(avg_occupancies[:norb]))
 
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
-
 
     corrected_dict: defaultdict[str, float] = defaultdict(float)
     norb = bitstring_matrix.shape[1] // 2
