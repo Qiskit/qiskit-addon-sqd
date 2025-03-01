@@ -31,13 +31,17 @@
 
 [Qiskit addons](https://docs.quantum.ibm.com/guides/addons) are a collection of modular tools for building utility-scale workloads powered by Qiskit.
 
-This package contains the Qiskit addon for sample-based quantum diagonalization (SQD) -- a technique for finding eigenvalues and eigenvectors of quantum operators, such as a quantum system Hamiltonian, using quantum and distributed classical computing together.
+This package contains the Qiskit addon for sample-based quantum diagonalization (SQD) -- a technique for finding eigenvalues and eigenvectors of quantum operators, such as a quantum system Hamiltonian, using quantum and distributed classical computing together [1-5]. This technique can be run on current quantum computers and has been shown to scale to problem sizes beyond what was possible with variational methods and even beyond the reach of exact classical diagonalization methods [1,2].
 
-Classical distributed computing is used to process samples obtained from a quantum processor and to project and diagonalize a target Hamiltonian in a subspace spanned by them. This allows SQD to be robust to samples corrupted by quantum noise and deal with large Hamiltonians, such as chemistry Hamiltonians with millions of interaction terms, beyond the reach of any exact diagonalization methods. 
+SQD-based workflows involve first preparing one or more quantum states on a quantum device and sampling from them. Then, classical distributed computing is used to process those noisy samples. This processing occurs iteratively in two steps: First, a configuration recovery step corrects noisy samples using information about the input problem and second, the Hamiltonian is projected and diagonalized in the subspace spanned by those samples. These steps are repeated self-consistently until convergence. The result is an approximated lowest eigenvalue (energy) and lowest energy eigenstate of a given Hamiltonian. SQD is robust to samples corrupted by quantum noise; in fact, as long as a useful signal can be retrieved out of the quantum computer, the outcome of SQD will be insensitive to noisy bitstrings.
 
-The SQD tool can target Hamiltonians expressed as linear combinations of Pauli operators, or second-quantized fermionic operators. The input samples are obtained by quantum circuits defined by the user, which are believed to be good representations of eigenstates (e.g. the ground state) of a target operator. The convergence rate of SQD as a function of the number of samples improves with the sparseness of the target eigenstate. 
+SQD can be used in various ways in practice. For example, we can use two categories of quantum circuits to sample from:
+  
+  1. A single ansatz is prepared that is believed to be a good representation of an eigenstate (e.g., ground state) of the target Hamiltonian. This is appealing for chemistry applications where Hamiltonians can have millions of interaction terms [1]. For an example of this approach applied to chemistry see the [tutorial for approximating the ground state energy of the N2 molecule](https://qiskit.github.io/qiskit-addon-sqd/tutorials/01_chemistry_hamiltonian.html).
 
-The projection and diagonalization steps are performed by a classical solver. We provide here two generic solvers, one for fermionic systems and another for qubit systems. Other solvers that might be more efficient for specific systems can be interfaced by the users.
+  2. A set of Krylov basis states are prepared over increasing time intervals. Assuming a good initial state and sparsity of the ground state, this approach is proven to converge efficiently. As one needs to prepare Trotterized time evolution circuits on a quantum device, this approach is best for applications to lattice models [2]. For an example of this approach applied to Fermionic lattice Hamiltonians, see the [tutorial for approximating the ground state energy of a simplified single-impurity Anderson model](https://qiskit.github.io/qiskit-addon-sqd/tutorials/02_fermionic_lattice_hamiltonian.html).
+
+  This package contains the functionality for the classical processing of user-provided samples. It can target Hamiltonians expressed as linear combinations of Pauli operators or second-quantized Fermionic operators. The projection and diagonalization steps are performed by a classical solver. We provide here two generic solvers, one for Fermionic systems and another for qubit systems. Other solvers that might be more efficient for specific systems can be interfaced by the users.
 
 ----------------------------------------------------------------------------------------------------
 
@@ -109,4 +113,10 @@ We use [GitHub issues](https://github.com/Qiskit/qiskit-addon-sqd/issues/new/cho
 
 [1] Javier Robledo-Moreno, et al., [Chemistry Beyond Exact Solutions on a Quantum-Centric Supercomputer](https://arxiv.org/abs/2405.05068), arXiv:2405.05068 [quant-ph].
 
-[2] Keita Kanno, et al., [Quantum-Selected Configuration Interaction: classical diagonalization of Hamiltonians in subspaces selected by quantum computers](https://arxiv.org/abs/2302.11320), arXiv:2302.11320 [quant-ph].
+[2] Jeffery Yu, et al., [Quantum-Centric Algorithm for Sample-Based Krylov Diagonalization](https://arxiv.org/abs/2501.09702), arXiv:2501.09702 [quant-ph].
+
+[3] Keita Kanno, et al., [Quantum-Selected Configuration Interaction: classical diagonalization of Hamiltonians in subspaces selected by quantum computers](https://arxiv.org/abs/2302.11320), arXiv:2302.11320 [quant-ph].
+
+[4] Kenji Sugisaki, et al., [Hamiltonian simulation-based quantum-selected configuration interaction for large-scale electronic structure calculations with a quantum computer](https://arxiv.org/abs/2412.07218), arXiv:2412.07218 [quant-ph].
+
+[5] Mathias Mikkelsen, Yuya O. Nakagawa, [Quantum-selected configuration interaction with time-evolved state](https://arxiv.org/abs/2412.13839), arXiv:2412.13839 [quant-ph].
