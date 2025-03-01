@@ -72,9 +72,9 @@ def recover_configurations(
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring
         probabilities: A 1D array specifying a probability distribution over the bitstrings
-        avg_occupancies: A 1D array containing the mean occupancy of each orbital. It is assumed
-            that ``avg_occupancies[i]`` corresponds to the orbital represented by column
-            ``i`` in ``bitstring_matrix``.
+        avg_occupancies: A length-2 tuple of arrays holding the mean occupancy of the spin-up
+            and spin-down orbitals respectively.containing the mean occupancy of each orbital.
+            The occupancies should be formatted as: ``(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``
         num_elec_a: The number of spin-up electrons in the system.
         num_elec_b: The number of spin-down electrons in the system.
         rand_seed: A seed for controlling randomness
@@ -85,16 +85,25 @@ def recover_configurations(
     References:
         [1]: J. Robledo-Moreno, et al., `Chemistry Beyond Exact Solutions on a Quantum-Centric Supercomputer <https://arxiv.org/abs/2405.05068>`_,
              arXiv:2405.05068 [quant-ph].
-
     """
     rng = np.random.default_rng(rand_seed)
+    
+    occ_dims = len(np.array(avg_occupancies).shape)
+    if occ_dims == 1:
+        warnings.warn(
+            "Passing avg_occupancies as a 1D array is deprecated. Pass a length-2 tuple containing the spin-up and spin-down occupancies respectively.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        avg_occupancies = (np.flip(avg_occupancies[norb:]), np.flip(avg_occupancies[:norb]))
 
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
 
-    # First, we need to flip the orbitals such that
 
     corrected_dict: defaultdict[str, float] = defaultdict(float)
+    norb = bitstring_matrix.shape[1] // 2
+    avg_occupancies = np.flip(avg_occupancies).flatten()
     for bitstring, freq in zip(bitstring_matrix, probabilities):
         bs_corrected = _bipartite_bitstring_correcting(
             bitstring,

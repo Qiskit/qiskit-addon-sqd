@@ -1,7 +1,11 @@
 ---
-fixes:
-  - |
-    Fixed an issue affecting open-shell workflows which caused the output of :func:`qiskit_addon_sqd.fermion.flip_orbital_occupancies` to be ordered as ``[occ_a_N, ..., occ_a_0, occ_b_N, ..., occ_b_0]`` instead of the correct ``[occ_b_N, ..., occ_b_0, occ_a_N, ..., occ_a_0]``. Users should no longer flip the orbital occupancies output from :func:`qiskit_addon_sqd.fermion.solve_fermion` and :func:`qiskit_addon_sqd.fermion.optimize_orbitals`; they will be output in the correct order (the same order as the bitstrings).
 upgrade:
   - |
-    Removed :func:`qiskit_addon_sqd.fermion.flip_orbital_occupancies`. Users no longer need to flip the orbital occupancies output from :func:`qiskit_addon_sqd.fermion.solve_fermion` and :func:`qiskit_addon_sqd.fermion.optimize_orbitals`; they will be output in the correct order (the same order as the bitstrings).
+    Removed :func:`qiskit_addon_sqd.fermion.flip_orbital_occupancies`. Users no longer need to flip the orbital occupancies output from :func:`qiskit_addon_sqd.fermion.solve_fermion` and :func:`qiskit_addon_sqd.fermion.optimize_orbitals`; they will be output in the order expected by :func:`qiskit_addon_sqd.configuration_recovery.recover_configurations`: ``tuple(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``.
+deprecations:
+  - |
+    The ``avg_occupancies`` argument to :func:`qiskit_addon_sqd.configuration_recovery.recover_configurations` should now be a length-2 tuple containing the spin-up and spin-down occupancies, respectively.
+
+    Old format: ``array([occ_b_N, ..., occ_b_0, occ_a_N, ..., occ_a_0])``
+
+    New format: ``tuple(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``

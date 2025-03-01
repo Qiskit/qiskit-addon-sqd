@@ -107,7 +107,7 @@ def solve_fermion(
     Returns:
         - Minimum energy from SCI calculation
         - The SCI ground state
-        - Average occupancy of the orbitals. Occupancy ``i`` is associated with column ``i`` in ``bitstring_matrix``.
+        - Tuple containing orbital occupancies for spin-up and spin-down orbitals. Formatted as: ``(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``
         - Expectation value of spin-squared
 
     """
@@ -145,7 +145,7 @@ def solve_fermion(
 
     # Calculate the avg occupancy of each orbital
     dm1 = myci.make_rdm1s(sci_vec, norb, (num_up, num_dn))
-    avg_occupancy = np.concatenate(np.flip(np.diagonal(dm1[1])), np.flip(np.diagonal(dm1[0])))
+    avg_occupancy = (np.diagonal(dm1[0]), np.diagonal(dm1[1]))
 
     # Compute total spin
     spin_squared = myci.spin_square(sci_vec, norb, (num_up, num_dn))[0]
@@ -219,7 +219,7 @@ def optimize_orbitals(
     Returns:
         - The groundstate energy found during the last optimization iteration
         - An optimized 1D array defining the orbital transform
-        - Average occupancy of the orbitals. Occupancy ``i`` is associated with column ``i`` in ``bitstring_matrix``.
+        - Tuple containing orbital occupancies for spin-up and spin-down orbitals. Formatted as: ``(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``
 
     """
     norb = hcore.shape[0]
@@ -270,7 +270,7 @@ def optimize_orbitals(
         dm1, dm2_chem = myci.make_rdm12(amplitudes, norb, (num_up, num_dn))
         dm2 = np.asarray(dm2_chem.transpose(0, 2, 3, 1), order="C")
         dm1 = myci.make_rdm1s(amplitudes, norb, (num_up, num_dn))
-        avg_occupancy = np.concatenate(np.flip(np.diagonal(dm1[1])), np.flip(np.diagonal(dm1[0])))
+        avg_occupancy = (np.diagonal(dm1[0]), np.diagonal(dm1[1]))
 
         # TODO: Expose the momentum parameter as an input option
         # Optimize the basis rotations
