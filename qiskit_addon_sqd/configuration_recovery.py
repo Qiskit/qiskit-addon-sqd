@@ -103,7 +103,6 @@ def recover_configurations(
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
 
     corrected_dict: defaultdict[str, float] = defaultdict(float)
-    norb = bitstring_matrix.shape[1] // 2
     occs_array = np.flip(avg_occupancies).flatten()
     for bitstring, freq in zip(bitstring_matrix, probabilities):
         bs_corrected = _bipartite_bitstring_correcting(
