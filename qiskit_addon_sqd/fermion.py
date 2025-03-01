@@ -79,7 +79,7 @@ def solve_fermion(
     spin_sq: float | None = None,
     max_davidson: int = 100,
     verbose: int | None = None,
-) -> tuple[float, SCIState, np.ndarray, float]:
+) -> tuple[float, SCIState, tuple[np.ndarray, np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
 
     Args:
@@ -175,7 +175,7 @@ def optimize_orbitals(
     num_steps_grad: int = 10_000,
     learning_rate: float = 0.01,
     max_davidson: int = 100,
-) -> tuple[float, np.ndarray, list[np.ndarray]]:
+) -> tuple[float, np.ndarray, tuple[np.ndarray, np.ndarray]]:
     """Optimize orbitals to produce a minimal ground state.
 
     The process involves iterating over 3 steps:

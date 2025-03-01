@@ -52,7 +52,7 @@ def post_select_by_hamming_weight(
 def recover_configurations(
     bitstring_matrix: np.ndarray,
     probabilities: Sequence[float],
-    avg_occupancies: np.ndarray,
+    avg_occupancies: tuple[np.ndarray, np.ndarray],
     num_elec_a: int,
     num_elec_b: int,
     rand_seed: np.random.Generator | int | None = None,
@@ -104,11 +104,11 @@ def recover_configurations(
 
     corrected_dict: defaultdict[str, float] = defaultdict(float)
     norb = bitstring_matrix.shape[1] // 2
-    avg_occupancies = np.flip(avg_occupancies).flatten()
+    occs_array = np.flip(avg_occupancies).flatten()
     for bitstring, freq in zip(bitstring_matrix, probabilities):
         bs_corrected = _bipartite_bitstring_correcting(
             bitstring,
-            avg_occupancies,
+            occs_array,
             num_elec_a,
             num_elec_b,
             rng=rng,
