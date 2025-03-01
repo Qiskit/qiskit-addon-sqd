@@ -74,8 +74,8 @@ def recover_configurations(
             values such that each row represents a single bitstring
         probabilities: A 1D array specifying a probability distribution over the bitstrings
         avg_occupancies: A length-2 tuple of arrays holding the mean occupancy of the spin-up
-            and spin-down orbitals respectively.containing the mean occupancy of each orbital.
-            The occupancies should be formatted as: ``(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``
+            and spin-down orbitals, respectively. The occupancies should be formatted as:
+            ``(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``
         num_elec_a: The number of spin-up electrons in the system.
         num_elec_b: The number of spin-down electrons in the system.
         rand_seed: A seed for controlling randomness
