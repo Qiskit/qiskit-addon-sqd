@@ -63,7 +63,9 @@ lint = [
 notebook-dependencies = [
     "qiskit-addon-sqd",
     "qiskit-addon-utils",
+    "qiskit-aer",
     "matplotlib",
+    "pylatexenc",
     "ffsim",
     "qiskit",
     "qiskit-ibm-runtime",
