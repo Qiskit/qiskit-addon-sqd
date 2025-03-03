@@ -122,7 +122,6 @@ _inlined_apis = [
     ("qiskit_addon_sqd.counts", "normalize_counts_dict"),
     ("qiskit_addon_sqd.fermion", "bitstring_matrix_to_ci_strs"),
     ("qiskit_addon_sqd.fermion", "enlarge_batch_from_transitions"),
-    ("qiskit_addon_sqd.fermion", "flip_orbital_occupancies"),
     ("qiskit_addon_sqd.fermion", "solve_fermion"),
     ("qiskit_addon_sqd.fermion", "optimize_orbitals"),
     ("qiskit_addon_sqd.fermion", "rotate_integrals"),

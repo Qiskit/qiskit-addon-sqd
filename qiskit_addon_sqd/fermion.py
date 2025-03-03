@@ -79,7 +79,7 @@ def solve_fermion(
     spin_sq: float | None = None,
     max_davidson: int = 100,
     verbose: int | None = None,
-) -> tuple[float, SCIState, list[np.ndarray], float]:
+) -> tuple[float, SCIState, tuple[np.ndarray, np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
 
     Args:
@@ -107,7 +107,7 @@ def solve_fermion(
     Returns:
         - Minimum energy from SCI calculation
         - The SCI ground state
-        - Average occupancy of the alpha and beta orbitals, respectively
+        - Tuple containing orbital occupancies for spin-up and spin-down orbitals. Formatted as: ``(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``
         - Expectation value of spin-squared
 
     """
@@ -145,7 +145,7 @@ def solve_fermion(
 
     # Calculate the avg occupancy of each orbital
     dm1 = myci.make_rdm1s(sci_vec, norb, (num_up, num_dn))
-    avg_occupancy = [np.diagonal(dm1[0]), np.diagonal(dm1[1])]
+    avg_occupancy = (np.diagonal(dm1[0]), np.diagonal(dm1[1]))
 
     # Compute total spin
     spin_squared = myci.spin_square(sci_vec, norb, (num_up, num_dn))[0]
@@ -175,7 +175,7 @@ def optimize_orbitals(
     num_steps_grad: int = 10_000,
     learning_rate: float = 0.01,
     max_davidson: int = 100,
-) -> tuple[float, np.ndarray, list[np.ndarray]]:
+) -> tuple[float, np.ndarray, tuple[np.ndarray, np.ndarray]]:
     """Optimize orbitals to produce a minimal ground state.
 
     The process involves iterating over 3 steps:
@@ -219,7 +219,7 @@ def optimize_orbitals(
     Returns:
         - The groundstate energy found during the last optimization iteration
         - An optimized 1D array defining the orbital transform
-        - Average orbital occupancy
+        - Tuple containing orbital occupancies for spin-up and spin-down orbitals. Formatted as: ``(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``
 
     """
     norb = hcore.shape[0]
@@ -270,6 +270,7 @@ def optimize_orbitals(
         dm1, dm2_chem = myci.make_rdm12(amplitudes, norb, (num_up, num_dn))
         dm2 = np.asarray(dm2_chem.transpose(0, 2, 3, 1), order="C")
         dm1a, dm1b = myci.make_rdm1s(amplitudes, norb, (num_up, num_dn))
+        avg_occupancy = (np.diagonal(dm1a), np.diagonal(dm1b))
 
         # TODO: Expose the momentum parameter as an input option
         # Optimize the basis rotations
@@ -277,7 +278,7 @@ def optimize_orbitals(
             k_flat, learning_rate, 0.9, num_steps_grad, dm1, dm2, hcore, eri_phys
         )
 
-    return e_qsci, k_flat, [np.diagonal(dm1a), np.diagonal(dm1b)]
+    return e_qsci, k_flat, avg_occupancy
 
 
 def rotate_integrals(
@@ -318,29 +319,6 @@ def rotate_integrals(
     eri_rot = np.einsum("pqrs, pi, qj, rk, sl->ijkl", eri, U, U, U, U, optimize=True)
 
     return np.array(hcore_rot), np.array(eri_rot)
-
-
-def flip_orbital_occupancies(occupancies: np.ndarray) -> np.ndarray:
-    """Flip an orbital occupancy array to match the indexing of a bitstring.
-
-    This function reformats a 1D array of spin-orbital occupancies formatted like:
-
-        ``[occ_a_1, occ_a_2, ..., occ_a_N, occ_b_1, ..., occ_b_N]``
-
-    To an array formatted like:
-
-        ``[occ_a_N, ..., occ_a_1, occ_b_N, ..., occ_b_1]``
-
-    where ``N`` is the number of spatial orbitals.
-    """
-    norb = occupancies.shape[0] // 2
-    occ_up = occupancies[:norb]
-    occ_dn = occupancies[norb:]
-    occ_out = np.zeros(2 * norb)
-    occ_out[:norb] = np.flip(occ_up)
-    occ_out[norb:] = np.flip(occ_dn)
-
-    return occ_out
 
 
 @deprecate_func(
