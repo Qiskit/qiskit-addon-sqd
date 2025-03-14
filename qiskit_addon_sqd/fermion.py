@@ -23,7 +23,6 @@ from jax import Array, config, grad, jit, vmap
 from jax import numpy as jnp
 from jax.scipy.linalg import expm
 from pyscf import fci
-from qiskit.utils import deprecate_func
 from scipy import linalg as LA
 
 config.update("jax_enable_x64", True)  # To deal with large integers
@@ -328,59 +327,6 @@ def rotate_integrals(
     eri_rot = np.einsum("pqrs, pi, qj, rk, sl->ijkl", eri, U, U, U, U, optimize=True)
 
     return np.array(hcore_rot), np.array(eri_rot)
-
-
-@deprecate_func(
-    removal_timeline="no sooner than qiskit-addon-sqd 0.10.0",
-    since="0.6.0",
-    package_name="qiskit-addon-sqd",
-    additional_msg="Use the bitstring_matrix_to_ci_strs function.",
-)
-def bitstring_matrix_to_sorted_addresses(
-    bitstring_matrix: np.ndarray, open_shell: bool = False
-) -> tuple[np.ndarray, np.ndarray]:
-    """Convert a bitstring matrix into a sorted array of unique, unsigned integers.
-
-    This function separates each bitstring in ``bitstring_matrix`` in half, flips the
-    bits and translates them into integer representations, and finally appends them to
-    their respective (spin-up or spin-down) lists. Those lists are sorted and output
-    from this function.
-
-    Args:
-        bitstring_matrix: A 2D array of ``bool`` representations of bit
-            values such that each row represents a single bitstring
-        open_shell: A flag specifying whether unique addresses from the left and right
-            halves of the bitstrings should be kept separate. If ``False``, addresses
-            from the left and right halves of the bitstrings are combined into a single
-            set of unique addresses. That combined set will be returned for both the left
-            and right bitstrings.
-
-    Returns:
-        A length-2 tuple of sorted, unique determinants representing the left (spin-down) and
-        right (spin-up) halves of the bitstrings, respectively.
-
-    """
-    norb = bitstring_matrix.shape[1] // 2
-    num_configs = bitstring_matrix.shape[0]
-
-    address_left = np.zeros(num_configs)
-    address_right = np.zeros(num_configs)
-    bts_matrix_left = bitstring_matrix[:, :norb]
-    bts_matrix_right = bitstring_matrix[:, norb:]
-
-    # For performance, we accumulate the left and right addresses together, column-wise,
-    # across the two halves of the input bitstring matrix.
-    for i in range(norb):
-        address_left[:] += bts_matrix_left[:, i] * 2 ** (norb - 1 - i)
-        address_right[:] += bts_matrix_right[:, i] * 2 ** (norb - 1 - i)
-
-    addresses_right = np.unique(address_right.astype("longlong"))
-    addresses_left = np.unique(address_left.astype("longlong"))
-
-    if not open_shell:
-        addresses_left = addresses_right = np.union1d(addresses_left, addresses_right)
-
-    return addresses_left, addresses_right
 
 
 def bitstring_matrix_to_ci_strs(
