@@ -79,6 +79,7 @@ def solve_fermion(
     spin_sq: float | None = None,
     max_davidson: int = 100,
     verbose: int | None = None,
+    cisolver: fci.selected_ci.SelectedCI | None = None,
 ) -> tuple[float, SCIState, tuple[np.ndarray, np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
 
@@ -103,6 +104,9 @@ def solve_fermion(
             If ``None``, no spin will be imposed.
         max_davidson: The maximum number of cycles of Davidson's algorithm
         verbose: A verbosity level between 0 and 10
+        cisolver: An optional :external:class:`~pyscf.fci.selected_ci.SelectedCI` instance to use
+            for finding the subspace solution. If ``None``, this will default to PySCF's standard
+            implementation.
 
     Returns:
         - Minimum energy from SCI calculation
@@ -129,15 +133,17 @@ def solve_fermion(
     # Number of molecular orbitals
     norb = hcore.shape[0]
     # Call the projection + eigenstate finder
-    myci = fci.selected_ci.SelectedCI()
+    myci = cisolver if cisolver is not None else fci.selected_ci.SelectedCI()
     if spin_sq is not None:
+        # TODO: figure out whether this is compatible with a custom cisolver object or not.
+        # If it is not, then we must document the incompatibility and tell the user to ensure the
+        # correct spin is guaranteed by themselves.
         myci = fci.addons.fix_spin_(myci, ss=spin_sq)
     # The energy returned from this function is not guaranteed to be
     # the energy of the returned wavefunction when the spin^2 deviates
     # from the value requested. We will calculate the energy from the
     # RDMs below and ignore this value to be safe.
-    _, sci_vec = fci.selected_ci.kernel_fixed_space(
-        myci,
+    _, sci_vec = myci.kernel_fixed_space(
         hcore,
         eri,
         norb,
