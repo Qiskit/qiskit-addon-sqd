@@ -15,4 +15,3 @@ Fermion (:mod:`qiskit_addon_sqd.fermion`)
 .. autofunction:: solve_fermion
 .. autofunction:: optimize_orbitals
 .. autofunction:: rotate_integrals
-.. autofunction:: bitstring_matrix_to_sorted_addresses

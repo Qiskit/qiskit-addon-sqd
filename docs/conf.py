@@ -125,7 +125,6 @@ _inlined_apis = [
     ("qiskit_addon_sqd.fermion", "solve_fermion"),
     ("qiskit_addon_sqd.fermion", "optimize_orbitals"),
     ("qiskit_addon_sqd.fermion", "rotate_integrals"),
-    ("qiskit_addon_sqd.fermion", "bitstring_matrix_to_sorted_addresses"),
     ("qiskit_addon_sqd.qubit", "solve_qubit"),
     ("qiskit_addon_sqd.qubit", "project_operator_to_subspace"),
     ("qiskit_addon_sqd.qubit", "project_operator_to_subspace"),
