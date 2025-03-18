@@ -1,0 +1,67 @@
+name: Development version tests
+
+on:
+  push:
+    branches:
+      - main
+      - 'stable/**'
+  pull_request:
+    branches:
+      - main
+      - 'stable/**'
+  schedule:
+    - cron: '0 1 * * *'
+
+jobs:
+  tests:
+    name: development version tests (${{ matrix.os }}, ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      max-parallel: 4
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.9, 3.12]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Upgrade pip
+        run: |
+          python -m pip install --upgrade pip
+      - name: Install tools from pypi
+        run: |
+          python -m pip install tox build extremal-python-dependencies==0.0.3
+      - name: Build Qiskit SDK development wheel
+        run: |
+          git clone https://github.com/Qiskit/qiskit
+          cd qiskit
+          git rev-parse HEAD
+          python -m build --wheel
+      - name: Build qiskit-ibm-runtime development wheel
+        run: |
+          git clone https://github.com/Qiskit/qiskit-ibm-runtime
+          cd qiskit-ibm-runtime
+          git rev-parse HEAD
+          python -m build --wheel
+      - name: Build qiskit-addon-utils development wheel
+        run: |
+          git clone https://github.com/Qiskit/qiskit-addon-utils
+          cd qiskit-addon-utils
+          git rev-parse HEAD
+          # Unpin qiskit<2
+          extremal-python-dependencies pin-dependencies --inplace qiskit
+          python -m build --wheel
+      - name: Pin development versions
+        shell: bash
+        run: >-
+          extremal-python-dependencies pin-dependencies --inplace
+          "qiskit @ file:$(echo qiskit/dist/*.whl)"
+          "qiskit-ibm-runtime @ file:$(echo qiskit-ibm-runtime/dist/*.whl)"
+          "qiskit-addon-utils @ file:$(echo qiskit-addon-utils/dist/*.whl)"
+      - name: Test using tox environment
+        shell: bash
+        run: |
+          tox -e py,notebook,doctest
