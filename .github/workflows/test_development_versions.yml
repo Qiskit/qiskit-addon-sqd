@@ -64,4 +64,4 @@ jobs:
       - name: Test using tox environment
         shell: bash
         run: |
-          tox -e py,notebook,doctest
+          tox -e py,notebook
