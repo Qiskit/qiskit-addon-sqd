@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 
 import numpy as np
@@ -89,7 +88,7 @@ def solve_fermion(
             configurations should be specified by column indices in range ``(N/2, 0]``, where ``N``
             is the number of qubits.
 
-            (DEPRECATED) The configurations may also be specified by a length-2 tuple of sorted 1D
+            The configurations may also be specified by a length-2 tuple of sorted 1D
             arrays containing unsigned integer representations of the determinants. The two lists
             should represent the spin-up and spin-down orbitals, respectively.
         hcore: Core Hamiltonian matrix representing single-electron integrals
@@ -111,14 +110,8 @@ def solve_fermion(
 
     """
     if isinstance(bitstring_matrix, tuple):
-        warnings.warn(
-            "Passing the input determinants as integers is deprecated. Users should instead pass a bitstring matrix defining the subspace.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         ci_strs = bitstring_matrix
     else:
-        # This will become the default code path after the deprecation period.
         ci_strs = bitstring_matrix_to_ci_strs(bitstring_matrix, open_shell=open_shell)
     ci_strs = _check_ci_strs(ci_strs)
 
@@ -205,7 +198,7 @@ def optimize_orbitals(
             configurations should be specified by column indices in range ``(N/2, 0]``, where ``N``
             is the number of qubits.
 
-            (DEPRECATED) The configurations may also be specified by a length-2 tuple of sorted 1D
+            The configurations may also be specified by a length-2 tuple of sorted 1D
             arrays containing unsigned integer representations of the determinants. The
             two lists should represent the spin-up and spin-down orbitals, respectively.
         hcore: Core Hamiltonian matrix representing single-electron integrals
@@ -238,12 +231,6 @@ def optimize_orbitals(
             f"Expected {num_params}."
         )
     if isinstance(bitstring_matrix, tuple):
-        warnings.warn(
-            "Passing a length-2 tuple of determinant lists to define the spin-up/down subspaces "
-            "is deprecated. Users should instead pass in the bitstring matrix defining the subspaces.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         ci_strs = bitstring_matrix
     else:
         ci_strs = bitstring_matrix_to_ci_strs(bitstring_matrix, open_shell=open_shell)
