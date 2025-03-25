@@ -210,9 +210,9 @@ def matrix_elements_from_pauli(
     row_ids = np.arange(d)
 
     # Get a qubit-wise representation of the Pauli properties
-    diag = np.logical_not(pauli.x)[::-1]
-    sign = pauli.z[::-1]
-    imag = np.logical_and(pauli.x, pauli.z)[::-1]
+    diag = np.logical_not(pauli.x)
+    sign = pauli.z
+    imag = np.logical_and(pauli.x, pauli.z)
 
     # Convert bitstrings to integers
     int_array_rows = _int_conversion_from_bts_matrix_vmap(bitstring_matrix)
