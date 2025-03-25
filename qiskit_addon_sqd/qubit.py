@@ -36,7 +36,9 @@ def solve_qubit(
     """Find the energies and eigenstates of a Hamiltonian projected into a subspace.
 
     The subspace is defined by a collection of computational basis states which
-    are specified by the bitstrings (rows) in the ``bitstring_matrix``.
+    are specified by the bitstrings (rows) in the ``bitstring_matrix``. The ``bitstring_matrix``
+    will be sorted and de-duplicated in this function, as the underlying solver
+    requires that structure.
 
     This function calls `scipy.sparse.linalg.eigsh <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.eigsh.html#eigsh>`_ for the diagonalization.
 
