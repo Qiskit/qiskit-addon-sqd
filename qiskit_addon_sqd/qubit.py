@@ -291,7 +291,7 @@ def _int_conversion_from_bts_array(bit_array: np.ndarray) -> Any:
 
     """
     n_qubits = len(bit_array)
-    bitarray_asint = 0.0
+    bitarray_asint = np.int64(0)
     for i in range(n_qubits):
         bitarray_asint = bitarray_asint + bit_array[i] * 2 ** (n_qubits - 1 - i)
 
