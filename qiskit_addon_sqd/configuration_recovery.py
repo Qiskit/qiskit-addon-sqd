@@ -179,8 +179,8 @@ def _p_flip_1_to_0(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  #
     # Flip 1s to 0 with small (<eps) probability in this case
     if ratio_exp == 0.0:
         return 1 - eps
-    slope = -eps / (1-ratio_exp)
-    intercept = eps / (1-ratio_exp)
+    slope = -eps / (1 - ratio_exp)
+    intercept = eps / (1 - ratio_exp)
     return occ * slope + intercept
 
 
