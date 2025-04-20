@@ -17,13 +17,13 @@ from __future__ import annotations
 
 import warnings
 from collections import defaultdict
-from collections.abc import Sequence, Union, Tuple
+from collections.abc import Sequence
+
 import numpy as np
 
 
 def post_select_by_hamming_weight(
-    bitstring_matrix: np.ndarray,
-    hamming: Union[int, Tuple[int, int]]
+    bitstring_matrix: np.ndarray, hamming: int | tuple[int, int]
 ) -> np.ndarray:
     """Post-select bitstrings based on Hamming weight.
 
@@ -65,10 +65,13 @@ def post_select_by_hamming_weight(
 def recover_configurations(
     bitstring_matrix: np.ndarray,
     probabilities: Sequence[float],
-    avg_occupancies: Union[np.ndarray, Tuple[np.ndarray, ...]],
-    hamming: Union[int, Tuple[int, int]],
+    avg_occupancies: np.ndarray | tuple[np.ndarray, ...],
+    *args,
+    hamming: int | tuple[int, int] = None,
+    num_elec_a: int | None = None,
+    num_elec_b: int | None = None,
     rand_seed: np.random.Generator | int | None = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Refine bitstrings based on average occupancy and a target Hamming weight.
 
     This function refines each bit in isolation in an attempt to transform the Hilbert space
@@ -85,11 +88,13 @@ def recover_configurations(
         bitstring_matrix: A 2D array of ``bool`` values where each row is one bitstring.
         probabilities: A 1D sequence of floats giving a probability for each row.
         avg_occupancies: Either
-            * a 1D ``np.ndarray`` of length 2N (deprecated bipartite form), or  
-            * a length-2 tuple ``(occ_up, occ_down)`` of 1D arrays each of length N, or  
+            * a 1D ``np.ndarray`` of length 2N (deprecated bipartite form), or
+            * a length-2 tuple ``(occ_up, occ_down)`` of 1D arrays each of length N, or
             * a single 1D array of site occupancies (for the single-site case).
-        hamming: If an ``int``, the target total Hamming weight;  
+        hamming: If an ``int``, the target total Hamming weight;
                  if a ``(num_elec_a, num_elec_b)`` tuple, the bipartite target weights.
+        num_elec_a: The number of spin-up electrons in the system.
+        num_elec_b: The number of spin-down electrons in the system.
         rand_seed: Seed or ``np.random.Generator`` for stochastic routines.
 
     Returns:
@@ -102,13 +107,33 @@ def recover_configurations(
     """
     rng = np.random.default_rng(rand_seed)
 
+    # Back-compat: if caller passed (num_elec_a, num_elec_b) positionally:
+    if hamming is None:
+        if num_elec_a is not None and num_elec_b is not None:
+            hamming = (num_elec_a, num_elec_b)
+        elif len(args) == 1 and isinstance(args[0], int):
+            hamming = args[0]
+        elif len(args) == 2 and all(isinstance(x, int) for x in args):
+            hamming = (args[0], args[1])
+        else:
+            raise TypeError("Must specify `hamming` or `num_elec_a, num_elec_b`.")
+
+    if num_elec_a is not None or num_elec_b is not None:
+        warnings.warn(
+            "Using `num_elec_a, num_elec_b` is deprecated; "
+            "please switch to `hamming=(left, right)`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     # Handle deprecated 1D avg_occupancies for bipartite case
     if isinstance(avg_occupancies, np.ndarray):
         if isinstance(hamming, tuple):
             warnings.warn(
                 "Passing avg_occupancies as a 1D array is deprecated for bipartite spins; "
                 "please supply a length-2 tuple of (occ_up, occ_down).",
-                DeprecationWarning, stacklevel=2
+                DeprecationWarning,
+                stacklevel=2,
             )
             norb = bitstring_matrix.shape[1] // 2
             avg_occupancies = (
@@ -119,7 +144,8 @@ def recover_configurations(
             warnings.warn(
                 "Passing avg_occupancies as a bare array is accepted but wrapping it "
                 "in a length-1 tuple is preferred for the single-site case.",
-                DeprecationWarning, stacklevel=2
+                DeprecationWarning,
+                stacklevel=2,
             )
             avg_occupancies = (avg_occupancies,)
 
@@ -128,12 +154,14 @@ def recover_configurations(
         if isinstance(hamming, tuple) and len(avg_occupancies) != 2:
             warnings.warn(
                 f"avg_occupancies should be length-2 for bipartite spins; got {len(avg_occupancies)}.",
-                DeprecationWarning, stacklevel=2
+                DeprecationWarning,
+                stacklevel=2,
             )
         if isinstance(hamming, int) and len(avg_occupancies) != 1:
             warnings.warn(
                 f"avg_occupancies should be length-1 for single-site; got {len(avg_occupancies)}.",
-                DeprecationWarning, stacklevel=2
+                DeprecationWarning,
+                stacklevel=2,
             )
 
     # Flatten occupancy into bit-order
@@ -148,11 +176,10 @@ def recover_configurations(
 
     # Reconstruct outputs
     bs_mat_out = np.array([[c == "1" for c in key] for key in corrected])
-    freqs_out  = np.array(list(corrected.values()), dtype=float)
+    freqs_out = np.array(list(corrected.values()), dtype=float)
     freqs_out /= np.sum(np.abs(freqs_out))
 
     return bs_mat_out, freqs_out
-
 
 
 def _p_flip_0_to_1(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  # pragma: no cover
@@ -218,12 +245,10 @@ def _p_flip_1_to_0(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  #
     return occ * slope + intercept
 
 
-
-
 def _bitstring_correcting(
     bit_array: np.ndarray,
     avg_occupancies: np.ndarray,
-    hamming: Union[int, Tuple[int, int]],
+    hamming: int | tuple[int, int],
     rng: np.random.Generator,
 ) -> np.ndarray:
     """Use occupancy information and target Hamming weight(s) to correct a bitstring.
@@ -320,4 +345,3 @@ def _bitstring_correcting(
             bit_array[partition_size:][to_flip] = True
 
     return bit_array
-

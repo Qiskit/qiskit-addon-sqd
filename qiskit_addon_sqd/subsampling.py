@@ -15,21 +15,24 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 from .configuration_recovery import post_select_by_hamming_weight
-
-from collections.abc import Union, Tuple, List
 
 
 def postselect_and_subsample(
     bitstring_matrix: np.ndarray,
     probabilities: np.ndarray,
-    hamming: Union[int, Tuple[int, int]],
+    *args,
+    hamming: int | tuple[int, int] = None,
+    hamming_right: int | None = None,
+    hamming_left: int | None = None,
     samples_per_batch: int,
     num_batches: int,
     rand_seed: np.random.Generator | int | None = None,
-) -> List[np.ndarray]:
+) -> list[np.ndarray]:
     """Subsample batches of bitstrings with correct Hamming weight.
 
     Uses `post_select_by_hamming_weight` under the hood: if `hamming` is an int, it
@@ -43,6 +46,8 @@ def postselect_and_subsample(
         probabilities: 1D array of sampling probabilities (must sum > 0).
         hamming: If int, the target total Hamming weight;
                  if (hamming_left, hamming_right), the per-half targets.
+        hamming_right: The target hamming weight for the right half of sampled bitstrings
+        hamming_left: The target hamming weight for the left half of sampled bitstrings
         samples_per_batch: Number of samples per batch (must be > 0).
         num_batches: Number of batches to generate (must be > 0).
         rand_seed: Seed or np.random.Generator for RNG.
@@ -59,12 +64,30 @@ def postselect_and_subsample(
     """
     num_bitstrings = bitstring_matrix.shape[0]
     if num_bitstrings == 0:
-        return [np.empty((0, bitstring_matrix.shape[1]), dtype=bool)
-                for _ in range(num_batches)]
+        return [np.empty((0, bitstring_matrix.shape[1]), dtype=bool) for _ in range(num_batches)]
 
     if probabilities.shape[0] != num_bitstrings:
         raise ValueError(
             "The number of elements in probabilities must match the number of bitstrings."
+        )
+
+    # Backwards-compatible: accept hamming_right / hamming_left
+    if hamming is None:
+        if hamming_right is not None and hamming_left is not None:
+            hamming = (hamming_right, hamming_left)
+        elif len(args) == 1 and isinstance(args[0], int):
+            hamming = args[0]
+        elif len(args) == 2 and all(isinstance(x, int) for x in args):
+            hamming = (args[0], args[1])
+        else:
+            raise TypeError("Must specify hamming or (hamming_right, hamming_left).")
+
+    if hamming_left is not None or hamming_right is not None:
+        warnings.warn(
+            "Using `num_elec_a, num_elec_b` is deprecated; "
+            "please switch to `hamming=(left, right)`.",
+            DeprecationWarning,
+            stacklevel=2,
         )
 
     # Validate hamming
@@ -89,8 +112,7 @@ def postselect_and_subsample(
     bs_sel = bitstring_matrix[mask]
     probs_sel = probabilities[mask]
     if probs_sel.size == 0:
-        return [np.empty((0, bitstring_matrix.shape[1]), dtype=bool)
-                for _ in range(num_batches)]
+        return [np.empty((0, bitstring_matrix.shape[1]), dtype=bool) for _ in range(num_batches)]
     probs_sel = np.abs(probs_sel) / np.sum(np.abs(probs_sel))
 
     # Delegate to subsample
