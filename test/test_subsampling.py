@@ -21,7 +21,7 @@ from qiskit_addon_sqd.subsampling import postselect_and_subsample, subsample
 
 class TestSubsampling(unittest.TestCase):
     def setUp(self):
-        # 4 qubit full sampling
+        # 4-qubit full sampling
         self.bitstring_matrix = np.array(
             [
                 [False, False, False, False],
@@ -40,237 +40,145 @@ class TestSubsampling(unittest.TestCase):
                 [True, True, False, True],
                 [True, True, True, False],
                 [True, True, True, True],
-            ]
+            ],
+            dtype=bool,
         )
-        self.uniform_probs = np.array(
-            [1 / self.bitstring_matrix.shape[0] for _ in self.bitstring_matrix]
-        )
+        n = self.bitstring_matrix.shape[0]
+        self.uniform_probs = np.full(n, 1 / n, dtype=float)
 
     def test_subsample(self):
         with self.subTest("Basic test"):
-            samples_per_batch = 2
-            num_batches = 10
-            batches = subsample(
-                self.bitstring_matrix, self.uniform_probs, samples_per_batch, num_batches
-            )
-            self.assertEqual(num_batches, len(batches))
+            batches = subsample(self.bitstring_matrix, self.uniform_probs, 2, 10)
+            self.assertEqual(10, len(batches))
             for batch in batches:
-                self.assertEqual(samples_per_batch, batch.shape[0])
-        with self.subTest("Test probability specification"):
-            samples_per_batch = 2
-            num_batches = 10
-            batches = subsample(
-                self.bitstring_matrix, self.uniform_probs, samples_per_batch, num_batches
-            )
-            self.assertEqual(num_batches, len(batches))
-            for batch in batches:
-                self.assertEqual(samples_per_batch, batch.shape[0])
+                self.assertEqual(2, batch.shape[0])
+
         with self.subTest("Full sampling"):
-            samples_per_batch = 20
-            num_batches = 1
-            batches = subsample(
-                self.bitstring_matrix, self.uniform_probs, samples_per_batch, num_batches
-            )
-            self.assertEqual(num_batches, len(batches))
-            for batch in batches:
-                self.assertEqual(self.bitstring_matrix.shape[0], batch.shape[0])
+            batches = subsample(self.bitstring_matrix, self.uniform_probs, 20, 1)
+            self.assertEqual(1, len(batches))
+            self.assertEqual(self.bitstring_matrix.shape[0], batches[0].shape[0])
 
         with self.subTest("Non-positive batch size"):
-            samples_per_batch = 0
-            num_batches = 10
-            with pytest.raises(ValueError) as e_info:
-                subsample(
-                    self.bitstring_matrix,
-                    self.uniform_probs,
-                    samples_per_batch,
-                    num_batches,
-                )
+            with pytest.raises(ValueError) as exc:
+                subsample(self.bitstring_matrix, self.uniform_probs, 0, 10)
             assert (
-                e_info.value.args[0]
-                == "Samples per batch must be specified with a positive integer."
+                exc.value.args[0] == "Samples per batch must be specified with a positive integer."
             )
+
         with self.subTest("Non-positive num batches"):
-            samples_per_batch = 1
-            num_batches = 0
-            with pytest.raises(ValueError) as e_info:
-                subsample(
-                    self.bitstring_matrix,
-                    self.uniform_probs,
-                    samples_per_batch,
-                    num_batches,
-                )
+            with pytest.raises(ValueError) as exc:
+                subsample(self.bitstring_matrix, self.uniform_probs, 1, 0)
             assert (
-                e_info.value.args[0]
+                exc.value.args[0]
                 == "The number of batches must be specified with a positive integer."
             )
+
         with self.subTest("Mismatching probs"):
-            samples_per_batch = 1
-            num_batches = 1
-            with pytest.raises(ValueError) as e_info:
-                subsample(
-                    self.bitstring_matrix,
-                    np.array([]),
-                    samples_per_batch,
-                    num_batches,
-                )
+            with pytest.raises(ValueError) as exc:
+                subsample(self.bitstring_matrix, np.array([]), 1, 1)
             assert (
-                e_info.value.args[0]
+                exc.value.args[0]
                 == "The number of elements in the probabilities array must match the number of rows in the bitstring matrix."
             )
+
         with self.subTest("Empty matrix"):
-            samples_per_batch = 1
-            num_batches = 1
-            batches = subsample(
-                np.array([]),
-                np.array([]),
-                samples_per_batch,
-                num_batches,
-            )
-            self.assertEqual(num_batches, len(batches))
+            empty_bs = np.empty((0, 4), dtype=bool)
+            empty_p = np.empty((0,), dtype=float)
+            batches = subsample(empty_bs, empty_p, 1, 1)
+            self.assertEqual(1, len(batches))
             self.assertEqual(0, batches[0].shape[0])
 
     def test_postselect_and_subsample(self):
-        with self.subTest("Basic test"):
-            samples_per_batch = 2
-            num_batches = 10
-            hamming_left = 1
-            hamming_right = 1
-            partition_len = self.bitstring_matrix.shape[1] // 2
+        partition = self.bitstring_matrix.shape[1] // 2
+
+        # tuple-based tests
+        with self.subTest("Basic tuple case"):
             batches = postselect_and_subsample(
                 self.bitstring_matrix,
                 self.uniform_probs,
-                hamming_right=hamming_right,
-                hamming_left=hamming_left,
-                samples_per_batch=samples_per_batch,
-                num_batches=num_batches,
+                hamming=(1, 1),
+                samples_per_batch=2,
+                num_batches=10,
             )
-            self.assertEqual(num_batches, len(batches))
+            self.assertEqual(10, len(batches))
             for batch in batches:
-                self.assertEqual(samples_per_batch, batch.shape[0])
-                for bitstring in batch:
-                    self.assertEqual(hamming_left, np.sum(bitstring[:partition_len]))
-                    self.assertEqual(hamming_right, np.sum(bitstring[partition_len:]))
-        with self.subTest("Zero hamming"):
-            samples_per_batch = 2
-            num_batches = 10
-            hamming_left = 0
-            hamming_right = 0
-            partition_len = self.bitstring_matrix.shape[1] // 2
+                self.assertEqual(2, batch.shape[0])
+                for bs in batch:
+                    self.assertEqual(1, np.sum(bs[:partition]))
+                    self.assertEqual(1, np.sum(bs[partition:]))
+
+        with self.subTest("Zero tuple hamming"):
             batches = postselect_and_subsample(
                 self.bitstring_matrix,
                 self.uniform_probs,
-                hamming_right=hamming_right,
-                hamming_left=hamming_left,
-                samples_per_batch=samples_per_batch,
-                num_batches=num_batches,
+                hamming=(0, 0),
+                samples_per_batch=2,
+                num_batches=10,
             )
-            self.assertEqual(num_batches, len(batches))
+            self.assertEqual(10, len(batches))
             for batch in batches:
                 self.assertEqual(1, batch.shape[0])
-                bitstring = batch[0]
-                self.assertEqual(hamming_left, np.sum(bitstring[:partition_len]))
-                self.assertEqual(hamming_right, np.sum(bitstring[partition_len:]))
-        with self.subTest("Empty after postselection"):
-            samples_per_batch = 2
-            num_batches = 10
-            hamming_left = 0
-            hamming_right = 0
-            partition_len = self.bitstring_matrix.shape[1] // 2
+                bs = batch[0]
+                self.assertEqual(0, np.sum(bs[:partition]))
+                self.assertEqual(0, np.sum(bs[partition:]))
+
+        with self.subTest("Empty after postselection tuple"):
             batches = postselect_and_subsample(
                 self.bitstring_matrix[1:],
                 self.uniform_probs[1:],
-                hamming_right=hamming_right,
-                hamming_left=hamming_left,
-                samples_per_batch=samples_per_batch,
-                num_batches=num_batches,
+                hamming=(0, 0),
+                samples_per_batch=2,
+                num_batches=5,
             )
-            self.assertEqual(num_batches, len(batches))
+            self.assertEqual(5, len(batches))
             for batch in batches:
                 self.assertEqual(0, batch.shape[0])
-        with self.subTest("Negative hamming"):
-            samples_per_batch = 2
-            num_batches = 10
-            hamming_left = -1
-            hamming_right = -1
-            with pytest.raises(ValueError) as e_info:
+
+        with self.subTest("Negative tuple hamming"):
+            with pytest.raises(ValueError) as exc:
                 postselect_and_subsample(
                     self.bitstring_matrix,
                     self.uniform_probs,
-                    hamming_right=hamming_right,
-                    hamming_left=hamming_left,
-                    samples_per_batch=samples_per_batch,
-                    num_batches=num_batches,
+                    hamming=(-1, 0),
+                    samples_per_batch=2,
+                    num_batches=5,
                 )
-            assert (
-                e_info.value.args[0]
-                == "Hamming weight must be specified with a non-negative integer."
-            )
-        with self.subTest("Non-positive batch size"):
-            samples_per_batch = 0
-            num_batches = 10
-            hamming_left = 1
-            hamming_right = 1
-            with pytest.raises(ValueError) as e_info:
-                postselect_and_subsample(
-                    self.bitstring_matrix,
-                    self.uniform_probs,
-                    hamming_right=hamming_right,
-                    hamming_left=hamming_left,
-                    samples_per_batch=samples_per_batch,
-                    num_batches=num_batches,
-                )
-            assert (
-                e_info.value.args[0]
-                == "Samples per batch must be specified with a positive integer."
-            )
-        with self.subTest("Non-positive num batches"):
-            samples_per_batch = 1
-            num_batches = 0
-            hamming_left = 1
-            hamming_right = 1
-            with pytest.raises(ValueError) as e_info:
-                postselect_and_subsample(
-                    self.bitstring_matrix,
-                    self.uniform_probs,
-                    hamming_right=hamming_right,
-                    hamming_left=hamming_left,
-                    samples_per_batch=samples_per_batch,
-                    num_batches=num_batches,
-                )
-            assert (
-                e_info.value.args[0]
-                == "The number of batches must be specified with a positive integer."
-            )
-        with self.subTest("Mismatching probs"):
-            samples_per_batch = 1
-            num_batches = 1
-            hamming_left = 1
-            hamming_right = 1
-            with pytest.raises(ValueError) as e_info:
-                postselect_and_subsample(
-                    self.bitstring_matrix,
-                    np.array([]),
-                    hamming_right=hamming_right,
-                    hamming_left=hamming_left,
-                    samples_per_batch=samples_per_batch,
-                    num_batches=num_batches,
-                )
-            assert (
-                e_info.value.args[0]
-                == "The number of elements in the probabilities array must match the number of rows in the bitstring matrix."
-            )
-        with self.subTest("Empty matrix"):
-            samples_per_batch = 1
-            num_batches = 1
-            hamming_left = 1
-            hamming_right = 1
+            assert exc.value.args[0] == "Hamming weights must be non-negative integers."
+
+        # int-based tests
+        with self.subTest("Basic int case"):
             batches = postselect_and_subsample(
-                np.array([]),
-                np.array([]),
-                hamming_right=hamming_right,
-                hamming_left=hamming_left,
-                samples_per_batch=samples_per_batch,
-                num_batches=num_batches,
+                self.bitstring_matrix,
+                self.uniform_probs,
+                hamming=1,
+                samples_per_batch=3,
+                num_batches=4,
             )
-            self.assertEqual(num_batches, len(batches))
-            self.assertEqual(0, batches[0].shape[0])
+            self.assertEqual(4, len(batches))
+            for batch in batches:
+                self.assertEqual(3, batch.shape[0])
+                for bs in batch:
+                    self.assertEqual(1, np.sum(bs))
+
+        with self.subTest("Empty after postselection int"):
+            batches = postselect_and_subsample(
+                self.bitstring_matrix,
+                self.uniform_probs,
+                hamming=5,
+                samples_per_batch=2,
+                num_batches=3,
+            )
+            self.assertEqual(3, len(batches))
+            for batch in batches:
+                self.assertEqual(0, batch.shape[0])
+
+        with self.subTest("Negative int hamming"):
+            with pytest.raises(ValueError) as exc:
+                postselect_and_subsample(
+                    self.bitstring_matrix,
+                    self.uniform_probs,
+                    hamming=-1,
+                    samples_per_batch=2,
+                    num_batches=3,
+                )
+            assert exc.value.args[0] == "Hamming weight must be a non-negative integer."
