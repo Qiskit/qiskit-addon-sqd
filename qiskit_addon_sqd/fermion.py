@@ -16,6 +16,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import partial
+from typing import Callable
 
 import numpy as np
 from jax import Array, config, grad, jit, vmap
@@ -23,6 +25,10 @@ from jax import numpy as jnp
 from jax.scipy.linalg import expm
 from pyscf import fci
 from scipy import linalg as LA
+
+from qiskit_addon_sqd.configuration_recovery import recover_configurations
+from qiskit_addon_sqd.counts import counts_to_arrays
+from qiskit_addon_sqd.subsampling import postselect_and_subsample
 
 config.update("jax_enable_x64", True)  # To deal with large integers
 
@@ -65,6 +71,126 @@ class SCIState:
         """Load an SCIState object from an .npz file."""
         with np.load(filename) as data:
             return cls(data["amplitudes"], data["ci_strs_a"], data["ci_strs_b"])
+
+
+def run_sqd(
+    one_body_tensor: np.ndarray,
+    two_body_tensor: np.ndarray,
+    nelec: tuple[int, int],
+    # TODO take BitArray instead of counts
+    counts: dict[str, int],
+    subsample_size: int,
+    *,
+    sci_solver=None,
+    open_shell: bool = False,
+    spin_sq: float = 0.0,
+    max_davidson: int = 200,
+    include_configurations: list[int] | tuple[list[int], list[int]] | None = None,
+    initial_occupancies: np.ndarray | None = None,
+    iterations: int = 1,
+    n_subsamples: int = 1,
+    constant: float = 0.0,
+    callback: Callable[[np.ndarray, np.ndarray, np.ndarray], None] | None = None,
+    seed: int | np.random.Generator | None = None,
+) -> tuple[float, SCIState]:
+    """Run SQD."""
+    if iterations < 1:
+        raise ValueError("Number of iterations must be at least 1.")
+    rng = np.random.default_rng(seed)
+    n_alpha, n_beta = nelec
+    current_occupancies = initial_occupancies
+    min_energy = float("inf")
+    if sci_solver is None:
+        sci_solver = partial(
+            solve_fermion_batch, open_shell=open_shell, spin_sq=spin_sq, max_davidson=max_davidson
+        )
+
+    if include_configurations is None:
+        include_a = np.array([], dtype=np.int64)
+        include_b = np.array([], dtype=np.int64)
+    elif isinstance(include_configurations, tuple):
+        include_a, include_b = include_configurations
+    else:
+        include_a = include_configurations
+        include_b = include_configurations
+
+    # Convert counts into bitstring and probability arrays
+    raw_bitstrings, raw_probs = counts_to_arrays(counts)
+
+    for _ in range(iterations):
+        # On the first iteration, we have no orbital occupancy information from the
+        # solver, so we begin with the full set of noisy configurations.
+        if current_occupancies is None:
+            bitstrings, probs = raw_bitstrings, raw_probs
+        else:
+            # If we have average orbital occupancy information, we use it to refine the
+            # full set of noisy configurations
+            bitstrings, probs = recover_configurations(
+                raw_bitstrings, raw_probs, current_occupancies, n_alpha, n_beta, rand_seed=rng
+            )
+
+        # Postselect and subsample batches of bitstrings
+        subsamples = postselect_and_subsample(
+            bitstrings,
+            probs,
+            hamming_right=n_alpha,
+            hamming_left=n_beta,
+            samples_per_batch=subsample_size,
+            num_batches=n_subsamples,
+            rand_seed=rng,
+        )
+
+        # Convert bitstrings to CI strings and include requested strings
+        ci_strings = []
+        for subsample in subsamples:
+            strs_a, strs_b = bitstring_matrix_to_ci_strs(subsample)
+            strs_a = np.union1d(strs_a, include_a)
+            strs_b = np.union1d(strs_b, include_b)
+            ci_strings.append((strs_a, strs_b))
+
+        # Run diagonalization
+        energies, sci_states, occupancies = sci_solver(ci_strings, one_body_tensor, two_body_tensor)
+
+        # Call callback function if provided
+        if callback is not None:
+            callback(energies + constant, sci_states, occupancies)
+
+        # Get best result from batch
+        index = np.argmin(energies)
+        current_occupancies = occupancies[index]
+
+        # Check if the energy is the lowest seen so far
+        if energies[index] < min_energy:
+            min_energy = energies[index]
+            min_sci_state = sci_states[index]
+
+    return min_energy + constant, min_sci_state
+
+
+def solve_fermion_batch(
+    ci_strings: list[tuple[np.ndarray, np.ndarray]],
+    hcore: np.ndarray,
+    eri: np.ndarray,
+    *,
+    open_shell: bool,
+    spin_sq: float,
+    max_davidson: int,
+):
+    """Batched version of solve_fermion."""
+    energies, sci_states, occupancies, _ = zip(
+        *(
+            solve_fermion(
+                ci_strs,
+                hcore,
+                eri,
+                open_shell=open_shell,
+                spin_sq=spin_sq,
+                max_davidson=max_davidson,
+            )
+            for ci_strs in ci_strings
+        )
+    )
+    return energies, sci_states, occupancies
 
 
 def solve_fermion(
