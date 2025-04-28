@@ -89,11 +89,22 @@ def run_sqd(
     initial_occupancies: np.ndarray | None = None,
     iterations: int = 1,
     n_subsamples: int = 1,
+    carryover_threshold=1e-4,
     constant: float = 0.0,
     callback: Callable[[np.ndarray, np.ndarray, np.ndarray], None] | None = None,
     seed: int | np.random.Generator | None = None,
 ) -> tuple[float, SCIState]:
-    """Run SQD."""
+    """Run SQD.
+
+    Args:
+        one_body_tensor: The one-body tensor of the Hamiltonian.
+        two_body_tensor: The two-body tensor of the Hamiltonian.
+        nelec: The numbers of alpha and beta electrons.
+        counts: The counts of sampled bitstrings. Each bitstring should have both the
+            alpha part and beta part concatenated together, with the alpha part
+            concatenated on the right-hand side.
+        subsample size: The number of bitstrings to include in each subsample.
+    """
     if iterations < 1:
         raise ValueError("Number of iterations must be at least 1.")
     rng = np.random.default_rng(seed)
@@ -113,6 +124,9 @@ def run_sqd(
     else:
         include_a = include_configurations
         include_b = include_configurations
+
+    carryover_strings_a = np.array([], dtype=np.int64)
+    carryover_strings_b = np.array([], dtype=np.int64)
 
     # Convert counts into bitstring and probability arrays
     raw_bitstrings, raw_probs = counts_to_arrays(counts)
@@ -140,12 +154,12 @@ def run_sqd(
             rand_seed=rng,
         )
 
-        # Convert bitstrings to CI strings and include requested strings
+        # Convert bitstrings to CI strings and include requested and carryover strings
         ci_strings = []
         for subsample in subsamples:
             strs_a, strs_b = bitstring_matrix_to_ci_strs(subsample)
-            strs_a = np.union1d(strs_a, include_a)
-            strs_b = np.union1d(strs_b, include_b)
+            strs_a = np.union1d(strs_a, np.union1d(include_a, carryover_strings_a))
+            strs_b = np.union1d(strs_b, np.union1d(include_b, carryover_strings_b))
             ci_strings.append((strs_a, strs_b))
 
         # Run diagonalization
@@ -156,13 +170,29 @@ def run_sqd(
             callback(energies + constant, sci_states, occupancies)
 
         # Get best result from batch
-        index = np.argmin(energies)
-        current_occupancies = occupancies[index]
+        min_index = np.argmin(energies)
+        current_occupancies = occupancies[min_index]
+        sci_state = sci_states[min_index]
+
+        # Carry over bitstrings with large CI weight
+        flattened = sci_state.amplitudes.reshape(-1)
+        absolute_vals = np.abs(flattened)
+        indices = np.argsort(absolute_vals)
+        carryover_index = np.searchsorted(absolute_vals, carryover_threshold, sorter=indices)
+        carryover_indices = indices[carryover_index:]
+        _, n_strings_b = sci_state.amplitudes.shape
+        alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
+        carryover_strings_a = sci_state.ci_strs_a[alpha_indices]
+        carryover_strings_b = sci_state.ci_strs_b[beta_indices]
+        if not open_shell:
+            carryover_strings_a = carryover_strings_b = np.union1d(
+                carryover_strings_a, carryover_strings_b
+            )
 
         # Check if the energy is the lowest seen so far
-        if energies[index] < min_energy:
-            min_energy = energies[index]
-            min_sci_state = sci_states[index]
+        if energies[min_index] < min_energy:
+            min_energy = energies[min_index]
+            min_sci_state = sci_states[min_index]
 
     return min_energy + constant, min_sci_state
 
