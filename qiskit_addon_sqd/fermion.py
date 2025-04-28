@@ -81,15 +81,17 @@ def run_sqd(
     counts: dict[str, int],
     subsample_size: int,
     *,
-    sci_solver=None,
-    open_shell: bool = False,
-    spin_sq: float = 0.0,
-    max_davidson: int = 200,
+    sci_solver: Callable[
+        [list[tuple[np.ndarray, np.ndarray]], np.ndarray, np.ndarray],
+        list[tuple[float, SCIState, tuple[np.ndarray, np.ndarray]]],
+    ]
+    | None = None,
+    symmetrize_spin: bool = False,
     include_configurations: list[int] | tuple[list[int], list[int]] | None = None,
-    initial_occupancies: np.ndarray | None = None,
+    initial_occupancies: tuple[np.ndarray, np.ndarray] | None = None,
     iterations: int = 1,
     n_subsamples: int = 1,
-    carryover_threshold=1e-4,
+    carryover_threshold: float = 1e-4,
     constant: float = 0.0,
     callback: Callable[[np.ndarray, np.ndarray, np.ndarray], None] | None = None,
     seed: int | np.random.Generator | None = None,
@@ -104,16 +106,27 @@ def run_sqd(
             alpha part and beta part concatenated together, with the alpha part
             concatenated on the right-hand side.
         subsample size: The number of bitstrings to include in each subsample.
+        sci_solver: Selected configuration interaction solver function.
+        symmetrize_spin: Whether to always merge alpha and beta strings into a single
+            list, so that the diagonalization subspace is symmetric with respect to the
+            exchange of spin alpha with spin beta.
     """
     if iterations < 1:
         raise ValueError("Number of iterations must be at least 1.")
-    rng = np.random.default_rng(seed)
+
     n_alpha, n_beta = nelec
+    if symmetrize_spin and n_alpha != n_beta:
+        raise ValueError(
+            "Spin symmetrization is only possible if the numbers of alpha and beta "
+            f"electrons are equal. Instead, got {n_alpha} and {n_beta}."
+        )
+
+    rng = np.random.default_rng(seed)
     current_occupancies = initial_occupancies
     min_energy = float("inf")
     if sci_solver is None:
         sci_solver = partial(
-            solve_fermion_batch, open_shell=open_shell, spin_sq=spin_sq, max_davidson=max_davidson
+            solve_sci_batch, symmetrize_spin=symmetrize_spin, spin_sq=None, max_davidson=100
         )
 
     if include_configurations is None:
@@ -157,13 +170,15 @@ def run_sqd(
         # Convert bitstrings to CI strings and include requested and carryover strings
         ci_strings = []
         for subsample in subsamples:
-            strs_a, strs_b = bitstring_matrix_to_ci_strs(subsample)
+            strs_a, strs_b = bitstring_matrix_to_ci_strs(subsample, open_shell=not symmetrize_spin)
             strs_a = np.union1d(strs_a, np.union1d(include_a, carryover_strings_a))
             strs_b = np.union1d(strs_b, np.union1d(include_b, carryover_strings_b))
             ci_strings.append((strs_a, strs_b))
 
         # Run diagonalization
-        energies, sci_states, occupancies = sci_solver(ci_strings, one_body_tensor, two_body_tensor)
+        energies, sci_states, occupancies = zip(
+            *sci_solver(ci_strings, one_body_tensor, two_body_tensor)
+        )
 
         # Call callback function if provided
         if callback is not None:
@@ -184,7 +199,7 @@ def run_sqd(
         alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
         carryover_strings_a = sci_state.ci_strs_a[alpha_indices]
         carryover_strings_b = sci_state.ci_strs_b[beta_indices]
-        if not open_shell:
+        if symmetrize_spin:
             carryover_strings_a = carryover_strings_b = np.union1d(
                 carryover_strings_a, carryover_strings_b
             )
@@ -197,30 +212,28 @@ def run_sqd(
     return min_energy + constant, min_sci_state
 
 
-def solve_fermion_batch(
+def solve_sci_batch(
     ci_strings: list[tuple[np.ndarray, np.ndarray]],
-    hcore: np.ndarray,
-    eri: np.ndarray,
+    one_body_tensor: np.ndarray,
+    two_body_tensor: np.ndarray,
     *,
-    open_shell: bool,
-    spin_sq: float,
+    symmetrize_spin: bool,
+    spin_sq: float | None,
     max_davidson: int,
-):
-    """Batched version of solve_fermion."""
-    energies, sci_states, occupancies, _ = zip(
-        *(
-            solve_fermion(
-                ci_strs,
-                hcore,
-                eri,
-                open_shell=open_shell,
-                spin_sq=spin_sq,
-                max_davidson=max_davidson,
-            )
-            for ci_strs in ci_strings
+) -> list[tuple[float, SCIState, tuple[np.ndarray, np.ndarray]]]:
+    """Diagonalize Hamiltonian in subspaces."""
+    results = [
+        solve_fermion(
+            ci_strs,
+            one_body_tensor,
+            two_body_tensor,
+            open_shell=not symmetrize_spin,
+            spin_sq=spin_sq,
+            max_davidson=max_davidson,
         )
-    )
-    return energies, sci_states, occupancies
+        for ci_strs in ci_strings
+    ]
+    return [(energy, sci_state, occs) for energy, sci_state, occs, _ in results]
 
 
 def solve_fermion(
