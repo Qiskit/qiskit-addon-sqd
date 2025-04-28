@@ -81,6 +81,8 @@ def run_sqd(
     counts: dict[str, int],
     subsample_size: int,
     *,
+    n_subsamples: int = 1,
+    iterations: int = 1,
     sci_solver: Callable[
         [list[tuple[np.ndarray, np.ndarray]], np.ndarray, np.ndarray],
         list[tuple[float, SCIState, tuple[np.ndarray, np.ndarray]]],
@@ -89,8 +91,6 @@ def run_sqd(
     symmetrize_spin: bool = False,
     include_configurations: list[int] | tuple[list[int], list[int]] | None = None,
     initial_occupancies: tuple[np.ndarray, np.ndarray] | None = None,
-    iterations: int = 1,
-    n_subsamples: int = 1,
     carryover_threshold: float = 1e-4,
     constant: float = 0.0,
     callback: Callable[[np.ndarray, np.ndarray, np.ndarray], None] | None = None,
@@ -105,11 +105,41 @@ def run_sqd(
         counts: The counts of sampled bitstrings. Each bitstring should have both the
             alpha part and beta part concatenated together, with the alpha part
             concatenated on the right-hand side.
-        subsample size: The number of bitstrings to include in each subsample.
+        subsample_size: The number of bitstrings to include in each subsample.
+        n_subsamples: The number of subsamples to generate in each configuration recovery
+            iteration.
+        iterations: Number of configuration recovery iterations.
         sci_solver: Selected configuration interaction solver function.
+
+            Inputs:
+            - List of pairs (strings_a, strings_b) where each pair describes a subspace
+              to perform diagonalization in. A list is passed to allow the solver function
+              to perform the diagonalizations in parallel.
+            - One-body tensor of the Hamiltonian.
+            - Two-body tensor of the Hamiltonian.
+
+            Output: List of (energy, sci_state, occupancies) triplets, where each triplet
+            contains the result of the corresponding diagonalization.
         symmetrize_spin: Whether to always merge alpha and beta strings into a single
             list, so that the diagonalization subspace is symmetric with respect to the
             exchange of spin alpha with spin beta.
+        include_configurations: Configurations to always include in the diagonalization
+            subspace. You can specify either a single list of single-spin strings to
+            use for both spin sectors, or a pair (alpha_strings, beta_strings) of lists
+            of single-spin strings, one for each spin.
+        initial_occupancies: Initial guess for the average occupancies of the orbitals.
+        carryover_threshold: Threshold for carrying over bitstrings with large CI
+            weight from one iteration of configuration recovery to the next.
+            All single-spin CI strings associated with configurations whose coefficient
+            has absolute value greater than this threshold will be included in the
+            diagonalization subspace for the next iteration.
+        constant: A constant energy shift to add to the computed energy.
+        callback: A callback function that will be called after each configuration
+            recovery iteration.
+        seed: A seed for the pseudorandom number generator.
+
+    Returns:
+        The estimate of the energy and the SCI state with that energy.
     """
     if iterations < 1:
         raise ValueError("Number of iterations must be at least 1.")
@@ -180,10 +210,6 @@ def run_sqd(
             *sci_solver(ci_strings, one_body_tensor, two_body_tensor)
         )
 
-        # Call callback function if provided
-        if callback is not None:
-            callback(energies + constant, sci_states, occupancies)
-
         # Get best result from batch
         min_index = np.argmin(energies)
         current_occupancies = occupancies[min_index]
@@ -208,6 +234,10 @@ def run_sqd(
         if energies[min_index] < min_energy:
             min_energy = energies[min_index]
             min_sci_state = sci_states[min_index]
+
+        # Call callback function if provided
+        if callback is not None:
+            callback(energies + constant, sci_states, occupancies)
 
     return min_energy + constant, min_sci_state
 
