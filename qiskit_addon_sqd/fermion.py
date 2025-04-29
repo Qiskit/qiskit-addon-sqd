@@ -91,7 +91,7 @@ def solve_fermion(
 
             - CI strings: A tuple of two sequences containing integer representations of spin-up and spin-down
               determinants, respectively. The expected format is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
-        
+
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         open_shell: A flag specifying whether configurations from the left and right
@@ -201,7 +201,7 @@ def optimize_orbitals(
 
             - CI strings: A tuple of two sequences containing integer representations of spin-up and spin-down
               determinants, respectively. The expected format is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
-        
+
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         k_flat: 1D array defining the orbital transform, ``K``. The array should specify the upper
