@@ -95,10 +95,30 @@ class SCIState:
             f"Computing the rank {rank} reduced density matrix is currently not supported."
         )
 
-    def average_occupancies(self) -> tuple[np.ndarray, np.ndarray]:
+    def orbital_occupancies(self) -> tuple[np.ndarray, np.ndarray]:
         """Average orbital occupancies."""
         dm_a, dm_b = self.rdm(rank=1, spin_summed=False)
         return np.diagonal(dm_a), np.diagonal(dm_b)
+
+
+@dataclass(frozen=True)
+class SCIResult:
+    """Result of an SCI calculation."""
+
+    energy: float
+    """The SCI energy."""
+
+    sci_state: SCIState
+    """The SCI state."""
+
+    orbital_occupancies: tuple[np.ndarray, np.ndarray]
+    """The average orbital occupancies."""
+
+    rdm1: np.ndarray | None = None
+    """Spin-summed 1-particle reduced density matrix."""
+
+    rdm2: np.ndarray | None = None
+    """Spin-summed 2-particle reduced density matrix."""
 
 
 def run_sqd(
@@ -114,16 +134,14 @@ def run_sqd(
     n_subsamples: int = 1,
     iterations: int = 1,
     sci_solver: Callable[
-        [list[tuple[np.ndarray, np.ndarray]], np.ndarray, np.ndarray],
-        list[tuple[float, SCIState, tuple[np.ndarray, np.ndarray]]],
+        [list[tuple[np.ndarray, np.ndarray]], np.ndarray, np.ndarray], list[SCIResult]
     ]
     | None = None,
     symmetrize_spin: bool = False,
     include_configurations: list[int] | tuple[list[int], list[int]] | None = None,
     initial_occupancies: tuple[np.ndarray, np.ndarray] | None = None,
     carryover_threshold: float = 1e-4,
-    callback: Callable[[list[tuple[float, SCIState, tuple[np.ndarray, np.ndarray]]]], None]
-    | None = None,
+    callback: Callable[[list[SCIResult]], None] | None = None,
     seed: int | np.random.Generator | None = None,
 ) -> tuple[float, SCIState]:
     """Run SQD.
@@ -244,12 +262,11 @@ def run_sqd(
 
         # Run diagonalization
         results = sci_solver(ci_strings, one_body_tensor, two_body_tensor, norb, nelec)
-        energies, sci_states, occupancies = zip(*results)
 
         # Get best result from batch
-        min_index = np.argmin(energies)
-        current_occupancies = occupancies[min_index]
-        sci_state = sci_states[min_index]
+        best_result_in_batch = min(results, key=lambda result: result.energy)
+        current_occupancies = best_result_in_batch.orbital_occupancies
+        sci_state = best_result_in_batch.sci_state
 
         # Carry over bitstrings with large CI weight
         flattened = sci_state.amplitudes.reshape(-1)
@@ -267,15 +284,15 @@ def run_sqd(
             )
 
         # Check if the energy is the lowest seen so far
-        if energies[min_index] < min_energy:
-            min_energy = energies[min_index]
-            min_sci_state = sci_states[min_index]
+        if best_result_in_batch.energy < min_energy:
+            min_energy = best_result_in_batch.energy
+            best_result = best_result_in_batch
 
         # Call callback function if provided
         if callback is not None:
             callback(results)
 
-    return min_energy, min_sci_state
+    return best_result
 
 
 def solve_sci_batch(
@@ -288,7 +305,7 @@ def solve_sci_batch(
     spin_sq: float | None = None,
     max_davidson: int = 100,
     verbose: int = 0,
-) -> list[tuple[float, SCIState, tuple[np.ndarray, np.ndarray]]]:
+) -> list[SCIResult]:
     """Diagonalize Hamiltonian in subspaces.
 
     Args:
@@ -333,7 +350,7 @@ def solve_sci_batch(
         )
         # Calculate the average occupancy of each orbital
         dm1s = myci.make_rdm1s(sci_vec, norb, nelec)
-        occupancy = (np.diagonal(dm1s[0]), np.diagonal(dm1s[1]))
+        occupancies = (np.diagonal(dm1s[0]), np.diagonal(dm1s[1]))
         # Calculate energy from RDMs
         dm1 = myci.make_rdm1(sci_vec, norb, nelec)
         dm2 = myci.make_rdm2(sci_vec, norb, nelec)
@@ -342,10 +359,16 @@ def solve_sci_batch(
         )
         # Construct SCIState
         sci_state = SCIState(
-            amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
+            amplitudes=np.array(sci_vec),
+            ci_strs_a=sci_vec._strs[0],
+            ci_strs_b=sci_vec._strs[1],
+            norb=norb,
+            nelec=nelec,
         )
         # Append results to list
-        results.append((energy, sci_state, occupancy))
+        results.append(
+            SCIResult(energy, sci_state, orbital_occupancies=occupancies, rdm1=dm1, rdm2=dm2)
+        )
 
     return results
 
