@@ -76,11 +76,12 @@ class SCIState:
 def run_sqd(
     one_body_tensor: np.ndarray,
     two_body_tensor: np.ndarray,
-    nelec: tuple[int, int],
     # TODO take BitArray instead of counts
     # see https://github.com/Qiskit/qiskit-addon-sqd/issues/113
     counts: dict[str, int],
     subsample_size: int,
+    norb: int,
+    nelec: tuple[int, int],
     *,
     n_subsamples: int = 1,
     iterations: int = 1,
@@ -101,11 +102,12 @@ def run_sqd(
     Args:
         one_body_tensor: The one-body tensor of the Hamiltonian.
         two_body_tensor: The two-body tensor of the Hamiltonian.
-        nelec: The numbers of alpha and beta electrons.
         counts: The counts of sampled bitstrings. Each bitstring should have both the
             alpha part and beta part concatenated together, with the alpha part
             concatenated on the right-hand side.
         subsample_size: The number of bitstrings to include in each subsample.
+        norb: The number of spatial orbitals.
+        nelec: The numbers of alpha and beta electrons.
         n_subsamples: The number of subsamples to generate in each configuration recovery
             iteration.
         iterations: Number of configuration recovery iterations.
@@ -118,6 +120,9 @@ def run_sqd(
               the solver function to perform the diagonalizations in parallel.
             - One-body tensor of the Hamiltonian.
             - Two-body tensor of the Hamiltonian.
+            - The number of spatial orbitals.
+            - A pair (n_alpha, n_beta) indicating the numbers of alpha and beta
+              electrons.
 
             Output: List of (energy, sci_state, occupancies) triplets, where each triplet
             contains the result of the corresponding diagonalization.
@@ -157,7 +162,7 @@ def run_sqd(
     current_occupancies = initial_occupancies
     min_energy = float("inf")
     if sci_solver is None:
-        sci_solver = partial(solve_sci_batch, spin_sq=None, max_davidson=100)
+        sci_solver = solve_sci_batch
 
     if include_configurations is None:
         include_a = np.array([], dtype=np.int64)
@@ -206,7 +211,7 @@ def run_sqd(
             ci_strings.append((strs_a, strs_b))
 
         # Run diagonalization
-        results = sci_solver(ci_strings, one_body_tensor, two_body_tensor)
+        results = sci_solver(ci_strings, one_body_tensor, two_body_tensor, norb, nelec)
         energies, sci_states, occupancies = zip(*results)
 
         # Get best result from batch
@@ -245,9 +250,12 @@ def solve_sci_batch(
     ci_strings: list[tuple[np.ndarray, np.ndarray]],
     one_body_tensor: np.ndarray,
     two_body_tensor: np.ndarray,
+    norb: int,
+    nelec: tuple[int, int],
     *,
     spin_sq: float | None = None,
     max_davidson: int = 100,
+    verbose: int = 0,
 ) -> list[tuple[float, SCIState, tuple[np.ndarray, np.ndarray]]]:
     """Diagonalize Hamiltonian in subspaces.
 
@@ -257,25 +265,57 @@ def solve_sci_batch(
             the subspace in which to perform a diagonalization.
         one_body_tensor: The one-body tensor of the Hamiltonian.
         two_body_tensor: The two-body tensor of the Hamiltonian.
+        norb: The number of spatial orbitals.
+        nelec: The numbers of alpha and beta electrons.
         spin_sq: Target value for the total spin squared for the ground state.
             If ``None``, no spin will be imposed.
         max_davidson: The maximum number of cycles of Davidson's algorithm.
+        verbose: Level of output verbosity, as an integer ranging from 0 (least verbose)
+            to 10 (most verbose).
 
     Returns:
         The results of the diagonalizations in the subspaces given by ci_strings,
         as a list of (energy, sci_state, occupancies) triplets.
     """
-    results = [
-        solve_fermion(
-            ci_strs,
+    norb, _ = one_body_tensor.shape
+
+    myci = fci.selected_ci.SelectedCI()
+    if spin_sq is not None:
+        myci = fci.addons.fix_spin_(myci, ss=spin_sq)
+
+    results = []
+    for ci_strs in ci_strings:
+        # The energy returned from this function is not guaranteed to be
+        # the energy of the returned wavefunction when the spin^2 deviates
+        # from the value requested. We will calculate the energy from the
+        # RDMs below and ignore this value to be safe.
+        _, sci_vec = fci.selected_ci.kernel_fixed_space(
+            myci,
             one_body_tensor,
             two_body_tensor,
-            spin_sq=spin_sq,
-            max_davidson=max_davidson,
+            norb,
+            nelec,
+            ci_strs=ci_strs,
+            verbose=verbose,
+            max_cycle=max_davidson,
         )
-        for ci_strs in ci_strings
-    ]
-    return [(energy, sci_state, occs) for energy, sci_state, occs, _ in results]
+        # Calculate the average occupancy of each orbital
+        dm1s = myci.make_rdm1s(sci_vec, norb, nelec)
+        occupancy = (np.diagonal(dm1s[0]), np.diagonal(dm1s[1]))
+        # Calculate energy from RDMs
+        dm1 = myci.make_rdm1(sci_vec, norb, nelec)
+        dm2 = myci.make_rdm2(sci_vec, norb, nelec)
+        energy = np.einsum("pr,pr->", dm1, one_body_tensor) + 0.5 * np.einsum(
+            "prqs,prqs->", dm2, two_body_tensor
+        )
+        # Construct SCIState
+        sci_state = SCIState(
+            amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
+        )
+        # Append results to list
+        results.append((energy, sci_state, occupancy))
+
+    return results
 
 
 def solve_fermion(
