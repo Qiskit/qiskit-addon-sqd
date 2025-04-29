@@ -87,13 +87,11 @@ class SCIState:
         if rank == 1:
             if spin_summed:
                 return make_rdm1(sci_vector, self.norb, self.nelec)  # type: ignore
-            else:
-                return make_rdm1s(sci_vector, self.norb, self.nelec)  # type: ignore
+            return make_rdm1s(sci_vector, self.norb, self.nelec)  # type: ignore
         if rank == 2:
             if spin_summed:
                 return make_rdm2(sci_vector, self.norb, self.nelec)  # type: ignore
-            else:
-                return make_rdm2s(sci_vector, self.norb, self.nelec)  # type: ignore
+            return make_rdm2s(sci_vector, self.norb, self.nelec)  # type: ignore
         raise NotImplementedError(
             f"Computing the rank {rank} reduced density matrix is currently not supported."
         )
