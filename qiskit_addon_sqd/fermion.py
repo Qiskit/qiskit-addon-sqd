@@ -23,6 +23,7 @@ from jax import Array, config, grad, jit, vmap
 from jax import numpy as jnp
 from jax.scipy.linalg import expm
 from pyscf import fci
+from pyscf.fci.selected_ci import _as_SCIvector, make_rdm1, make_rdm1s, make_rdm2, make_rdm2s
 from scipy import linalg as LA
 
 from qiskit_addon_sqd.configuration_recovery import recover_configurations
@@ -48,6 +49,12 @@ class SCIState:
     ci_strs_b: np.ndarray
     """The beta determinants."""
 
+    norb: int
+    """The number of spatial orbitals."""
+
+    nelec: tuple[int, int]
+    """The numbers of alpha and beta electrons."""
+
     def __post_init__(self):
         """Validate dimensions of inputs."""
         object.__setattr__(
@@ -70,6 +77,28 @@ class SCIState:
         """Load an SCIState object from an .npz file."""
         with np.load(filename) as data:
             return cls(data["amplitudes"], data["ci_strs_a"], data["ci_strs_b"])
+
+    def rdm(self, rank: int = 1, spin_summed: bool = False) -> np.ndarray:
+        """Compute reduced density matrix."""
+        sci_vector = _as_SCIvector(self.amplitudes, (self.ci_strs_a, self.ci_strs_b))
+        if rank == 1:
+            if spin_summed:
+                return make_rdm1(sci_vector, self.norb, self.nelec)
+            else:
+                return make_rdm1s(sci_vector, self.norb, self.nelec)
+        if rank == 2:
+            if spin_summed:
+                return make_rdm2(sci_vector, self.norb, self.nelec)
+            else:
+                return make_rdm2s(sci_vector, self.norb, self.nelec)
+        raise NotImplementedError(
+            f"Computing the rank {rank} reduced density matrix is currently not supported."
+        )
+
+    def average_occupancies(self) -> tuple[np.ndarray, np.ndarray]:
+        """Average orbital occupancies."""
+        dm_a, dm_b = self.rdm(rank=1, spin_summed=False)
+        return np.diagonal(dm_a), np.diagonal(dm_b)
 
 
 def run_sqd(
