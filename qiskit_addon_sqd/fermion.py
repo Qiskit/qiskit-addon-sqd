@@ -85,11 +85,13 @@ def solve_fermion(
 
             This may be specified in two ways:
 
-            A bitstring matrix: A 2D ``numpy.ndarray`` of ``bool`` representations of bit values such that each row represents a single bitstring. The spin-up
-            configurations should be specified by column indices in range ``(N, N/2]``, and the spin-down configurations should be specified by column
-            indices in range ``(N/2, 0]``, where ``N`` is the number of qubits.
-            CI strings: A length-2 tuple of sequences containing integer representations of the spin-up and spin-down determinants, respectively.
-                The expected ordering is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
+            - Bitstring matrix: A 2D ``numpy.ndarray`` of ``bool`` values, where each row represents a bitstring.
+              The spin-up configurations should occupy column indices ``(N, N/2]``, and the spin-down configurations
+              should occupy column indices ``(N/2, 0]``, where ``N`` is the number of qubits.
+
+            - CI strings: A tuple of two sequences containing integer representations of spin-up and spin-down
+              determinants, respectively. The expected format is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
+        
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         open_shell: A flag specifying whether configurations from the left and right
@@ -193,12 +195,13 @@ def optimize_orbitals(
 
             This may be specified in two ways:
 
-            A bitstring matrix: A 2D ``numpy.ndarray`` of ``bool`` representations of bit values such that each row represents a single bitstring. The spin-up
-            configurations should be specified by column indices in range ``(N, N/2]``, and the spin-down configurations should be specified by column
-            indices in range ``(N/2, 0]``, where ``N`` is the number of qubits.
+            - Bitstring matrix: A 2D ``numpy.ndarray`` of ``bool`` values, where each row represents a bitstring.
+              The spin-up configurations should occupy column indices ``(N, N/2]``, and the spin-down configurations
+              should occupy column indices ``(N/2, 0]``, where ``N`` is the number of qubits.
 
-            CI strings: A length-2 tuple of sequences containing integer representations of the spin-up and spin-down determinants, respectively.
-                The expected ordering is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
+            - CI strings: A tuple of two sequences containing integer representations of spin-up and spin-down
+              determinants, respectively. The expected format is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
+        
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         k_flat: 1D array defining the orbital transform, ``K``. The array should specify the upper
