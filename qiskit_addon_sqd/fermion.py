@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import partial
 from typing import Callable
 
 import numpy as np
@@ -109,7 +108,8 @@ def run_sqd(
         norb: The number of spatial orbitals.
         nelec: The numbers of alpha and beta electrons.
         n_subsamples: The number of subsamples to generate in each configuration recovery
-            iteration.
+            iteration. This argument indirectly controls the dimensions of the
+            diagonalization subspaces. A higher value will yield larger subspace dimensions.
         iterations: Number of configuration recovery iterations.
         sci_solver: Selected configuration interaction solver function.
 
@@ -126,9 +126,9 @@ def run_sqd(
 
             Output: List of (energy, sci_state, occupancies) triplets, where each triplet
             contains the result of the corresponding diagonalization.
-        symmetrize_spin: Whether to always merge alpha and beta strings into a single
-            list, so that the diagonalization subspace is symmetric with respect to the
-            exchange of spin alpha with spin beta.
+        symmetrize_spin: Whether to always merge spin-alpha and spin-beta CI strings
+            into a single list, so that the diagonalization subspace is invariant with
+            respect to the exchange of spin alpha with spin beta.
         include_configurations: Configurations to always include in the diagonalization
             subspace. You can specify either a single list of single-spin strings to
             use for both spin sectors, or a pair (alpha_strings, beta_strings) of lists
@@ -138,7 +138,9 @@ def run_sqd(
             weight from one iteration of configuration recovery to the next.
             All single-spin CI strings associated with configurations whose coefficient
             has absolute value greater than this threshold will be included in the
-            diagonalization subspace for the next iteration.
+            diagonalization subspace for the next iteration. A smaller threshold will
+            retain more configurations, leading to a larger subspace and hence a more
+            costly diagonalization.
         callback: A callback function to be called after each configuration recovery
             iteration. The function will be passed the output of the sci_solver
             function, which is a list of (energy, sci_state, occupancies) triplets,
