@@ -112,9 +112,10 @@ def run_sqd(
         sci_solver: Selected configuration interaction solver function.
 
             Inputs:
-            - List of pairs (strings_a, strings_b) where each pair describes a subspace
-              to perform diagonalization in. A list is passed to allow the solver function
-              to perform the diagonalizations in parallel.
+            - List of pairs (strings_a, strings_b) of arrays of spin-alpha CI strings
+              and spin-beta CI strings whose Cartesian product give the basis of the
+              subspace in which to perform a diagonalization. A list is passed to allow
+              the solver function to perform the diagonalizations in parallel.
             - One-body tensor of the Hamiltonian.
             - Two-body tensor of the Hamiltonian.
 
@@ -156,9 +157,7 @@ def run_sqd(
     current_occupancies = initial_occupancies
     min_energy = float("inf")
     if sci_solver is None:
-        sci_solver = partial(
-            solve_sci_batch, symmetrize_spin=symmetrize_spin, spin_sq=None, max_davidson=100
-        )
+        sci_solver = partial(solve_sci_batch, spin_sq=None, max_davidson=100)
 
     if include_configurations is None:
         include_a = np.array([], dtype=np.int64)
@@ -247,17 +246,30 @@ def solve_sci_batch(
     one_body_tensor: np.ndarray,
     two_body_tensor: np.ndarray,
     *,
-    symmetrize_spin: bool,
-    spin_sq: float | None,
-    max_davidson: int,
+    spin_sq: float | None = None,
+    max_davidson: int = 100,
 ) -> list[tuple[float, SCIState, tuple[np.ndarray, np.ndarray]]]:
-    """Diagonalize Hamiltonian in subspaces."""
+    """Diagonalize Hamiltonian in subspaces.
+
+    Args:
+        ci_strings: List of pairs (strings_a, strings_b) of arrays of spin-alpha CI
+            strings and spin-beta CI strings whose Cartesian product give the basis of
+            the subspace in which to perform a diagonalization.
+        one_body_tensor: The one-body tensor of the Hamiltonian.
+        two_body_tensor: The two-body tensor of the Hamiltonian.
+        spin_sq: Target value for the total spin squared for the ground state.
+            If ``None``, no spin will be imposed.
+        max_davidson: The maximum number of cycles of Davidson's algorithm.
+
+    Returns:
+        The results of the diagonalizations in the subspaces given by ci_strings,
+        as a list of (energy, sci_state, occupancies) triplets.
+    """
     results = [
         solve_fermion(
             ci_strs,
             one_body_tensor,
             two_body_tensor,
-            open_shell=not symmetrize_spin,
             spin_sq=spin_sq,
             max_davidson=max_davidson,
         )
