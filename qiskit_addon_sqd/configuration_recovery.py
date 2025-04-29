@@ -138,13 +138,13 @@ def _p_flip_0_to_1(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  #
 
     """
     # Occupancy is < than naive expectation.
-    # Flip 0s to 1 with small (<eps) probability in this case
+    # Flip 0s to 1 with small (~eps) probability in this case
     if occ < ratio_exp:
         return occ * eps / ratio_exp
 
     # Occupancy is >= naive expectation.
-    # The probability weight to flip the bit increases linearly from ``eps`` to
-    # ``1.0`` as the occupation deviates further from the expected ratio
+    # The probability to flip the bit increases linearly from ``eps`` to
+    # ``~1.0`` as the occupation deviates further from the expected ratio
     if ratio_exp == 1.0:
         return eps
     slope = (1 - eps) / (1 - ratio_exp)
@@ -169,18 +169,18 @@ def _p_flip_1_to_0(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  #
 
     """
     # Occupancy is < naive expectation.
-    # The probability weight to flip the bit decreases linearly from ``1.0`` to
-    # ``eps`` as the occupation increases towards the expected ratio
-    if occ < ratio_exp:
-        slope = -(1.0 - eps) / ratio_exp
-        return 1.0 + occ * slope
+    # The probability to flip the bit increases linearly from ``eps`` to
+    # ``~1.0`` as the occupation deviates further from the expected ratio
+    if occ < 1.0 - ratio_exp:
+        slope = (1.0 - eps) / (1.0 - ratio_exp)
+        return 1.0 - occ * slope
 
     # Occupancy is >= naive expectation.
-    # Flip 1s to 0 with small (<eps) probability in this case
+    # Flip 1s to 0 with small (~eps) probability in this case
     if ratio_exp == 0.0:
         return 1 - eps
-    slope = -eps / (1 - ratio_exp)
-    intercept = eps / (1 - ratio_exp)
+    slope = -eps / ratio_exp
+    intercept = eps / ratio_exp
     return occ * slope + intercept
 
 
