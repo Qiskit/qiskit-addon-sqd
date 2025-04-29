@@ -56,7 +56,9 @@ def bit_array_to_arrays(bit_array: BitArray) -> tuple[np.ndarray, np.ndarray]:
         - A 1D array containing the probability with which each bitstring was sampled
 
     """
-    bitstrings, counts = np.unique(bit_array.to_bool_array(), axis=0, return_counts=True)
+    # TODO can use bit_array.to_bool_array() when it's available
+    bool_array = np.unpackbits(bit_array.array, axis=-1)[..., -bit_array.num_bits :].astype(bool)
+    bitstrings, counts = np.unique(bool_array, axis=0, return_counts=True)
     probs = counts / bit_array.num_shots
     return bitstrings, probs
 
