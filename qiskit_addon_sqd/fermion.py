@@ -75,8 +75,7 @@ def solve_fermion(
     *,
     open_shell: bool = False,
     spin_sq: float | None = None,
-    max_davidson: int = 100,
-    verbose: int | None = None,
+    **kwargs,
 ) -> tuple[float, SCIState, tuple[np.ndarray, np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
 
@@ -89,7 +88,6 @@ def solve_fermion(
             A bitstring matrix: A 2D ``numpy.ndarray`` of ``bool`` representations of bit values such that each row represents a single bitstring. The spin-up
             configurations should be specified by column indices in range ``(N, N/2]``, and the spin-down configurations should be specified by column
             indices in range ``(N/2, 0]``, where ``N`` is the number of qubits.
-
             CI strings: A length-2 tuple of sequences containing integer representations of the spin-up and spin-down determinants, respectively.
                 The expected ordering is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
         hcore: Core Hamiltonian matrix representing single-electron integrals
@@ -100,8 +98,7 @@ def solve_fermion(
             set of unique configurations and used for both the alpha and beta subspaces.
         spin_sq: Target value for the total spin squared for the ground state.
             If ``None``, no spin will be imposed.
-        max_davidson: The maximum number of cycles of Davidson's algorithm
-        verbose: A verbosity level between 0 and 10
+        **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
 
     Returns:
         - Minimum energy from SCI calculation
@@ -135,9 +132,8 @@ def solve_fermion(
         eri,
         norb,
         (num_up, num_dn),
-        ci_strs=ci_strs,
-        verbose=verbose,
-        max_cycle=max_davidson,
+        ci_strs,
+        **kwargs,
     )
 
     # Calculate the avg occupancy of each orbital

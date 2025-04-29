@@ -1,0 +1,4 @@
+---
+upgrade:
+  - |
+    :func:`qiskit_addon_sqd.fermion.solve_fermion` now accepts trailing ``kwargs``, which will be passed directly to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_ in order to calculate the target state.
