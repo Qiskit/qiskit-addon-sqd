@@ -134,7 +134,8 @@ def run_sqd(
     nelec: tuple[int, int],
     *,
     n_subsamples: int = 1,
-    iterations: int = 1,
+    tol: float = 1e-8,
+    max_iterations: int = 100,
     sci_solver: Callable[
         [list[tuple[np.ndarray, np.ndarray]], np.ndarray, np.ndarray, int, tuple[int, int]],
         list[SCIResult],
@@ -161,7 +162,9 @@ def run_sqd(
         n_subsamples: The number of subsamples to generate in each configuration recovery
             iteration. This argument indirectly controls the dimensions of the
             diagonalization subspaces. A higher value will yield larger subspace dimensions.
-        iterations: Number of configuration recovery iterations.
+        tol: Numerical tolerance for convergence. If the change in energy between iterations
+            is smaller than this value, then the configuration recovery loop will exit.
+        max_iterations: Limit on the number of configuration recovery iterations.
         sci_solver: Selected configuration interaction solver function.
 
             Inputs:
@@ -201,8 +204,8 @@ def run_sqd(
     Returns:
         The estimate of the energy and the SCI state with that energy.
     """
-    if iterations < 1:
-        raise ValueError("Number of iterations must be at least 1.")
+    if max_iterations < 1:
+        raise ValueError("Maximum number of iterations must be at least 1.")
 
     n_alpha, n_beta = nelec
     if symmetrize_spin and n_alpha != n_beta:
@@ -214,6 +217,7 @@ def run_sqd(
     rng = np.random.default_rng(seed)
     current_occupancies = initial_occupancies
     min_energy = float("inf")
+    current_energy = float("inf")
     if sci_solver is None:
         # Reason for type: ignore:
         sci_solver = solve_sci_batch
@@ -235,7 +239,7 @@ def run_sqd(
     # Convert counts into bitstring and probability arrays
     raw_bitstrings, raw_probs = counts_to_arrays(counts)
 
-    for _ in range(iterations):
+    for _ in range(max_iterations):
         # On the first iteration, we have no orbital occupancy information from the
         # solver, so we begin with the full set of noisy configurations.
         if current_occupancies is None:
@@ -297,6 +301,11 @@ def run_sqd(
         # Call callback function if provided
         if callback is not None:
             callback(results)
+
+        # Check convergence
+        if abs(best_result_in_batch.energy - current_energy) < tol:
+            break
+        current_energy = best_result_in_batch.energy
 
     return best_result
 
