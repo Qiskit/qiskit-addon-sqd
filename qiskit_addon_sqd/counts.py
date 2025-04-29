@@ -15,10 +15,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import numpy as np
 
 
-def counts_to_arrays(counts: dict[str, float | int]) -> tuple[np.ndarray, np.ndarray]:
+def counts_to_arrays(counts: Mapping[str, float | int]) -> tuple[np.ndarray, np.ndarray]:
     """Convert a counts dictionary into a bitstring matrix and a probability array.
 
     Args:
@@ -134,7 +136,7 @@ def generate_counts_bipartite_hamming(
     return sample_dict
 
 
-def normalize_counts_dict(counts: dict[str, float | int]) -> dict[str, float]:
+def normalize_counts_dict(counts: Mapping[str, float | int]) -> Mapping[str, float]:
     """Convert a counts dictionary into a probability dictionary."""
     if not counts:
         return counts

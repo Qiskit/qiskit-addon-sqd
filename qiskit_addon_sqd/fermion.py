@@ -80,17 +80,19 @@ class SCIState:
 
     def rdm(self, rank: int = 1, spin_summed: bool = False) -> np.ndarray:
         """Compute reduced density matrix."""
+        # Reason for type: ignore: mypy can't tell the return type of the
+        # PySCF functions
         sci_vector = _as_SCIvector(self.amplitudes, (self.ci_strs_a, self.ci_strs_b))
         if rank == 1:
             if spin_summed:
-                return make_rdm1(sci_vector, self.norb, self.nelec)
+                return make_rdm1(sci_vector, self.norb, self.nelec)  # type: ignore
             else:
-                return make_rdm1s(sci_vector, self.norb, self.nelec)
+                return make_rdm1s(sci_vector, self.norb, self.nelec)  # type: ignore
         if rank == 2:
             if spin_summed:
-                return make_rdm2(sci_vector, self.norb, self.nelec)
+                return make_rdm2(sci_vector, self.norb, self.nelec)  # type: ignore
             else:
-                return make_rdm2s(sci_vector, self.norb, self.nelec)
+                return make_rdm2s(sci_vector, self.norb, self.nelec)  # type: ignore
         raise NotImplementedError(
             f"Computing the rank {rank} reduced density matrix is currently not supported."
         )
@@ -134,7 +136,8 @@ def run_sqd(
     n_subsamples: int = 1,
     iterations: int = 1,
     sci_solver: Callable[
-        [list[tuple[np.ndarray, np.ndarray]], np.ndarray, np.ndarray], list[SCIResult]
+        [list[tuple[np.ndarray, np.ndarray]], np.ndarray, np.ndarray, int, tuple[int, int]],
+        list[SCIResult],
     ]
     | None = None,
     symmetrize_spin: bool = False,
@@ -143,7 +146,7 @@ def run_sqd(
     carryover_threshold: float = 1e-4,
     callback: Callable[[list[SCIResult]], None] | None = None,
     seed: int | np.random.Generator | None = None,
-) -> tuple[float, SCIState]:
+) -> SCIResult:
     """Run SQD.
 
     Args:
@@ -212,17 +215,20 @@ def run_sqd(
     current_occupancies = initial_occupancies
     min_energy = float("inf")
     if sci_solver is None:
+        # Reason for type: ignore:
         sci_solver = solve_sci_batch
 
     if include_configurations is None:
-        include_a = np.array([], dtype=np.int64)
-        include_b = np.array([], dtype=np.int64)
+        include_a: list[int] | np.ndarray = []
+        include_b: list[int] | np.ndarray = []
     elif isinstance(include_configurations, tuple):
         include_a, include_b = include_configurations
     else:
         include_a = include_configurations
         include_b = include_configurations
 
+    include_a = np.array(include_a, dtype=np.int64)
+    include_b = np.array(include_b, dtype=np.int64)
     carryover_strings_a = np.array([], dtype=np.int64)
     carryover_strings_b = np.array([], dtype=np.int64)
 
@@ -464,7 +470,11 @@ def solve_fermion(
     assert isinstance(sci_vec._strs[0], np.ndarray) and isinstance(sci_vec._strs[1], np.ndarray)
     assert sci_vec.shape == (len(sci_vec._strs[0]), len(sci_vec._strs[1]))
     sci_state = SCIState(
-        amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
+        amplitudes=np.array(sci_vec),
+        ci_strs_a=sci_vec._strs[0],
+        ci_strs_b=sci_vec._strs[1],
+        norb=norb,
+        nelec=(num_up, num_dn),
     )
 
     return e_sci, sci_state, avg_occupancy, spin_squared
