@@ -172,7 +172,7 @@ def optimize_orbitals(
     num_iters: int = 10,
     num_steps_grad: int = 10_000,
     learning_rate: float = 0.01,
-    max_davidson: int = 100,
+    **kwargs,
 ) -> tuple[float, np.ndarray, tuple[np.ndarray, np.ndarray]]:
     """Optimize orbitals to produce a minimal ground state.
 
@@ -209,11 +209,10 @@ def optimize_orbitals(
             set of unique configurations and used for both the alpha and beta subspaces.
         spin_sq: Target value for the total spin squared for the ground state
         num_iters: The number of iterations of orbital optimization to perform
-        max_davidson: The maximum number of cycles of Davidson's algorithm to
-            perform during diagonalization.
         num_steps_grad: The number of steps of gradient descent to perform
             during each optimization iteration
         learning_rate: The learning rate to use during gradient descent
+        **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
 
     Returns:
         - The groundstate energy found during the last optimization iteration
@@ -255,8 +254,8 @@ def optimize_orbitals(
             eri_rot_chem,
             norb,
             (num_up, num_dn),
-            ci_strs=ci_strs,
-            max_cycle=max_davidson,
+            ci_strs,
+            **kwargs,
         )
 
         # Generate the one and two-body reduced density matrices from latest wavefunction amplitudes
