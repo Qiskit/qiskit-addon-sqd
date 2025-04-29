@@ -93,7 +93,8 @@ def run_sqd(
     include_configurations: list[int] | tuple[list[int], list[int]] | None = None,
     initial_occupancies: tuple[np.ndarray, np.ndarray] | None = None,
     carryover_threshold: float = 1e-4,
-    callback: Callable[[np.ndarray, np.ndarray, np.ndarray], None] | None = None,
+    callback: Callable[[list[tuple[float, SCIState, tuple[np.ndarray, np.ndarray]]]], None]
+    | None = None,
     seed: int | np.random.Generator | None = None,
 ) -> tuple[float, SCIState]:
     """Run SQD.
