@@ -24,10 +24,11 @@ from jax import numpy as jnp
 from jax.scipy.linalg import expm
 from pyscf import fci
 from pyscf.fci.selected_ci import _as_SCIvector, make_rdm1, make_rdm1s, make_rdm2, make_rdm2s
+from qiskit.primitives import BitArray
 from scipy import linalg as LA
 
 from qiskit_addon_sqd.configuration_recovery import recover_configurations
-from qiskit_addon_sqd.counts import counts_to_arrays
+from qiskit_addon_sqd.counts import bit_array_to_arrays
 from qiskit_addon_sqd.subsampling import postselect_and_subsample
 
 config.update("jax_enable_x64", True)  # To deal with large integers
@@ -126,9 +127,7 @@ class SCIResult:
 def run_sqd(
     one_body_tensor: np.ndarray,
     two_body_tensor: np.ndarray,
-    # TODO take BitArray instead of counts
-    # see https://github.com/Qiskit/qiskit-addon-sqd/issues/113
-    counts: dict[str, int],
+    bit_array: BitArray,
     subsample_size: int,
     norb: int,
     nelec: tuple[int, int],
@@ -153,7 +152,7 @@ def run_sqd(
     Args:
         one_body_tensor: The one-body tensor of the Hamiltonian.
         two_body_tensor: The two-body tensor of the Hamiltonian.
-        counts: The counts of sampled bitstrings. Each bitstring should have both the
+        bit_array: Array of sampled bitstrings. Each bitstring should have both the
             alpha part and beta part concatenated together, with the alpha part
             concatenated on the right-hand side.
         subsample_size: The number of bitstrings to include in each subsample.
@@ -236,8 +235,8 @@ def run_sqd(
     carryover_strings_a = np.array([], dtype=np.int64)
     carryover_strings_b = np.array([], dtype=np.int64)
 
-    # Convert counts into bitstring and probability arrays
-    raw_bitstrings, raw_probs = counts_to_arrays(counts)
+    # Convert BitArray into bitstring and probability arrays
+    raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
 
     for _ in range(max_iterations):
         # On the first iteration, we have no orbital occupancy information from the

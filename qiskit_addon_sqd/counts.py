@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 import numpy as np
+from qiskit.primitives import BitArray
 
 
 def counts_to_arrays(counts: Mapping[str, float | int]) -> tuple[np.ndarray, np.ndarray]:
@@ -40,6 +41,24 @@ def counts_to_arrays(counts: Mapping[str, float | int]) -> tuple[np.ndarray, np.
     freq_arr = np.array(list(prob_dict.values()))
 
     return bs_mat, freq_arr
+
+
+def bit_array_to_arrays(bit_array: BitArray) -> tuple[np.ndarray, np.ndarray]:
+    """Convert a bit array into a bitstring matrix and a probability array.
+
+    Args:
+        bit_array: The bit array to convert
+
+    Returns:
+        - A 2D array representing the sampled bitstrings. Each row represents a
+          bitstring, and each element is a ``bool`` representation of the
+          bit's value
+        - A 1D array containing the probability with which each bitstring was sampled
+
+    """
+    bitstrings, counts = np.unique(bit_array.to_bool_array(), axis=0, return_counts=True)
+    probs = counts / bit_array.num_shots
+    return bitstrings, probs
 
 
 def generate_counts_uniform(
@@ -77,6 +96,27 @@ def generate_counts_uniform(
         sample_dict[bts] = sample_dict.get(bts, 0) + 1
 
     return sample_dict
+
+
+def generate_bit_array_uniform(
+    num_samples: int, num_bits: int, rand_seed: np.random.Generator | int | None = None
+) -> BitArray:
+    """Generate a bit array of samples drawn from the uniform distribution.
+
+    Args:
+        num_samples: The number of samples to draw
+        num_bits: The number of bits in the bitstrings
+        rand_seed: A seed for controlling randomness
+
+    Returns:
+        The sampled bit array.
+
+    Raises:
+        ValueError: ``num_samples`` and ``num_bits`` must be positive integers.
+
+    """
+    rng = np.random.default_rng(rand_seed)
+    return BitArray.from_bool_array(rng.integers(2, size=(num_samples, num_bits), dtype=bool))
 
 
 def generate_counts_bipartite_hamming(
