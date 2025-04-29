@@ -78,6 +78,7 @@ def run_sqd(
     two_body_tensor: np.ndarray,
     nelec: tuple[int, int],
     # TODO take BitArray instead of counts
+    # see https://github.com/Qiskit/qiskit-addon-sqd/issues/113
     counts: dict[str, int],
     subsample_size: int,
     *,
@@ -92,7 +93,6 @@ def run_sqd(
     include_configurations: list[int] | tuple[list[int], list[int]] | None = None,
     initial_occupancies: tuple[np.ndarray, np.ndarray] | None = None,
     carryover_threshold: float = 1e-4,
-    constant: float = 0.0,
     callback: Callable[[np.ndarray, np.ndarray, np.ndarray], None] | None = None,
     seed: int | np.random.Generator | None = None,
 ) -> tuple[float, SCIState]:
@@ -133,9 +133,10 @@ def run_sqd(
             All single-spin CI strings associated with configurations whose coefficient
             has absolute value greater than this threshold will be included in the
             diagonalization subspace for the next iteration.
-        constant: A constant energy shift to add to the computed energy.
-        callback: A callback function that will be called after each configuration
-            recovery iteration.
+        callback: A callback function to be called after each configuration recovery
+            iteration. The function will be passed the output of the sci_solver
+            function, which is a list of (energy, sci_state, occupancies) triplets,
+            where each triplet contains the result of a diagonalization.
         seed: A seed for the pseudorandom number generator.
 
     Returns:
@@ -206,9 +207,8 @@ def run_sqd(
             ci_strings.append((strs_a, strs_b))
 
         # Run diagonalization
-        energies, sci_states, occupancies = zip(
-            *sci_solver(ci_strings, one_body_tensor, two_body_tensor)
-        )
+        results = sci_solver(ci_strings, one_body_tensor, two_body_tensor)
+        energies, sci_states, occupancies = zip(*results)
 
         # Get best result from batch
         min_index = np.argmin(energies)
@@ -237,9 +237,9 @@ def run_sqd(
 
         # Call callback function if provided
         if callback is not None:
-            callback(energies + constant, sci_states, occupancies)
+            callback(results)
 
-    return min_energy + constant, min_sci_state
+    return min_energy, min_sci_state
 
 
 def solve_sci_batch(
