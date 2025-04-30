@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, cast
 
 import numpy as np
 from jax import Array, config, grad, jit, vmap
@@ -292,7 +292,8 @@ def run_sqd(
             current_result is not None
             and abs(current_result.energy - best_result_in_batch.energy) < energy_tol
             and np.linalg.norm(
-                np.ravel(current_occupancies) - np.ravel(best_result_in_batch.orbital_occupancies),
+                # Reason for type: ignore: mypy thinks current_occupancies can be None
+                np.ravel(current_occupancies) - np.ravel(best_result_in_batch.orbital_occupancies),  # type: ignore
                 ord=np.inf,
             )
             < occupancies_tol
@@ -317,7 +318,8 @@ def run_sqd(
                 carryover_strings_a, carryover_strings_b
             )
 
-    return best_result
+    # best_result is not None because there must have been at least one iteration
+    return cast(SCIResult, best_result)
 
 
 def solve_sci_batch(
