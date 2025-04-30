@@ -131,7 +131,8 @@ def run_sqd(
     nelec: tuple[int, int],
     *,
     n_subsamples: int = 1,
-    tol: float = 1e-8,
+    energy_tol: float = 1e-8,
+    occupancies_tol: float = 1e-5,
     max_iterations: int = 100,
     sci_solver: Callable[
         [list[tuple[np.ndarray, np.ndarray]], np.ndarray, np.ndarray, int, tuple[int, int]],
@@ -159,8 +160,15 @@ def run_sqd(
         n_subsamples: The number of subsamples to generate in each configuration recovery
             iteration. This argument indirectly controls the dimensions of the
             diagonalization subspaces. A higher value will yield larger subspace dimensions.
-        tol: Numerical tolerance for convergence. If the change in energy between iterations
-            is smaller than this value, then the configuration recovery loop will exit.
+        energy_tol: Numerical tolerance for convergence of the energy. If the change in
+            energy between iterations is smaller than this value, then the configuration
+            recovery loop will exit, if the occupancies have also converged
+            (see the ``occupancies_tol`` argument).
+        occupancies_tol: Numerical tolerance for convergence of the average orbital
+            occupancies. If the maximum change in absolute value of the average occupancy
+            of an orbital between iterations is smaller than this value, then the
+            configuration recovery loop will exit, if the energy has also converged
+            (see the ``energy_tol`` argument).
         max_iterations: Limit on the number of configuration recovery iterations.
         sci_solver: Selected configuration interaction solver function.
 
@@ -213,8 +221,8 @@ def run_sqd(
 
     rng = np.random.default_rng(seed)
     current_occupancies = initial_occupancies
-    min_energy = float("inf")
-    current_energy = float("inf")
+    best_result = None
+    current_result = None
     if sci_solver is None:
         # Reason for type: ignore:
         sci_solver = solve_sci_batch
@@ -237,8 +245,6 @@ def run_sqd(
     raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
 
     for _ in range(max_iterations):
-        # On the first iteration, we have no orbital occupancy information from the
-        # solver, so we begin with the full set of noisy configurations.
         if current_occupancies is None:
             bitstrings, probs = raw_bitstrings, raw_probs
         else:
@@ -270,12 +276,33 @@ def run_sqd(
         # Run diagonalization
         results = sci_solver(ci_strings, one_body_tensor, two_body_tensor, norb, nelec)
 
+        # Call callback function if provided
+        if callback is not None:
+            callback(results)
+
         # Get best result from batch
         best_result_in_batch = min(results, key=lambda result: result.energy)
-        current_occupancies = best_result_in_batch.orbital_occupancies
-        sci_state = best_result_in_batch.sci_state
+
+        # Check if the energy is the lowest seen so far
+        if best_result is None or best_result_in_batch.energy < best_result.energy:
+            best_result = best_result_in_batch
+
+        # Check convergence
+        if (
+            current_result is not None
+            and abs(current_result.energy - best_result_in_batch.energy) < energy_tol
+            and np.linalg.norm(
+                np.ravel(current_occupancies) - np.ravel(best_result_in_batch.orbital_occupancies),
+                ord=np.inf,
+            )
+            < occupancies_tol
+        ):
+            break
+        current_result = best_result_in_batch
+        current_occupancies = current_result.orbital_occupancies
 
         # Carry over bitstrings with large CI weight
+        sci_state = current_result.sci_state
         flattened = sci_state.amplitudes.reshape(-1)
         absolute_vals = np.abs(flattened)
         indices = np.argsort(absolute_vals)
@@ -289,20 +316,6 @@ def run_sqd(
             carryover_strings_a = carryover_strings_b = np.union1d(
                 carryover_strings_a, carryover_strings_b
             )
-
-        # Check if the energy is the lowest seen so far
-        if best_result_in_batch.energy < min_energy:
-            min_energy = best_result_in_batch.energy
-            best_result = best_result_in_batch
-
-        # Call callback function if provided
-        if callback is not None:
-            callback(results)
-
-        # Check convergence
-        if abs(best_result_in_batch.energy - current_energy) < tol:
-            break
-        current_energy = best_result_in_batch.energy
 
     return best_result
 
