@@ -328,8 +328,7 @@ def solve_sci_batch(
     nelec: tuple[int, int],
     *,
     spin_sq: float | None = None,
-    max_davidson: int = 100,
-    verbose: int = 0,
+    **kwargs,
 ) -> list[SCIResult]:
     """Diagonalize Hamiltonian in subspaces.
 
@@ -343,9 +342,7 @@ def solve_sci_batch(
         nelec: The numbers of alpha and beta electrons.
         spin_sq: Target value for the total spin squared for the ground state.
             If ``None``, no spin will be imposed.
-        max_davidson: The maximum number of cycles of Davidson's algorithm.
-        verbose: Level of output verbosity, as an integer ranging from 0 (least verbose)
-            to 10 (most verbose).
+        **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
 
     Returns:
         The results of the diagonalizations in the subspaces given by ci_strings,
@@ -364,14 +361,7 @@ def solve_sci_batch(
         # from the value requested. We will calculate the energy from the
         # RDMs below and ignore this value to be safe.
         _, sci_vec = fci.selected_ci.kernel_fixed_space(
-            myci,
-            one_body_tensor,
-            two_body_tensor,
-            norb,
-            nelec,
-            ci_strs=ci_strs,
-            verbose=verbose,
-            max_cycle=max_davidson,
+            myci, one_body_tensor, two_body_tensor, norb, nelec, ci_strs=ci_strs, **kwargs
         )
         # Calculate the average occupancy of each orbital
         dm1s = myci.make_rdm1s(sci_vec, norb, nelec)
