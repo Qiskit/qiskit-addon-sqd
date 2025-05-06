@@ -1,0 +1,4 @@
+---
+upgrade:
+  - | 
+    :func:`qiskit_addon_sqd.fermion.solve_fermion` and :func:`qiskit_addon_sqd.fermion.optimize_orbitals` now accept trailing ``kwargs``, which will be passed directly to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_ under the hood to calculate the target state. The ``max_davidson`` argument should now be passed as ``max_cycle`` in both functions.
