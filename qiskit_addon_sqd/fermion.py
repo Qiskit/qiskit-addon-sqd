@@ -75,6 +75,7 @@ def solve_fermion(
     *,
     open_shell: bool = False,
     spin_sq: float | None = None,
+    shift: float | None = None,
     **kwargs,
 ) -> tuple[float, SCIState, tuple[np.ndarray, np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
@@ -98,8 +99,9 @@ def solve_fermion(
             halves of the bitstrings should be kept separate. If ``False``, CI strings
             from the left and right halves of the bitstrings are combined into a single
             set of unique configurations and used for both the alpha and beta subspaces.
-        spin_sq: Target value for the total spin squared for the ground state.
+        spin_sq: Target value for the total spin squared for the ground state, :math:`S^2 = s(s + 1)`.
             If ``None``, no spin will be imposed.
+        shift: Level shift for states which have different spin. :math:`(H + shift * S^2)|ψ> = E|ψ>`
         **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
 
     Returns:
@@ -123,7 +125,7 @@ def solve_fermion(
     # Call the projection + eigenstate finder
     myci = fci.selected_ci.SelectedCI()
     if spin_sq is not None:
-        myci = fci.addons.fix_spin_(myci, ss=spin_sq)
+        myci = fci.addons.fix_spin_(myci, ss=spin_sq, shift=shift)
     # The energy returned from this function is not guaranteed to be
     # the energy of the returned wavefunction when the spin^2 deviates
     # from the value requested. We will calculate the energy from the
