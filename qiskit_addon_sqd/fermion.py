@@ -75,7 +75,7 @@ def solve_fermion(
     *,
     open_shell: bool = False,
     spin_sq: float | None = None,
-    shift: float | None = None,
+    shift: float = 0.1,
     **kwargs,
 ) -> tuple[float, SCIState, tuple[np.ndarray, np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
@@ -111,12 +111,15 @@ def solve_fermion(
         - Expectation value of spin-squared
 
     """
+    # Format inputs
     if isinstance(bitstring_matrix, tuple):
         ci_strs = bitstring_matrix
     else:
         ci_strs = bitstring_matrix_to_ci_strs(bitstring_matrix, open_shell=open_shell)
     ci_strs = _check_ci_strs(ci_strs)
+    shift = np.float64(shift)
 
+    # Get hamming weights of each half of the first CI str. All CI strs should share the same hamming weight
     num_up = format(ci_strs[0][0], "b").count("1")
     num_dn = format(ci_strs[1][0], "b").count("1")
 
