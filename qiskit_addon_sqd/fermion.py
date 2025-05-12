@@ -126,11 +126,11 @@ def run_sqd(
     one_body_tensor: np.ndarray,
     two_body_tensor: np.ndarray,
     bit_array: BitArray,
-    subsample_size: int,
+    samples_per_batch: int,
     norb: int,
     nelec: tuple[int, int],
     *,
-    n_subsamples: int = 1,
+    num_batches: int = 1,
     energy_tol: float = 1e-8,
     occupancies_tol: float = 1e-5,
     max_iterations: int = 100,
@@ -154,10 +154,11 @@ def run_sqd(
         bit_array: Array of sampled bitstrings. Each bitstring should have both the
             alpha part and beta part concatenated together, with the alpha part
             concatenated on the right-hand side.
-        subsample_size: The number of bitstrings to include in each subsample.
+        samples_per_batch: The number of bitstrings to include in each subsampled batch
+            of bitstrings.
         norb: The number of spatial orbitals.
         nelec: The numbers of alpha and beta electrons.
-        n_subsamples: The number of subsamples to generate in each configuration recovery
+        num_batches: The number of batches to subsample in each configuration recovery
             iteration. This argument indirectly controls the dimensions of the
             diagonalization subspaces. A higher value will yield larger subspace dimensions.
         energy_tol: Numerical tolerance for convergence of the energy. If the change in
@@ -260,8 +261,8 @@ def run_sqd(
             probs,
             hamming_right=n_alpha,
             hamming_left=n_beta,
-            samples_per_batch=subsample_size,
-            num_batches=n_subsamples,
+            samples_per_batch=samples_per_batch,
+            num_batches=num_batches,
             rand_seed=rng,
         )
 
