@@ -399,8 +399,7 @@ def solve_fermion(
     *,
     open_shell: bool = False,
     spin_sq: float | None = None,
-    max_davidson: int = 100,
-    verbose: int | None = None,
+    **kwargs,
 ) -> tuple[float, SCIState, tuple[np.ndarray, np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
 
@@ -410,12 +409,13 @@ def solve_fermion(
 
             This may be specified in two ways:
 
-            A bitstring matrix: A 2D ``numpy.ndarray`` of ``bool`` representations of bit values such that each row represents a single bitstring. The spin-up
-            configurations should be specified by column indices in range ``(N, N/2]``, and the spin-down configurations should be specified by column
-            indices in range ``(N/2, 0]``, where ``N`` is the number of qubits.
+            - Bitstring matrix: A 2D ``numpy.ndarray`` of ``bool`` values, where each row represents a bitstring.
+              The spin-up configurations should occupy column indices ``(N, N/2]``, and the spin-down configurations
+              should occupy column indices ``(N/2, 0]``, where ``N`` is the number of qubits.
 
-            CI strings: A length-2 tuple of sequences containing integer representations of the spin-up and spin-down determinants, respectively.
-                The expected ordering is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
+            - CI strings: A tuple of two sequences containing integer representations of spin-up and spin-down
+              determinants, respectively. The expected format is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
+
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         open_shell: A flag specifying whether configurations from the left and right
@@ -424,8 +424,7 @@ def solve_fermion(
             set of unique configurations and used for both the alpha and beta subspaces.
         spin_sq: Target value for the total spin squared for the ground state.
             If ``None``, no spin will be imposed.
-        max_davidson: The maximum number of cycles of Davidson's algorithm
-        verbose: A verbosity level between 0 and 10
+        **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
 
     Returns:
         - Minimum energy from SCI calculation
@@ -459,9 +458,8 @@ def solve_fermion(
         eri,
         norb,
         (num_up, num_dn),
-        ci_strs=ci_strs,
-        verbose=verbose,
-        max_cycle=max_davidson,
+        ci_strs,
+        **kwargs,
     )
 
     # Calculate the avg occupancy of each orbital
@@ -504,7 +502,7 @@ def optimize_orbitals(
     num_iters: int = 10,
     num_steps_grad: int = 10_000,
     learning_rate: float = 0.01,
-    max_davidson: int = 100,
+    **kwargs,
 ) -> tuple[float, np.ndarray, tuple[np.ndarray, np.ndarray]]:
     """Optimize orbitals to produce a minimal ground state.
 
@@ -525,12 +523,13 @@ def optimize_orbitals(
 
             This may be specified in two ways:
 
-            A bitstring matrix: A 2D ``numpy.ndarray`` of ``bool`` representations of bit values such that each row represents a single bitstring. The spin-up
-            configurations should be specified by column indices in range ``(N, N/2]``, and the spin-down configurations should be specified by column
-            indices in range ``(N/2, 0]``, where ``N`` is the number of qubits.
+            - Bitstring matrix: A 2D ``numpy.ndarray`` of ``bool`` values, where each row represents a bitstring.
+              The spin-up configurations should occupy column indices ``(N, N/2]``, and the spin-down configurations
+              should occupy column indices ``(N/2, 0]``, where ``N`` is the number of qubits.
 
-            CI strings: A length-2 tuple of sequences containing integer representations of the spin-up and spin-down determinants, respectively.
-                The expected ordering is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
+            - CI strings: A tuple of two sequences containing integer representations of spin-up and spin-down
+              determinants, respectively. The expected format is ``([a_str_0, ..., a_str_N], [b_str_0, ..., b_str_M])``.
+
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
         k_flat: 1D array defining the orbital transform, ``K``. The array should specify the upper
@@ -541,11 +540,10 @@ def optimize_orbitals(
             set of unique configurations and used for both the alpha and beta subspaces.
         spin_sq: Target value for the total spin squared for the ground state
         num_iters: The number of iterations of orbital optimization to perform
-        max_davidson: The maximum number of cycles of Davidson's algorithm to
-            perform during diagonalization.
         num_steps_grad: The number of steps of gradient descent to perform
             during each optimization iteration
         learning_rate: The learning rate to use during gradient descent
+        **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
 
     Returns:
         - The groundstate energy found during the last optimization iteration
@@ -587,8 +585,8 @@ def optimize_orbitals(
             eri_rot_chem,
             norb,
             (num_up, num_dn),
-            ci_strs=ci_strs,
-            max_cycle=max_davidson,
+            ci_strs,
+            **kwargs,
         )
 
         # Generate the one and two-body reduced density matrices from latest wavefunction amplitudes
