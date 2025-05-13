@@ -348,8 +348,48 @@ def solve_sci_batch(
         **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
 
     Returns:
-        The results of the diagonalizations in the subspaces given by ci_strings,
-        as a list of (energy, sci_state, occupancies) triplets.
+        The results of the diagonalizations in the subspaces given by ci_strings.
+    """
+    return [
+        solve_sci(
+            ci_strs,
+            one_body_tensor,
+            two_body_tensor,
+            norb=norb,
+            nelec=nelec,
+            spin_sq=spin_sq,
+            **kwargs,
+        )
+        for ci_strs in ci_strings
+    ]
+
+
+def solve_sci(
+    ci_strings: tuple[np.ndarray, np.ndarray],
+    one_body_tensor: np.ndarray,
+    two_body_tensor: np.ndarray,
+    norb: int,
+    nelec: tuple[int, int],
+    *,
+    spin_sq: float | None = None,
+    **kwargs,
+) -> list[SCIResult]:
+    """Diagonalize Hamiltonian in subspace.
+
+    Args:
+        ci_strings: Pair (strings_a, strings_b) of arrays of spin-alpha CI
+            strings and spin-beta CI strings whose Cartesian product give the basis of
+            the subspace in which to perform a diagonalization.
+        one_body_tensor: The one-body tensor of the Hamiltonian.
+        two_body_tensor: The two-body tensor of the Hamiltonian.
+        norb: The number of spatial orbitals.
+        nelec: The numbers of alpha and beta electrons.
+        spin_sq: Target value for the total spin squared for the ground state.
+            If ``None``, no spin will be imposed.
+        **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
+
+    Returns:
+        The diagonalization result.
     """
     norb, _ = one_body_tensor.shape
 
@@ -357,38 +397,32 @@ def solve_sci_batch(
     if spin_sq is not None:
         myci = fci.addons.fix_spin_(myci, ss=spin_sq)
 
-    results = []
-    for ci_strs in ci_strings:
-        # The energy returned from this function is not guaranteed to be
-        # the energy of the returned wavefunction when the spin^2 deviates
-        # from the value requested. We will calculate the energy from the
-        # RDMs below and ignore this value to be safe.
-        _, sci_vec = fci.selected_ci.kernel_fixed_space(
-            myci, one_body_tensor, two_body_tensor, norb, nelec, ci_strs=ci_strs, **kwargs
-        )
-        # Calculate the average occupancy of each orbital
-        dm1s = myci.make_rdm1s(sci_vec, norb, nelec)
-        occupancies = (np.diagonal(dm1s[0]), np.diagonal(dm1s[1]))
-        # Calculate energy from RDMs
-        dm1 = myci.make_rdm1(sci_vec, norb, nelec)
-        dm2 = myci.make_rdm2(sci_vec, norb, nelec)
-        energy = np.einsum("pr,pr->", dm1, one_body_tensor) + 0.5 * np.einsum(
-            "prqs,prqs->", dm2, two_body_tensor
-        )
-        # Construct SCIState
-        sci_state = SCIState(
-            amplitudes=np.array(sci_vec),
-            ci_strs_a=sci_vec._strs[0],
-            ci_strs_b=sci_vec._strs[1],
-            norb=norb,
-            nelec=nelec,
-        )
-        # Append results to list
-        results.append(
-            SCIResult(energy, sci_state, orbital_occupancies=occupancies, rdm1=dm1, rdm2=dm2)
-        )
-
-    return results
+    # The energy returned from this function is not guaranteed to be
+    # the energy of the returned wavefunction when the spin^2 deviates
+    # from the value requested. We will calculate the energy from the
+    # RDMs below and ignore this value to be safe.
+    _, sci_vec = fci.selected_ci.kernel_fixed_space(
+        myci, one_body_tensor, two_body_tensor, norb, nelec, ci_strs=ci_strings, **kwargs
+    )
+    # Calculate the average occupancy of each orbital
+    dm1s = myci.make_rdm1s(sci_vec, norb, nelec)
+    occupancies = (np.diagonal(dm1s[0]), np.diagonal(dm1s[1]))
+    # Calculate energy from RDMs
+    dm1 = myci.make_rdm1(sci_vec, norb, nelec)
+    dm2 = myci.make_rdm2(sci_vec, norb, nelec)
+    energy = np.einsum("pr,pr->", dm1, one_body_tensor) + 0.5 * np.einsum(
+        "prqs,prqs->", dm2, two_body_tensor
+    )
+    # Construct SCIState
+    sci_state = SCIState(
+        amplitudes=np.array(sci_vec),
+        ci_strs_a=sci_vec._strs[0],
+        ci_strs_b=sci_vec._strs[1],
+        norb=norb,
+        nelec=nelec,
+    )
+    # Return result
+    return SCIResult(energy, sci_state, orbital_occupancies=occupancies, rdm1=dm1, rdm2=dm2)
 
 
 def solve_fermion(
