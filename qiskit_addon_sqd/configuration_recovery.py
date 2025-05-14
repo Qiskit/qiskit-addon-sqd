@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import warnings
 from collections import defaultdict
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -50,7 +51,7 @@ def post_select_by_hamming_weight(
 
 def recover_configurations(
     bitstring_matrix: np.ndarray,
-    probabilities: np.ndarray,
+    probabilities: Sequence[float] | np.ndarray,
     avg_occupancies: tuple[np.ndarray, np.ndarray],
     num_elec_a: int,
     num_elec_b: int,
