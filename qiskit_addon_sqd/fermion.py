@@ -373,7 +373,7 @@ def solve_sci(
     *,
     spin_sq: float | None = None,
     **kwargs,
-) -> list[SCIResult]:
+) -> SCIResult:
     """Diagonalize Hamiltonian in subspace.
 
     Args:
