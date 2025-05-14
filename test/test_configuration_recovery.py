@@ -24,112 +24,119 @@ from qiskit_addon_sqd.configuration_recovery import (
 
 class TestConfigurationRecovery(unittest.TestCase):
     def setUp(self):
+        # small_mat has 2 bitstrings of length 6
         self.small_mat = np.array(
-            [[False, False, True, False, False, False], [False, False, True, True, False, False]]
+            [
+                [False, False, True, False, False, False],
+                [False, False, True, True, False, False],
+            ],
+            dtype=bool,
         )
 
     def test_post_select_by_hamming_weight(self):
-        with self.subTest("Empty test"):
-            ham_l = 1
-            ham_r = 0
-            empty_mat = np.empty((0, 6))
-            bs_mask = post_select_by_hamming_weight(
-                empty_mat, hamming_right=ham_r, hamming_left=ham_l
-            )
-            self.assertEqual(0, bs_mask.size)
-        with self.subTest("Basic test"):
-            ham_l = 1
-            ham_r = 0
+        # tuple-based (left, right) tests
+        with self.subTest("Empty tuple case"):
+            mask = post_select_by_hamming_weight(np.empty((0, 6), dtype=bool), hamming=(1, 0))
+            self.assertEqual(0, mask.size)
+
+        with self.subTest("Basic tuple case"):
             expected = np.array([True, False])
-            bs_mask = post_select_by_hamming_weight(
-                self.small_mat, hamming_right=ham_r, hamming_left=ham_l
-            )
-            self.assertTrue((expected == bs_mask).all())
-        with self.subTest("Bad hamming"):
-            ham_l = 0
-            ham_r = -1
-            with pytest.raises(ValueError) as e_info:
-                post_select_by_hamming_weight(
-                    self.small_mat, hamming_right=ham_r, hamming_left=ham_l
-                )
-            assert e_info.value.args[0] == "Hamming weights must be non-negative integers."
+            mask = post_select_by_hamming_weight(self.small_mat, hamming=(1, 0))
+            np.testing.assert_array_equal(mask, expected)
+
+        with self.subTest("Bad tuple hamming"):
+            with pytest.raises(ValueError) as exc:
+                post_select_by_hamming_weight(self.small_mat, hamming=(0, -1))
+            assert exc.value.args[0] == "Hamming weights must be non-negative integers."
+
+        # int-based tests
+        with self.subTest("Empty int case"):
+            mask = post_select_by_hamming_weight(np.empty((0, 6), dtype=bool), hamming=1)
+            self.assertEqual(0, mask.size)
+
+        with self.subTest("Basic int case"):
+            expected = np.array([True, False])
+            mask = post_select_by_hamming_weight(self.small_mat, hamming=1)
+            np.testing.assert_array_equal(mask, expected)
+
+        with self.subTest("Bad int hamming"):
+            with pytest.raises(ValueError) as exc:
+                post_select_by_hamming_weight(self.small_mat, hamming=-1)
+            assert exc.value.args[0] == "Hamming weights must be non-negative integers."
 
     def test_recover_configurations(self):
-        with self.subTest("Empty test"):
-            num_orbs = 6
-            ham_l = 1
-            ham_r = 0
-            empty_mat = np.empty((0, num_orbs))
-            empty_probs = np.empty((0,))
-            occs = [False] * num_orbs
+        # tuple-based (left, right) tests
+        with self.subTest("Empty tuple case"):
+            empty_mat = np.empty((0, 6), dtype=bool)
+            empty_probs = np.empty((0,), dtype=float)
+            occs = (np.array([0.5] * 6), np.array([0.5] * 6))
             mat_rec, probs_rec = recover_configurations(
-                empty_mat, empty_probs, occs, num_elec_a=ham_r, num_elec_b=ham_l
+                empty_mat, empty_probs, occs, hamming=(0, 1)
             )
             self.assertEqual(0, mat_rec.size)
             self.assertEqual(0, probs_rec.size)
-        with self.subTest("Basic test. Zeros to ones."):
-            bs_mat = np.array([[False, False, False, False]])
-            probs = np.array([1.0])
-            occs = [1.0, 1.0, 1.0, 1.0]
-            num_a = 2
-            num_b = 2
-            expected_mat = np.array([[True, True, True, True]])
-            expected_probs = np.array([1.0])
+
+        with self.subTest("Basic tuple zeros→ones"):
+            bs_mat = np.array([[False, False, False, False]], dtype=bool)
+            probs = np.array([1.0], dtype=float)
+            occs = (np.array([1.0] * 4), np.array([1.0] * 4))
             mat_rec, probs_rec = recover_configurations(
-                bs_mat, probs, occs, num_a, num_b, rand_seed=4224
+                bs_mat, probs, occs, hamming=(2, 2), rand_seed=4224
             )
-            self.assertTrue((expected_mat == mat_rec).all())
-            self.assertTrue((expected_probs == probs_rec).all())
-        with self.subTest("Basic test. Ones to zeros."):
-            bs_mat = np.array([[True, True, True, True]])
-            probs = np.array([1.0])
-            occs = [0.0, 0.0, 0.0, 0.0]
-            num_a = 0
-            num_b = 0
-            expected_mat = np.array([[False, False, False, False]])
-            expected_probs = np.array([1.0])
+            np.testing.assert_array_equal(mat_rec, np.ones((1, 4), dtype=bool))
+            np.testing.assert_allclose(probs_rec, [1.0])
+
+        with self.subTest("Basic tuple ones→zeros"):
+            bs_mat = np.array([[True, True, True, True]], dtype=bool)
+            probs = np.array([1.0], dtype=float)
+            occs = (np.array([0.0] * 4), np.array([0.0] * 4))
             mat_rec, probs_rec = recover_configurations(
-                bs_mat, probs, occs, num_a, num_b, rand_seed=4224
+                bs_mat, probs, occs, hamming=(0, 0), rand_seed=4224
             )
-            self.assertTrue((expected_mat == mat_rec).all())
-            self.assertTrue((expected_probs == probs_rec).all())
-        with self.subTest("Basic test. Mismatching orbitals."):
-            bs_mat = np.array([[True, True, True, True]])
-            probs = np.array([1.0])
-            occs = [0.0, 1.0, 0.0, 0.0]
-            num_a = 0
-            num_b = 1
-            expected_mat = np.array([[False, True, False, False]])
-            expected_probs = np.array([1.0])
+            np.testing.assert_array_equal(mat_rec, np.zeros((1, 4), dtype=bool))
+            np.testing.assert_allclose(probs_rec, [1.0])
+
+        with self.subTest("Bad tuple hamming"):
+            bs_mat = np.array([[True, True, True, True]], dtype=bool)
+            probs = np.array([1.0], dtype=float)
+            occs = (np.array([0.0] * 4), np.array([0.0] * 4))
+            with pytest.raises(ValueError) as exc:
+                recover_configurations(bs_mat, probs, occs, hamming=(0, -1))
+            assert exc.value.args[0] == "Hamming weights must be non-negative integers."
+
+        # int-based tests
+        with self.subTest("Empty int case"):
+            empty_mat = np.empty((0, 4), dtype=bool)
+            empty_probs = np.empty((0,), dtype=float)
+            occs = (np.array([0.5] * 4),)
+            mat_rec, probs_rec = recover_configurations(empty_mat, empty_probs, occs, hamming=2)
+            self.assertEqual(0, mat_rec.size)
+            self.assertEqual(0, probs_rec.size)
+
+        with self.subTest("Basic int zeros→ones"):
+            bs_mat = np.array([[False, False, False, False]], dtype=bool)
+            probs = np.array([1.0], dtype=float)
+            occs = (np.array([1.0] * 4),)
             mat_rec, probs_rec = recover_configurations(
-                bs_mat, probs, occs, num_a, num_b, rand_seed=4224
+                bs_mat, probs, occs, hamming=4, rand_seed=4224
             )
-            self.assertTrue((expected_mat == mat_rec).all())
-            self.assertTrue((expected_probs == probs_rec).all())
-        with self.subTest("Test with more than 72 bits. Ones to zeros."):
-            n_bits = 74
-            rng = np.random.default_rng(554)
-            bs_mat = rng.integers(2, size=(1, n_bits), dtype=bool)
-            probs = np.array([1.0])
-            occs = np.zeros(n_bits)
-            num_a = 0
-            num_b = 0
-            expected_mat = np.zeros((1, n_bits), dtype=bool)
-            expected_probs = np.array([1.0])
+            np.testing.assert_array_equal(mat_rec, np.ones((1, 4), dtype=bool))
+            np.testing.assert_allclose(probs_rec, [1.0])
+
+        with self.subTest("Basic int ones→zeros"):
+            bs_mat = np.array([[True, True, True, True]], dtype=bool)
+            probs = np.array([1.0], dtype=float)
+            occs = (np.array([0.0] * 4),)
             mat_rec, probs_rec = recover_configurations(
-                bs_mat, probs, occs, num_a, num_b, rand_seed=4224
+                bs_mat, probs, occs, hamming=0, rand_seed=4224
             )
-            self.assertTrue((expected_mat == mat_rec).all())
-            self.assertTrue((expected_probs == probs_rec).all())
-        with self.subTest("Bad hamming."):
-            bs_mat = np.array([[True, True, True, True]])
-            probs = np.array([1.0])
-            occs = [0.0, 0.0, 0.0, 0.0]
-            num_a = 0
-            num_b = -1
-            with pytest.raises(ValueError) as e_info:
-                recover_configurations(bs_mat, probs, occs, num_a, num_b, rand_seed=4224)
-            assert (
-                e_info.value.args[0]
-                == "The numbers of electrons must be specified as non-negative integers."
-            )
+            np.testing.assert_array_equal(mat_rec, np.zeros((1, 4), dtype=bool))
+            np.testing.assert_allclose(probs_rec, [1.0])
+
+        with self.subTest("Bad int hamming"):
+            bs_mat = np.array([[True, True, True, True]], dtype=bool)
+            probs = np.array([1.0], dtype=float)
+            occs = (np.array([0.0] * 4),)
+            with pytest.raises(ValueError) as exc:
+                recover_configurations(bs_mat, probs, occs, hamming=-1)
+                assert exc.value.args[0] == "Hamming weight must be a non-negative integer."
