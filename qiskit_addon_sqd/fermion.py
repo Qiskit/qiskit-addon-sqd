@@ -392,10 +392,9 @@ def enlarge_batch_from_transitions(
 def _antisymmetric_matrix_from_upper_tri(k_flat: np.ndarray, k_dim: int) -> Array:
     """Create an anti-symmetric matrix given the upper triangle."""
     K = jnp.zeros((k_dim, k_dim))
-    upper_indices = jnp.triu_indices(k_dim, k=1)
-    lower_indices = jnp.tril_indices(k_dim, k=-1)
-    K = K.at[upper_indices].set(k_flat)
-    K = K.at[lower_indices].set(-k_flat)
+    rows, cols = jnp.triu_indices(k_dim, k=1)
+    K = K.at[rows, cols].set(k_flat)
+    K = K.at[cols, rows].set(-k_flat)
 
     return K
 
