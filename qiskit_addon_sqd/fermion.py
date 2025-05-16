@@ -122,7 +122,7 @@ class SCIResult:
     """Spin-summed 2-particle reduced density matrix."""
 
 
-def run_sqd(
+def run_sqd_fermion(
     one_body_tensor: np.ndarray,
     two_body_tensor: np.ndarray,
     bit_array: BitArray,
