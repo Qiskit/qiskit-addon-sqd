@@ -102,7 +102,7 @@ modindex_common_prefix = ["qiskit_addon_sqd."]
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
-    "qiskit": ("https://docs.quantum.ibm.com/api/qiskit/", None),
+    "qiskit": ("https://quantum.cloud.ibm.com/docs/api/qiskit/", None),
     "rustworkx": ("https://www.rustworkx.org/", None),
 }
 
