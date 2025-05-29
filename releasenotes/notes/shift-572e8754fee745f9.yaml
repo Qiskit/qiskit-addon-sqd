@@ -1,0 +1,4 @@
+---
+features:
+  - |
+    :func:`qiskit_addon_sqd.fermion.solve_fermion` now accepts a ``shift`` argument used to shift states which have the wrong spin, :math:`(H + shift * S^2)|ψ> = E|ψ>`.
