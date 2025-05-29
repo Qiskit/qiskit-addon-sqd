@@ -153,7 +153,8 @@ def diagonalize_fermionic_hamiltonian(
         two_body_tensor: The two-body tensor of the Hamiltonian.
         bit_array: Array of sampled bitstrings. Each bitstring should have both the
             alpha part and beta part concatenated together, with the alpha part
-            concatenated on the right-hand side.
+            concatenated on the right-hand side, like this:
+            ``[b_N, ..., b_0, a_N, ..., a_0]``.
         samples_per_batch: The number of bitstrings to include in each subsampled batch
             of bitstrings.
         norb: The number of spatial orbitals.
@@ -225,7 +226,6 @@ def diagonalize_fermionic_hamiltonian(
     best_result = None
     current_result = None
     if sci_solver is None:
-        # Reason for type: ignore:
         sci_solver = solve_sci_batch
 
     if include_configurations is None:
@@ -374,7 +374,7 @@ def solve_sci(
     spin_sq: float | None = None,
     **kwargs,
 ) -> SCIResult:
-    """Diagonalize Hamiltonian in subspace.
+    """Diagonalize Hamiltonian in subspace defined by CI strings.
 
     Args:
         ci_strings: Pair (strings_a, strings_b) of arrays of spin-alpha CI
