@@ -175,6 +175,7 @@ def diagonalize_fermionic_hamiltonian(
         sci_solver: Selected configuration interaction solver function.
 
             Inputs:
+
             - List of pairs (strings_a, strings_b) of arrays of spin-alpha CI strings
               and spin-beta CI strings whose Cartesian product give the basis of the
               subspace in which to perform a diagonalization. A list is passed to allow
