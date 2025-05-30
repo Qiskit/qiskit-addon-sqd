@@ -146,7 +146,7 @@ def diagonalize_fermionic_hamiltonian(
     callback: Callable[[list[SCIResult]], None] | None = None,
     seed: int | np.random.Generator | None = None,
 ) -> SCIResult:
-    """Run SQD.
+    """Run the sample-based quantum diagonalization (SQD) algorithm.
 
     Args:
         one_body_tensor: The one-body tensor of the Hamiltonian.
