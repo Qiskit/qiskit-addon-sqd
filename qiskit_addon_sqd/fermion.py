@@ -16,13 +16,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable, cast
 
 import numpy as np
 from jax import Array, config, grad, jit, vmap
 from jax import numpy as jnp
 from jax.scipy.linalg import expm
 from pyscf import fci
+from pyscf.fci.selected_ci import _as_SCIvector, make_rdm1, make_rdm1s, make_rdm2, make_rdm2s
+from qiskit.primitives import BitArray
 from scipy import linalg as LA
+
+from qiskit_addon_sqd.configuration_recovery import recover_configurations
+from qiskit_addon_sqd.counts import bit_array_to_arrays
+from qiskit_addon_sqd.subsampling import postselect_and_subsample
 
 config.update("jax_enable_x64", True)  # To deal with large integers
 
@@ -42,6 +49,12 @@ class SCIState:
 
     ci_strs_b: np.ndarray
     """The beta determinants."""
+
+    norb: int
+    """The number of spatial orbitals."""
+
+    nelec: tuple[int, int]
+    """The numbers of alpha and beta electrons."""
 
     def __post_init__(self):
         """Validate dimensions of inputs."""
@@ -66,6 +79,352 @@ class SCIState:
         with np.load(filename) as data:
             return cls(data["amplitudes"], data["ci_strs_a"], data["ci_strs_b"])
 
+    def rdm(self, rank: int = 1, spin_summed: bool = False) -> np.ndarray:
+        """Compute reduced density matrix."""
+        # Reason for type: ignore: mypy can't tell the return type of the
+        # PySCF functions
+        sci_vector = _as_SCIvector(self.amplitudes, (self.ci_strs_a, self.ci_strs_b))
+        if rank == 1:
+            if spin_summed:
+                return make_rdm1(sci_vector, self.norb, self.nelec)  # type: ignore
+            return make_rdm1s(sci_vector, self.norb, self.nelec)  # type: ignore
+        if rank == 2:
+            if spin_summed:
+                return make_rdm2(sci_vector, self.norb, self.nelec)  # type: ignore
+            return make_rdm2s(sci_vector, self.norb, self.nelec)  # type: ignore
+        raise NotImplementedError(
+            f"Computing the rank {rank} reduced density matrix is currently not supported."
+        )
+
+    def orbital_occupancies(self) -> tuple[np.ndarray, np.ndarray]:
+        """Average orbital occupancies."""
+        dm_a, dm_b = self.rdm(rank=1, spin_summed=False)
+        return np.diagonal(dm_a), np.diagonal(dm_b)
+
+
+@dataclass(frozen=True)
+class SCIResult:
+    """Result of an SCI calculation."""
+
+    energy: float
+    """The SCI energy."""
+
+    sci_state: SCIState
+    """The SCI state."""
+
+    orbital_occupancies: tuple[np.ndarray, np.ndarray]
+    """The average orbital occupancies."""
+
+    rdm1: np.ndarray | None = None
+    """Spin-summed 1-particle reduced density matrix."""
+
+    rdm2: np.ndarray | None = None
+    """Spin-summed 2-particle reduced density matrix."""
+
+
+def diagonalize_fermionic_hamiltonian(
+    one_body_tensor: np.ndarray,
+    two_body_tensor: np.ndarray,
+    bit_array: BitArray,
+    samples_per_batch: int,
+    norb: int,
+    nelec: tuple[int, int],
+    *,
+    num_batches: int = 1,
+    energy_tol: float = 1e-8,
+    occupancies_tol: float = 1e-5,
+    max_iterations: int = 100,
+    sci_solver: Callable[
+        [list[tuple[np.ndarray, np.ndarray]], np.ndarray, np.ndarray, int, tuple[int, int]],
+        list[SCIResult],
+    ]
+    | None = None,
+    symmetrize_spin: bool = False,
+    include_configurations: list[int] | tuple[list[int], list[int]] | None = None,
+    initial_occupancies: tuple[np.ndarray, np.ndarray] | None = None,
+    carryover_threshold: float = 1e-4,
+    callback: Callable[[list[SCIResult]], None] | None = None,
+    seed: int | np.random.Generator | None = None,
+) -> SCIResult:
+    """Run the sample-based quantum diagonalization (SQD) algorithm.
+
+    Args:
+        one_body_tensor: The one-body tensor of the Hamiltonian.
+        two_body_tensor: The two-body tensor of the Hamiltonian.
+        bit_array: Array of sampled bitstrings. Each bitstring should have both the
+            alpha part and beta part concatenated together, with the alpha part
+            concatenated on the right-hand side, like this:
+            ``[b_N, ..., b_0, a_N, ..., a_0]``.
+        samples_per_batch: The number of bitstrings to include in each subsampled batch
+            of bitstrings.
+        norb: The number of spatial orbitals.
+        nelec: The numbers of alpha and beta electrons.
+        num_batches: The number of batches to subsample in each configuration recovery
+            iteration. This argument indirectly controls the dimensions of the
+            diagonalization subspaces. A higher value will yield larger subspace dimensions.
+        energy_tol: Numerical tolerance for convergence of the energy. If the change in
+            energy between iterations is smaller than this value, then the configuration
+            recovery loop will exit, if the occupancies have also converged
+            (see the ``occupancies_tol`` argument).
+        occupancies_tol: Numerical tolerance for convergence of the average orbital
+            occupancies. If the maximum change in absolute value of the average occupancy
+            of an orbital between iterations is smaller than this value, then the
+            configuration recovery loop will exit, if the energy has also converged
+            (see the ``energy_tol`` argument).
+        max_iterations: Limit on the number of configuration recovery iterations.
+        sci_solver: Selected configuration interaction solver function.
+
+            Inputs:
+
+            - List of pairs (strings_a, strings_b) of arrays of spin-alpha CI strings
+              and spin-beta CI strings whose Cartesian product give the basis of the
+              subspace in which to perform a diagonalization. A list is passed to allow
+              the solver function to perform the diagonalizations in parallel.
+            - One-body tensor of the Hamiltonian.
+            - Two-body tensor of the Hamiltonian.
+            - The number of spatial orbitals.
+            - A pair (n_alpha, n_beta) indicating the numbers of alpha and beta
+              electrons.
+
+            Output: List of (energy, sci_state, occupancies) triplets, where each triplet
+            contains the result of the corresponding diagonalization.
+        symmetrize_spin: Whether to always merge spin-alpha and spin-beta CI strings
+            into a single list, so that the diagonalization subspace is invariant with
+            respect to the exchange of spin alpha with spin beta.
+        include_configurations: Configurations to always include in the diagonalization
+            subspace. You can specify either a single list of single-spin strings to
+            use for both spin sectors, or a pair (alpha_strings, beta_strings) of lists
+            of single-spin strings, one for each spin.
+        initial_occupancies: Initial guess for the average occupancies of the orbitals.
+        carryover_threshold: Threshold for carrying over bitstrings with large CI
+            weight from one iteration of configuration recovery to the next.
+            All single-spin CI strings associated with configurations whose coefficient
+            has absolute value greater than this threshold will be included in the
+            diagonalization subspace for the next iteration. A smaller threshold will
+            retain more configurations, leading to a larger subspace and hence a more
+            costly diagonalization.
+        callback: A callback function to be called after each configuration recovery
+            iteration. The function will be passed the output of the sci_solver
+            function, which is a list of (energy, sci_state, occupancies) triplets,
+            where each triplet contains the result of a diagonalization.
+        seed: A seed for the pseudorandom number generator.
+
+    Returns:
+        The estimate of the energy and the SCI state with that energy.
+    """
+    if max_iterations < 1:
+        raise ValueError("Maximum number of iterations must be at least 1.")
+
+    n_alpha, n_beta = nelec
+    if symmetrize_spin and n_alpha != n_beta:
+        raise ValueError(
+            "Spin symmetrization is only possible if the numbers of alpha and beta "
+            f"electrons are equal. Instead, got {n_alpha} and {n_beta}."
+        )
+
+    rng = np.random.default_rng(seed)
+    current_occupancies = initial_occupancies
+    best_result = None
+    current_result = None
+    if sci_solver is None:
+        sci_solver = solve_sci_batch
+
+    if include_configurations is None:
+        include_a: list[int] | np.ndarray = []
+        include_b: list[int] | np.ndarray = []
+    elif isinstance(include_configurations, tuple):
+        include_a, include_b = include_configurations
+    else:
+        include_a = include_configurations
+        include_b = include_configurations
+
+    include_a = np.array(include_a, dtype=np.int64)
+    include_b = np.array(include_b, dtype=np.int64)
+    carryover_strings_a = np.array([], dtype=np.int64)
+    carryover_strings_b = np.array([], dtype=np.int64)
+
+    # Convert BitArray into bitstring and probability arrays
+    raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
+
+    for _ in range(max_iterations):
+        if current_occupancies is None:
+            bitstrings, probs = raw_bitstrings, raw_probs
+        else:
+            # If we have average orbital occupancy information, we use it to refine the
+            # full set of noisy configurations
+            bitstrings, probs = recover_configurations(
+                raw_bitstrings, raw_probs, current_occupancies, n_alpha, n_beta, rand_seed=rng
+            )
+
+        # Postselect and subsample batches of bitstrings
+        subsamples = postselect_and_subsample(
+            bitstrings,
+            probs,
+            hamming_right=n_alpha,
+            hamming_left=n_beta,
+            samples_per_batch=samples_per_batch,
+            num_batches=num_batches,
+            rand_seed=rng,
+        )
+
+        # Convert bitstrings to CI strings and include requested and carryover strings
+        ci_strings = []
+        for subsample in subsamples:
+            strs_a, strs_b = bitstring_matrix_to_ci_strs(subsample, open_shell=not symmetrize_spin)
+            strs_a = np.union1d(strs_a, np.union1d(include_a, carryover_strings_a))
+            strs_b = np.union1d(strs_b, np.union1d(include_b, carryover_strings_b))
+            ci_strings.append((strs_a, strs_b))
+
+        # Run diagonalization
+        results = sci_solver(ci_strings, one_body_tensor, two_body_tensor, norb, nelec)
+
+        # Call callback function if provided
+        if callback is not None:
+            callback(results)
+
+        # Get best result from batch
+        best_result_in_batch = min(results, key=lambda result: result.energy)
+
+        # Check if the energy is the lowest seen so far
+        if best_result is None or best_result_in_batch.energy < best_result.energy:
+            best_result = best_result_in_batch
+
+        # Check convergence
+        if (
+            current_result is not None
+            and abs(current_result.energy - best_result_in_batch.energy) < energy_tol
+            and np.linalg.norm(
+                # Reason for type: ignore: mypy thinks current_occupancies can be None
+                np.ravel(current_occupancies) - np.ravel(best_result_in_batch.orbital_occupancies),  # type: ignore
+                ord=np.inf,
+            )
+            < occupancies_tol
+        ):
+            break
+        current_result = best_result_in_batch
+        current_occupancies = current_result.orbital_occupancies
+
+        # Carry over bitstrings with large CI weight
+        sci_state = current_result.sci_state
+        flattened = sci_state.amplitudes.reshape(-1)
+        absolute_vals = np.abs(flattened)
+        indices = np.argsort(absolute_vals)
+        carryover_index = np.searchsorted(absolute_vals, carryover_threshold, sorter=indices)
+        carryover_indices = indices[carryover_index:]
+        _, n_strings_b = sci_state.amplitudes.shape
+        alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
+        carryover_strings_a = sci_state.ci_strs_a[alpha_indices]
+        carryover_strings_b = sci_state.ci_strs_b[beta_indices]
+        if symmetrize_spin:
+            carryover_strings_a = carryover_strings_b = np.union1d(
+                carryover_strings_a, carryover_strings_b
+            )
+
+    # best_result is not None because there must have been at least one iteration
+    return cast(SCIResult, best_result)
+
+
+def solve_sci_batch(
+    ci_strings: list[tuple[np.ndarray, np.ndarray]],
+    one_body_tensor: np.ndarray,
+    two_body_tensor: np.ndarray,
+    norb: int,
+    nelec: tuple[int, int],
+    *,
+    spin_sq: float | None = None,
+    **kwargs,
+) -> list[SCIResult]:
+    """Diagonalize Hamiltonian in subspaces.
+
+    Args:
+        ci_strings: List of pairs (strings_a, strings_b) of arrays of spin-alpha CI
+            strings and spin-beta CI strings whose Cartesian product give the basis of
+            the subspace in which to perform a diagonalization.
+        one_body_tensor: The one-body tensor of the Hamiltonian.
+        two_body_tensor: The two-body tensor of the Hamiltonian.
+        norb: The number of spatial orbitals.
+        nelec: The numbers of alpha and beta electrons.
+        spin_sq: Target value for the total spin squared for the ground state.
+            If ``None``, no spin will be imposed.
+        **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
+
+    Returns:
+        The results of the diagonalizations in the subspaces given by ci_strings.
+    """
+    return [
+        solve_sci(
+            ci_strs,
+            one_body_tensor,
+            two_body_tensor,
+            norb=norb,
+            nelec=nelec,
+            spin_sq=spin_sq,
+            **kwargs,
+        )
+        for ci_strs in ci_strings
+    ]
+
+
+def solve_sci(
+    ci_strings: tuple[np.ndarray, np.ndarray],
+    one_body_tensor: np.ndarray,
+    two_body_tensor: np.ndarray,
+    norb: int,
+    nelec: tuple[int, int],
+    *,
+    spin_sq: float | None = None,
+    **kwargs,
+) -> SCIResult:
+    """Diagonalize Hamiltonian in subspace defined by CI strings.
+
+    Args:
+        ci_strings: Pair (strings_a, strings_b) of arrays of spin-alpha CI
+            strings and spin-beta CI strings whose Cartesian product give the basis of
+            the subspace in which to perform a diagonalization.
+        one_body_tensor: The one-body tensor of the Hamiltonian.
+        two_body_tensor: The two-body tensor of the Hamiltonian.
+        norb: The number of spatial orbitals.
+        nelec: The numbers of alpha and beta electrons.
+        spin_sq: Target value for the total spin squared for the ground state.
+            If ``None``, no spin will be imposed.
+        **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
+
+    Returns:
+        The diagonalization result.
+    """
+    norb, _ = one_body_tensor.shape
+
+    myci = fci.selected_ci.SelectedCI()
+    if spin_sq is not None:
+        myci = fci.addons.fix_spin_(myci, ss=spin_sq)
+
+    # The energy returned from this function is not guaranteed to be
+    # the energy of the returned wavefunction when the spin^2 deviates
+    # from the value requested. We will calculate the energy from the
+    # RDMs below and ignore this value to be safe.
+    _, sci_vec = fci.selected_ci.kernel_fixed_space(
+        myci, one_body_tensor, two_body_tensor, norb, nelec, ci_strs=ci_strings, **kwargs
+    )
+    # Calculate the average occupancy of each orbital
+    dm1s = myci.make_rdm1s(sci_vec, norb, nelec)
+    occupancies = (np.diagonal(dm1s[0]), np.diagonal(dm1s[1]))
+    # Calculate energy from RDMs
+    dm1 = myci.make_rdm1(sci_vec, norb, nelec)
+    dm2 = myci.make_rdm2(sci_vec, norb, nelec)
+    energy = np.einsum("pr,pr->", dm1, one_body_tensor) + 0.5 * np.einsum(
+        "prqs,prqs->", dm2, two_body_tensor
+    )
+    # Construct SCIState
+    sci_state = SCIState(
+        amplitudes=np.array(sci_vec),
+        ci_strs_a=sci_vec._strs[0],
+        ci_strs_b=sci_vec._strs[1],
+        norb=norb,
+        nelec=nelec,
+    )
+    # Return result
+    return SCIResult(energy, sci_state, orbital_occupancies=occupancies, rdm1=dm1, rdm2=dm2)
+
 
 def solve_fermion(
     bitstring_matrix: tuple[np.ndarray, np.ndarray] | np.ndarray,
@@ -75,6 +434,7 @@ def solve_fermion(
     *,
     open_shell: bool = False,
     spin_sq: float | None = None,
+    shift: float = 0.1,
     **kwargs,
 ) -> tuple[float, SCIState, tuple[np.ndarray, np.ndarray], float]:
     """Approximate the ground state given molecular integrals and a set of electronic configurations.
@@ -98,8 +458,9 @@ def solve_fermion(
             halves of the bitstrings should be kept separate. If ``False``, CI strings
             from the left and right halves of the bitstrings are combined into a single
             set of unique configurations and used for both the alpha and beta subspaces.
-        spin_sq: Target value for the total spin squared for the ground state.
+        spin_sq: Target value for the total spin squared for the ground state, :math:`S^2 = s(s + 1)`.
             If ``None``, no spin will be imposed.
+        shift: Level shift for states which have different spin. :math:`(H + shift * S^2)|ψ> = E|ψ>`
         **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
 
     Returns:
@@ -109,12 +470,14 @@ def solve_fermion(
         - Expectation value of spin-squared
 
     """
+    # Format inputs
     if isinstance(bitstring_matrix, tuple):
         ci_strs = bitstring_matrix
     else:
         ci_strs = bitstring_matrix_to_ci_strs(bitstring_matrix, open_shell=open_shell)
     ci_strs = _check_ci_strs(ci_strs)
 
+    # Get hamming weights of each half of the first CI str. All CI strs should share the same hamming weight
     num_up = format(ci_strs[0][0], "b").count("1")
     num_dn = format(ci_strs[1][0], "b").count("1")
 
@@ -123,7 +486,7 @@ def solve_fermion(
     # Call the projection + eigenstate finder
     myci = fci.selected_ci.SelectedCI()
     if spin_sq is not None:
-        myci = fci.addons.fix_spin_(myci, ss=spin_sq)
+        myci = fci.addons.fix_spin_(myci, ss=spin_sq, shift=shift)
     # The energy returned from this function is not guaranteed to be
     # the energy of the returned wavefunction when the spin^2 deviates
     # from the value requested. We will calculate the energy from the
@@ -156,7 +519,11 @@ def solve_fermion(
     assert isinstance(sci_vec._strs[0], np.ndarray) and isinstance(sci_vec._strs[1], np.ndarray)
     assert sci_vec.shape == (len(sci_vec._strs[0]), len(sci_vec._strs[1]))
     sci_state = SCIState(
-        amplitudes=np.array(sci_vec), ci_strs_a=sci_vec._strs[0], ci_strs_b=sci_vec._strs[1]
+        amplitudes=np.array(sci_vec),
+        ci_strs_a=sci_vec._strs[0],
+        ci_strs_b=sci_vec._strs[1],
+        norb=norb,
+        nelec=(num_up, num_dn),
     )
 
     return e_sci, sci_state, avg_occupancy, spin_squared
