@@ -541,6 +541,7 @@ def optimize_orbitals(
     num_iters: int = 10,
     num_steps_grad: int = 10_000,
     learning_rate: float = 0.01,
+    gtol: float = 1e-5,
     **kwargs,
 ) -> tuple[float, np.ndarray, tuple[np.ndarray, np.ndarray]]:
     """Optimize orbitals to produce a minimal ground state.
@@ -582,6 +583,8 @@ def optimize_orbitals(
         num_steps_grad: The number of steps of gradient descent to perform
             during each optimization iteration
         learning_rate: The learning rate to use during gradient descent
+        gtol: Convergence threshold for the gradient during gradient descent.
+            The optimization stops when `max{|g_i| i = 1, ..., n} <= gtol`.
         **kwargs: Keyword arguments to pass to `pyscf.fci.selected_ci.kernel_fixed_space <https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.selected_ci.kernel_fixed_space>`_
 
     Returns:
@@ -637,7 +640,7 @@ def optimize_orbitals(
         # TODO: Expose the momentum parameter as an input option
         # Optimize the basis rotations
         _optimize_orbitals_sci(
-            k_flat, learning_rate, 0.9, num_steps_grad, dm1, dm2, hcore, eri_phys
+            k_flat, learning_rate, 0.9, num_steps_grad, dm1, dm2, hcore, eri_phys, gtol=gtol
         )
 
     return e_qsci, k_flat, avg_occupancy
@@ -800,6 +803,7 @@ def _optimize_orbitals_sci(
     dm2: np.ndarray,
     hcore: np.ndarray,
     eri: np.ndarray,
+    gtol: float,
 ) -> None:
     """Optimize orbital rotation parameters in-place using gradient descent.
 
@@ -808,6 +812,8 @@ def _optimize_orbitals_sci(
     prev_update = np.zeros(len(k_flat))
     for _ in range(num_steps):
         grad = _SCISCF_Energy_contract_grad(dm1, dm2, hcore, eri, k_flat)
+        if np.max(np.abs(grad)) < gtol:
+            return
         prev_update = learning_rate * grad + momentum * prev_update
         k_flat -= prev_update
 
