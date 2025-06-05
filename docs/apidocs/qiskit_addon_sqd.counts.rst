@@ -13,3 +13,5 @@ Counts (:mod:`qiskit_addon_sqd.counts`)
 .. autofunction:: generate_counts_uniform
 .. autofunction:: generate_counts_bipartite_hamming
 .. autofunction:: normalize_counts_dict
+.. autofunction:: bit_array_to_arrays
+.. autofunction:: generate_bit_array_uniform
