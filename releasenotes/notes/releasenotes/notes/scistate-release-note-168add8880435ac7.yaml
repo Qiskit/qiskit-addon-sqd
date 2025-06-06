@@ -1,0 +1,4 @@
+---
+fixes:
+  - |
+    Added a release note to version 0.11 for a breaking change involving :class:`qiskit_addon_sqd.fermion.SCIState`.
