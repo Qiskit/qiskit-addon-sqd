@@ -466,8 +466,8 @@ def _bipartite_bitstring_correcting_bscast(
     # The number of bits should be even
     num_bits = bitstring_matrix.shape[1]
     partition_size = num_bits // 2
-    bitstring_matrix_left = bitstring_matrix[:partition_size]
-    bitstring_matrix_right = bitstring_matrix[partition_size:]
+    bitstring_matrix_left = bitstring_matrix[:, :partition_size]
+    bitstring_matrix_right = bitstring_matrix[:, partition_size:]
 
     P_0_to_1_left = _p_flip_0_to_1_bcast(
         hamming_left / partition_size, avg_occupancies[:partition_size], 0.01
