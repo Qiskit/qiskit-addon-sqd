@@ -107,7 +107,7 @@ class SCIState:
         """Return spin squared."""
         sci_vector = _as_SCIvector(self.amplitudes, (self.ci_strs_a, self.ci_strs_b))
         spin_squared, _ = spin_square(sci_vector, norb=self.norb, nelec=self.nelec)
-        return spin_squared
+        return cast(float, spin_squared)
 
     def orbital_occupancies(self) -> tuple[np.ndarray, np.ndarray]:
         """Average orbital occupancies."""
