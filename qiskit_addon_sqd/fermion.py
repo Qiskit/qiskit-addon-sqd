@@ -23,7 +23,14 @@ from jax import Array, config, grad, jit, vmap
 from jax import numpy as jnp
 from jax.scipy.linalg import expm
 from pyscf import fci
-from pyscf.fci.selected_ci import _as_SCIvector, make_rdm1, make_rdm1s, make_rdm2, make_rdm2s
+from pyscf.fci.selected_ci import (
+    _as_SCIvector,
+    make_rdm1,
+    make_rdm1s,
+    make_rdm2,
+    make_rdm2s,
+    spin_square,
+)
 from qiskit.primitives import BitArray
 from scipy import linalg as LA
 
@@ -95,6 +102,12 @@ class SCIState:
         raise NotImplementedError(
             f"Computing the rank {rank} reduced density matrix is currently not supported."
         )
+
+    def spin_square(self) -> float:
+        """Return spin squared."""
+        sci_vector = _as_SCIvector(self.amplitudes, (self.ci_strs_a, self.ci_strs_b))
+        spin_squared, _ = spin_square(sci_vector, norb=self.norb, nelec=self.nelec)
+        return spin_squared
 
     def orbital_occupancies(self) -> tuple[np.ndarray, np.ndarray]:
         """Average orbital occupancies."""
