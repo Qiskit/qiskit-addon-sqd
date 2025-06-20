@@ -1,0 +1,4 @@
+---
+upgrade:
+  - |
+    :class:`qiskit_addon_sqd.fermion.SCIState` now takes two additional required arguments, ``norb`` and ``nelec``. This is a breaking change.
