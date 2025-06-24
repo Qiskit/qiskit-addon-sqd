@@ -142,7 +142,7 @@ def recover_configurations_bcast(
 
     This function refines each bit in isolation in an attempt to transform the Hilbert space
     represented by the input ``bitstring_matrix`` into a space closer to that which supports
-    the ground state.
+    the ground state. Implementation using numpy broadcasting to speed-up the recovery.
 
     .. note::
 
