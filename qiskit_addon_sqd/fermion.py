@@ -36,7 +36,7 @@ from scipy import linalg as LA
 
 from qiskit_addon_sqd.configuration_recovery import recover_configurations
 from qiskit_addon_sqd.counts import bit_array_to_arrays
-from qiskit_addon_sqd.subsampling import postselect_and_subsample
+from qiskit_addon_sqd.subsampling import postselect_by_hamming_right_and_left, subsample
 
 config.update("jax_enable_x64", True)  # To deal with large integers
 
@@ -259,22 +259,25 @@ def diagonalize_fermionic_hamiltonian(
     # Convert BitArray into bitstring and probability arrays
     raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
 
+    # Run configuration recovery loop
     for _ in range(max_iterations):
         if current_occupancies is None:
-            bitstrings, probs = raw_bitstrings, raw_probs
+            # If we don't have average orbital occupancy information, simply postselect
+            # bitstrings with the correct numbers of spin-up and spin-down electrons
+            bitstrings, probs = postselect_by_hamming_right_and_left(
+                raw_bitstrings, raw_probs, hamming_right=n_alpha, hamming_left=n_beta
+            )
         else:
-            # If we have average orbital occupancy information, we use it to refine the
+            # If we do have average orbital occupancy information, use it to refine the
             # full set of noisy configurations
             bitstrings, probs = recover_configurations(
                 raw_bitstrings, raw_probs, current_occupancies, n_alpha, n_beta, rand_seed=rng
             )
 
-        # Postselect and subsample batches of bitstrings
-        subsamples = postselect_and_subsample(
+        # Subsample batches of bitstrings
+        subsamples = subsample(
             bitstrings,
             probs,
-            hamming_right=n_alpha,
-            hamming_left=n_beta,
             samples_per_batch=samples_per_batch,
             num_batches=num_batches,
             rand_seed=rng,
@@ -282,8 +285,8 @@ def diagonalize_fermionic_hamiltonian(
 
         # Convert bitstrings to CI strings and include requested and carryover strings
         ci_strings = []
-        for subsample in subsamples:
-            strs_a, strs_b = bitstring_matrix_to_ci_strs(subsample, open_shell=not symmetrize_spin)
+        for samples in subsamples:
+            strs_a, strs_b = bitstring_matrix_to_ci_strs(samples, open_shell=not symmetrize_spin)
             strs_a = np.union1d(strs_a, np.union1d(include_a, carryover_strings_a))
             strs_b = np.union1d(strs_b, np.union1d(include_b, carryover_strings_b))
             ci_strings.append((strs_a, strs_b))
