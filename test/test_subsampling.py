@@ -16,7 +16,11 @@ import unittest
 
 import numpy as np
 import pytest
-from qiskit_addon_sqd.subsampling import postselect_and_subsample, subsample
+from qiskit_addon_sqd.subsampling import (
+    postselect_and_subsample,
+    postselect_by_hamming_right_and_left,
+    subsample,
+)
 
 
 class TestSubsampling(unittest.TestCase):
@@ -45,6 +49,29 @@ class TestSubsampling(unittest.TestCase):
         self.uniform_probs = np.array(
             [1 / self.bitstring_matrix.shape[0] for _ in self.bitstring_matrix]
         )
+
+    def test_postselect_by_hamming_right_and_left(self):
+        bitstrings = np.array(
+            [
+                [1, 1, 1, 0, 1, 0, 0, 1],
+                [0, 1, 1, 1, 1, 1, 1, 0],
+                [0, 1, 1, 1, 1, 1, 0, 0],
+                [0, 1, 0, 1, 1, 1, 0, 0],
+            ]
+        )
+        probs = np.array([0.1, 0.2, 0.4, 0.3])
+        bitstrings_post, probs_post = postselect_by_hamming_right_and_left(
+            bitstrings, probs, hamming_right=2, hamming_left=3
+        )
+        expected_bitstrings = np.array(
+            [
+                [1, 1, 1, 0, 1, 0, 0, 1],
+                [0, 1, 1, 1, 1, 1, 0, 0],
+            ]
+        )
+        expected_probs = np.array([0.2, 0.8])
+        np.testing.assert_array_equal(bitstrings_post, expected_bitstrings)
+        np.testing.assert_allclose(probs_post, expected_probs)
 
     def test_subsample(self):
         with self.subTest("Basic test"):

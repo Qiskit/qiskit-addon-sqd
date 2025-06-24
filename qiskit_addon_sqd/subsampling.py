@@ -16,10 +16,19 @@
 from __future__ import annotations
 
 import numpy as np
+from qiskit.utils.deprecation import deprecate_func
 
 from .configuration_recovery import post_select_by_hamming_weight
 
 
+@deprecate_func(
+    since="0.12.0",
+    package_name="qiskit-addon-sqd",
+    removal_timeline="no earlier than v0.13.0",
+    additional_msg=(
+        "Instead, use the ``postselect_by_hamming_right_and_left`` and ``subsample`` functions."
+    ),
+)
 def postselect_and_subsample(
     bitstring_matrix: np.ndarray,
     probabilities: np.ndarray,
@@ -82,6 +91,57 @@ def postselect_and_subsample(
         return [np.array([])] * num_batches
 
     return subsample(bs_mat_postsel, probs_postsel, samples_per_batch, num_batches, rand_seed=rng)
+
+
+def postselect_by_hamming_right_and_left(
+    bitstring_matrix: np.ndarray,
+    probabilities: np.ndarray,
+    *,
+    hamming_right: int,
+    hamming_left: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Postselect bitstrings based on desired Hamming weight on right and left halves.
+
+    Args:
+        bitstring_matrix: A 2D array of ``bool`` representations of bit
+            values such that each row represents a single bitstring.
+        probabilities: A 1D array specifying a probability distribution over the bitstrings
+        hamming_right: The target hamming weight for the right half of sampled bitstrings
+        hamming_left: The target hamming weight for the left half of sampled bitstrings
+
+    Returns:
+        Postselected bitstring matrix and probabilities. The new bitstring matrix contains
+        only those bitstrings from the original matrix that have the desired Hamming weight
+        on the right and left halves, and the new probabilities are constructed by taking
+        the original probabilities corresponding to the postselected bitstrings and rescaling
+        them to sum to one.
+
+    Raises:
+        ValueError: Hamming weights must be non-negative integers.
+        ValueError: The number of columns in ``bitstring_matrix`` must be even.
+        ValueError: The number of elements in ``probabilities`` must equal the number of rows in ``bitstring_matrix``.
+    """
+    if hamming_left < 0 or hamming_right < 0:
+        raise ValueError("Hamming weight must be specified with a non-negative integer.")
+
+    n_bitstrings, n_bits = bitstring_matrix.shape
+    if n_bits % 2:
+        raise ValueError(f"The length of the bitstrings must be even. Instead, got {n_bits}.")
+    if len(probabilities) != n_bitstrings:
+        raise ValueError(
+            "The number of elements in the probabilities array must match the number of rows in the bitstring matrix."
+        )
+
+    norb = n_bits // 2
+    valid_right = np.sum(bitstring_matrix[:, norb:], axis=1) == hamming_right
+    valid_left = np.sum(bitstring_matrix[:, :norb], axis=1) == hamming_left
+    valid_indices = np.logical_and(valid_right, valid_left)
+
+    bitstrings_post = bitstring_matrix[valid_indices]
+    probs_post = probabilities[valid_indices]
+    probs_post /= np.sum(probs_post)
+
+    return bitstrings_post, probs_post
 
 
 def subsample(
