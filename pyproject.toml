@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.0"]
+build-backend = "maturin"
 
 [project]
 name = "qiskit-addon-sqd"
@@ -32,6 +32,13 @@ dependencies = [
     "jax>=0.4.30",
     "scipy>=1.13.1",
 ]
+
+[tool.maturin]
+manifest-path = "Cargo.toml"
+bindings = "pyo3"
+features = []
+profile = "release"
+module-name = "qiskit_addon_sqd._accelerate"
 
 [project.optional-dependencies]
 dev = [
