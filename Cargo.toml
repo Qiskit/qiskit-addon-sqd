@@ -1,10 +1,10 @@
 [package]
-name = "sparse_elements"
+name = "_accelerate"
 version = "0.1.0"
 edition = "2018"
 
 [lib]
-name = "sparse_elements"
+name = "_accelerate"
 crate-type = ["cdylib"]
 
 [dependencies]
