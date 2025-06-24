@@ -20,7 +20,7 @@ from qiskit.quantum_info import Pauli, SparsePauliOp
 from scipy.sparse import coo_matrix, spmatrix
 from scipy.sparse.linalg import eigsh
 
-config.update("jax_enable_x64", True)  # To deal with large integers
+from qiskit_addon_sqd._accelerate import connected_elements_and_amplitudes, generate_sparse_elements
 
 
 def solve_qubit(
@@ -56,12 +56,6 @@ def solve_qubit(
         ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
 
     """
-    if bitstring_matrix.shape[1] > 63:
-        raise ValueError("Bitstrings (rows) in bitstring_matrix must have length < 64.")
-
-    # Projection requires the bitstring matrix be sorted in ascending order by their unsigned integer representation
-    bitstring_matrix = sort_and_remove_duplicates(bitstring_matrix)
-
     # Get a sparse representation of the projected operator
     d, _ = bitstring_matrix.shape
     ham_proj = project_operator_to_subspace(bitstring_matrix, hamiltonian, verbose=verbose)
