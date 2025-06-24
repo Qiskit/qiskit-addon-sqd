@@ -123,13 +123,13 @@ def project_operator_to_subspace(
     connected_bss, amplitudes = connected_elements_and_amplitudes(
         bitstring_matrix, diags, signs, imags
     )
-    idx_map_keys = np.array([bitarray_to_u64_pairs(row) for row in bitstring_matrix])
+    idx_map_keys = np.array([_bitarray_to_u64_pair(row) for row in bitstring_matrix])
     operator = _build_operator(connected_bss, idx_map_keys, amplitudes, hamiltonian, num_samples)
 
     return operator
 
 
-def bitarray_to_u64_pairs(bitarr):
+def _bitarray_to_u64_pair(bitarr):
     """Pack a bit array into two u64 chunks, matching Rust logic."""
     n_bits = len(bitarr)
     chunk1 = np.uint64(0)
