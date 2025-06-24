@@ -117,8 +117,9 @@ def postselect_by_hamming_right_and_left(
         them to sum to one.
 
     Raises:
-        ValueError: The number of elements in ``probabilities`` must equal the number of rows in ``bitstring_matrix``.
         ValueError: Hamming weights must be non-negative integers.
+        ValueError: The number of columns in ``bitstring_matrix`` must be even.
+        ValueError: The number of elements in ``probabilities`` must equal the number of rows in ``bitstring_matrix``.
     """
     if hamming_left < 0 or hamming_right < 0:
         raise ValueError("Hamming weight must be specified with a non-negative integer.")
