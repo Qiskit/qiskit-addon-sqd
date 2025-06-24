@@ -20,8 +20,15 @@ from collections import defaultdict
 from collections.abc import Sequence
 
 import numpy as np
+from qiskit.utils.deprecation import deprecate_func
 
 
+@deprecate_func(
+    since="0.12.0",
+    package_name="qiskit-addon-sqd",
+    removal_timeline="no earlier than v0.13.0",
+    additional_msg=("Instead, use the ``postselect_by_hamming_right_and_left`` function."),
+)
 def post_select_by_hamming_weight(
     bitstring_matrix: np.ndarray, *, hamming_right: int, hamming_left: int
 ) -> np.ndarray:
