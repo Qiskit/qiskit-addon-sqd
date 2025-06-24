@@ -1,0 +1,6 @@
+---
+features:
+  - Introduced the :func:`qiskit_addon_sqd.subsampling.postselect_by_hamming_right_and_left` function.
+deprecations:
+  - :func:`qiskit_addon_sqd.configuration_recovery.post_select_by_hamming_weight` is now deprecated. Instead, use :func:`qiskit_addon_sqd.subsampling.postselect_by_hamming_right_and_left`.
+  - :func:`qiskit_addon_sqd.subsampling.postselect_and_subsample` is now deprecated. Instead, use :func:`qiskit_addon_sqd.subsampling.postselect_by_hamming_right_and_left` and :func:`qiskit_addon_sqd.subsampling.subsample`.
