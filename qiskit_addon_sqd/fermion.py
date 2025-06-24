@@ -642,8 +642,7 @@ def optimize_orbitals(
         )
 
         # Generate the one and two-body reduced density matrices from latest wavefunction amplitudes
-        dm1, dm2_chem = myci.make_rdm12(amplitudes, norb, (num_up, num_dn))
-        dm2 = np.asarray(dm2_chem.transpose(0, 2, 3, 1), order="C")
+        dm1, dm2 = myci.make_rdm12(amplitudes, norb, (num_up, num_dn))
         dm1a, dm1b = myci.make_rdm1s(amplitudes, norb, (num_up, num_dn))
         avg_occupancy = (np.diagonal(dm1a), np.diagonal(dm1b))
 
@@ -653,7 +652,7 @@ def optimize_orbitals(
             k_flat, learning_rate, num_steps_grad, dm1, dm2, hcore, eri
         )
 
-    return e_qsci, k_flat, avg_occupancy
+    return np.min(e_hist), k_flat, avg_occupancy
 
 
 def bitstring_matrix_to_ci_strs(
