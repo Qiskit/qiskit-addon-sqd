@@ -13,10 +13,9 @@
 # Reminder: update the RST file in docs/apidocs when adding new interfaces.
 """Functions for handling quantum samples."""
 
-from typing import Any
 
 import numpy as np
-from qiskit.quantum_info import Pauli, SparsePauliOp
+from qiskit.quantum_info import SparsePauliOp
 from scipy.sparse import coo_matrix, spmatrix
 from scipy.sparse.linalg import eigsh
 
@@ -125,9 +124,7 @@ def project_operator_to_subspace(
         bitstring_matrix, diags, signs, imags
     )
     idx_map_keys = np.array([bitarray_to_u64_pairs(row) for row in bitstring_matrix])
-    operator = _build_operator(
-        connected_bss, idx_map_keys, amplitudes, hamiltonian, d
-    )
+    operator = _build_operator(connected_bss, idx_map_keys, amplitudes, hamiltonian, num_samples)
 
     return operator
 
@@ -154,8 +151,6 @@ def bitarray_to_u64_pairs(bitarr):
 
 def _build_operator(connected_bss, idx_map_keys, amplitudes, hamiltonian, d, batch_size=55):
     """Project a Hamiltonian onto a subspace."""
-    operator = coo_matrix((d, d), dtype="complex128")
-
     # Create batches
     connected_bss = np.asarray(connected_bss, dtype=bool)
     amplitudes = np.asarray(amplitudes, dtype=np.complex128)
