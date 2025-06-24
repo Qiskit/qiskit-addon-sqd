@@ -704,10 +704,9 @@ def bitstring_matrix_to_ci_strs(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Convert bitstrings (rows) in a ``bitstring_matrix`` into integer representations of determinants.
 
-    This function separates each bitstring in ``bitstring_matrix`` in half, flips the
-    bits and translates them into integer representations, and finally appends them to
-    their respective (spin-up or spin-down) lists. Those lists are sorted and output
-    from this function.
+    This function separates each bitstring in ``bitstring_matrix`` in half, translates them into
+    integer representations, and finally appends them to their respective (spin-up or spin-down) lists.
+    Those lists are sorted and output from this function.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
