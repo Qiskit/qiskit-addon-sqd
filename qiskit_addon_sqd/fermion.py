@@ -725,8 +725,8 @@ def bitstring_matrix_to_ci_strs(
     norb = bitstring_matrix.shape[1] // 2
     num_configs = bitstring_matrix.shape[0]
 
-    ci_str_left = np.zeros(num_configs)
-    ci_str_right = np.zeros(num_configs)
+    ci_str_left = np.zeros(num_configs, dtype=int)
+    ci_str_right = np.zeros(num_configs, dtype=int)
     bts_matrix_left = bitstring_matrix[:, :norb]
     bts_matrix_right = bitstring_matrix[:, norb:]
 
@@ -736,8 +736,8 @@ def bitstring_matrix_to_ci_strs(
         ci_str_left[:] += bts_matrix_left[:, i] * 2 ** (norb - 1 - i)
         ci_str_right[:] += bts_matrix_right[:, i] * 2 ** (norb - 1 - i)
 
-    ci_strs_right = np.unique(ci_str_right.astype("longlong"))
-    ci_strs_left = np.unique(ci_str_left.astype("longlong"))
+    ci_strs_right = np.unique(ci_str_right)
+    ci_strs_left = np.unique(ci_str_left)
 
     if not open_shell:
         ci_strs_left = ci_strs_right = np.union1d(ci_strs_left, ci_strs_right)
