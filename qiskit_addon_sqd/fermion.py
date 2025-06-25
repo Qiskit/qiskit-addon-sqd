@@ -555,7 +555,7 @@ def optimize_orbitals(
     spin_sq: float = 0.0,
     num_iters: int = 10,
     num_steps_grad: int = 10_000,
-    learning_rate: float = 0.01,
+    learning_rate: float = 0.001,
     **kwargs,
 ) -> tuple[float, np.ndarray, tuple[np.ndarray, np.ndarray]]:
     """Optimize orbitals to produce a minimal ground state.
@@ -586,8 +586,9 @@ def optimize_orbitals(
 
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
-        k_flat: 1D array defining the orbital transform, ``K``. The array should specify the upper
-            triangle of the anti-symmetric transform operator in row-major order, excluding the diagonal.
+        k_flat: 1D array defining the orbital transform, ``K``. The anti-symmetric
+            matrix defining the transfomration is construccted by the anti-symmetrization
+            of the matrix obtained by re-shaping ``k_flat`` into a square matrix.
         open_shell: A flag specifying whether configurations from the left and right
             halves of the bitstrings should be kept separate. If ``False``, CI strings
             from the left and right halves of the bitstrings are combined into a single
@@ -646,7 +647,6 @@ def optimize_orbitals(
         dm1a, dm1b = myci.make_rdm1s(amplitudes, norb, (num_up, num_dn))
         avg_occupancy = (np.diagonal(dm1a), np.diagonal(dm1b))
 
-        # TODO: Expose the momentum parameter as an input option
         # Optimize the basis rotations
         e_hist, k_flat = _orbital_SCI_optimizer_ADAM(
             k_flat, learning_rate, num_steps_grad, dm1, dm2, hcore, eri
@@ -769,8 +769,9 @@ def rotate_integrals(
     Args:
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
-        k_flat: 1D array defining the orbital transform, ``K``. The array should specify the upper
-            triangle of the anti-symmetric transform operator in row-major order, excluding the diagonal.
+        k_flat: 1D array defining the orbital transform, ``K``. The anti-symmetric
+            matrix defining the transfomration is construccted by the anti-symmetrization
+        of the matrix obtained by re-shaping ``k_flat`` into a square matrix.
 
     Returns:
         - The rotated core Hamiltonian matrix
@@ -806,7 +807,7 @@ _SCISCF_Energy_contract_grad = jax.jit(jax.grad(_SCISCF_Energy_contract, argnums
 def _orbital_SCI_optimizer_ADAM(
     k_flat, learning_rate, num_steps, dm1, dm2, hcore, eri
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Optimize orbital rotation parameters in-place using the ADAM optimizer.
+    """Optimize orbital rotation parameters using the ADAM optimizer.
 
     This procedure is described in `Sec. II A 4 <https://arxiv.org/pdf/2405.05068>`_.
     """
