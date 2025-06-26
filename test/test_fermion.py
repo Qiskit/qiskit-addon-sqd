@@ -21,7 +21,7 @@ import pyscf.mcscf
 from pyscf.fci import cistring, spin_square
 from qiskit.primitives import BitArray
 from qiskit_addon_sqd.counts import generate_bit_array_uniform
-from qiskit_addon_sqd.fermion import diagonalize_fermionic_hamiltonian
+from qiskit_addon_sqd.fermion import bitstring_matrix_to_ci_strs, diagonalize_fermionic_hamiltonian
 
 
 def _sci_vec_to_fci_vec(
@@ -118,3 +118,21 @@ class TestFermion(unittest.TestCase):
         self.assertLess(sci_dim, 0.5 * fci_dim)
         self.assertAlmostEqual(result.energy + nuclear_repulsion_energy, exact_energy, places=2)
         self.assertAlmostEqual(result.sci_state.spin_square(), expected_spin_square)
+
+    def test_bitstring_matrix_to_ci_strs(self):
+        norb = 57
+        bitstring = "001111101111111110110001011101100001010000100101100001010"
+        assert len(bitstring) == norb
+        bitstrings = np.array([[b == "1" for b in bitstring + bitstring]])
+        result = bitstring_matrix_to_ci_strs(bitstrings)
+        result_string = format(result[0][0], f"0{norb}b")
+        assert result_string == bitstring
+
+    def test_bitstring_matrix_to_ci_strs_large(self):
+        norb = 64
+        bitstring = "0011111011111111101100010111011000010100001001011000010101111111"
+        assert len(bitstring) == norb
+        bitstrings = np.array([[b == "1" for b in bitstring + bitstring]])
+        result = bitstring_matrix_to_ci_strs(bitstrings)
+        result_string = format(result[0][0], f"0{norb}b")
+        assert result_string == bitstring

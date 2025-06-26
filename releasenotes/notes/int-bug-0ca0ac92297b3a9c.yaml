@@ -1,0 +1,4 @@
+---
+fixes:
+  - |
+    Fixed a bug in :func:`qiskit_addon_sqd.fermion.bitstring_matrix_to_ci_strs` in which the conversion of bitstrings to CI strings could be incorrect when the number of orbitals is greater than 53.
