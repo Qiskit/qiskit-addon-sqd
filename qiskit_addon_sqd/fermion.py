@@ -725,8 +725,15 @@ def bitstring_matrix_to_ci_strs(
     norb = bitstring_matrix.shape[1] // 2
     num_configs = bitstring_matrix.shape[0]
 
-    ci_str_left = np.zeros(num_configs, dtype=int)
-    ci_str_right = np.zeros(num_configs, dtype=int)
+    if norb < 64:
+        dtype = int
+    else:
+        # If 64 orbitals or more, use Python unbounded integer type
+        dtype = object
+        bitstring_matrix = bitstring_matrix.astype(object)
+
+    ci_str_left = np.zeros(num_configs, dtype=dtype)
+    ci_str_right = np.zeros(num_configs, dtype=dtype)
     bts_matrix_left = bitstring_matrix[:, :norb]
     bts_matrix_right = bitstring_matrix[:, norb:]
 

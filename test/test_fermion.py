@@ -127,3 +127,12 @@ class TestFermion(unittest.TestCase):
         result = bitstring_matrix_to_ci_strs(bitstrings)
         result_string = format(result[0][0], f"0{norb}b")
         assert result_string == bitstring
+
+    def test_bitstring_matrix_to_ci_strs_large(self):
+        norb = 64
+        bitstring = "0011111011111111101100010111011000010100001001011000010101111111"
+        assert len(bitstring) == norb
+        bitstrings = np.array([[b == "1" for b in bitstring + bitstring]])
+        result = bitstring_matrix_to_ci_strs(bitstrings)
+        result_string = format(result[0][0], f"0{norb}b")
+        assert result_string == bitstring
