@@ -726,7 +726,7 @@ def bitstring_matrix_to_ci_strs(
     num_configs = bitstring_matrix.shape[0]
 
     if norb < 64:
-        dtype = int
+        dtype: type = int
     else:
         # If 64 orbitals or more, use Python unbounded integer type
         dtype = object
