@@ -46,8 +46,8 @@ class TestFermion(unittest.TestCase):
     def setUp(self):
         self.rng = np.random.default_rng(190560294508743238113331500595174898458)
 
-    def test_diagonalize_fermionic_hamiltonian(self):
-        """Test diagonalize_fermionic_hamiltonian."""
+    def test_diagonalize_fermionic_hamiltonian_basic(self):
+        """Test diagonalize_fermionic_hamiltonian basic usage."""
         # Build N2 molecule
         mol = pyscf.gto.Mole()
         mol.build(
@@ -117,6 +117,104 @@ class TestFermion(unittest.TestCase):
         # Check
         self.assertLess(sci_dim, 0.5 * fci_dim)
         self.assertAlmostEqual(result.energy + nuclear_repulsion_energy, exact_energy, places=2)
+        self.assertAlmostEqual(result.sci_state.spin_square(), expected_spin_square)
+
+    def test_diagonalize_fermionic_hamiltonian_max_dim(self):
+        """Test diagonalize_fermionic_hamiltonian with maximum dimension."""
+        # Build N2 molecule
+        mol = pyscf.gto.Mole()
+        mol.build(
+            atom=[["N", (0, 0, 0)], ["N", (1.0, 0, 0)]],
+            basis="sto-6g",
+            symmetry="Dooh",
+        )
+
+        # Define active space
+        n_frozen = 2
+        active_space = range(n_frozen, mol.nao_nr())
+
+        # Get molecular integrals
+        scf = pyscf.scf.RHF(mol).run()
+        norb = len(active_space)
+        n_electrons = int(sum(scf.mo_occ[active_space]))
+        n_alpha = (n_electrons + mol.spin) // 2
+        n_beta = (n_electrons - mol.spin) // 2
+        nelec = (n_alpha, n_beta)
+        cas = pyscf.mcscf.CASCI(scf, norb, nelec)
+        mo = cas.sort_mo(active_space, base=0)
+        hcore, nuclear_repulsion_energy = cas.get_h1cas(mo)
+        eri = pyscf.ao2mo.restore(1, cas.get_h2cas(mo), norb)
+        dim_a = math.comb(norb, n_alpha)
+        dim_b = math.comb(norb, n_beta)
+        fci_dim = dim_a * dim_b
+
+        # Compute exact energy
+        _, _, fci_vec, _, _ = cas.kernel()
+        exact_energy = cas.e_tot
+
+        # Generate samples from ground state
+        fci_vec = fci_vec.reshape(-1)
+        probs = np.abs(fci_vec) ** 2
+        addresses = self.rng.choice(fci_dim, size=10_000, p=probs)
+        indices_a, indices_b = np.divmod(addresses, dim_b)
+        strings_a = [int(s) for s in cistring.addrs2str(norb=norb, nelec=n_alpha, addrs=indices_a)]
+        strings_b = [int(s) for s in cistring.addrs2str(norb=norb, nelec=n_beta, addrs=indices_b)]
+        strings = [(sb << norb) + sa for sa, sb in zip(strings_a, strings_b)]
+        bit_array_ground_state = BitArray.from_samples(strings, num_bits=2 * norb)
+
+        # Generate random bitstrings
+        bit_array_random = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=self.rng)
+
+        # Merge bitstrings
+        bit_array = BitArray.concatenate_shots([bit_array_ground_state, bit_array_random])
+
+        # Diagonalize
+        result = diagonalize_fermionic_hamiltonian(
+            hcore,
+            eri,
+            bit_array,
+            samples_per_batch=10,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=5,
+            symmetrize_spin=True,
+            max_dim=10,
+            seed=self.rng,
+        )
+        sci_state = result.sci_state
+        sci_dim_a, sci_dim_b = sci_state.amplitudes.shape
+        expanded_vec = _sci_vec_to_fci_vec(
+            sci_state.amplitudes, sci_state.ci_strs_a, sci_state.ci_strs_b, norb=norb, nelec=nelec
+        )
+        expected_spin_square, _ = spin_square(expanded_vec, norb, nelec)
+
+        # Check
+        self.assertEqual(sci_dim_a, 10)
+        self.assertEqual(sci_dim_b, 10)
+        self.assertAlmostEqual(result.sci_state.spin_square(), expected_spin_square)
+
+        # Diagonalize
+        result = diagonalize_fermionic_hamiltonian(
+            hcore,
+            eri,
+            bit_array,
+            samples_per_batch=10,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=5,
+            max_dim=(15, 10),
+            seed=self.rng,
+        )
+        sci_state = result.sci_state
+        sci_dim_a, sci_dim_b = sci_state.amplitudes.shape
+        expanded_vec = _sci_vec_to_fci_vec(
+            sci_state.amplitudes, sci_state.ci_strs_a, sci_state.ci_strs_b, norb=norb, nelec=nelec
+        )
+        expected_spin_square, _ = spin_square(expanded_vec, norb, nelec)
+
+        # Check
+        self.assertEqual(sci_dim_a, 15)
+        self.assertEqual(sci_dim_b, 10)
         self.assertAlmostEqual(result.sci_state.spin_square(), expected_spin_square)
 
     def test_diagonalize_fermionic_hamiltonian_reproducible_with_seed(self):
