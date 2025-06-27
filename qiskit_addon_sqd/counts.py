@@ -181,3 +181,21 @@ def normalize_counts_dict(counts: Mapping[str, float | int]) -> Mapping[str, flo
     total_counts = sum(counts.values())
 
     return {bs: count / total_counts for bs, count in counts.items()}
+
+
+def bitstring_matrix_to_integers(bitstring_matrix: np.ndarray) -> np.ndarray:
+    """Convert a bitstring matrix to an array of integers."""
+    n_bitstrings, n_bits = bitstring_matrix.shape
+
+    if n_bits < 64:
+        dtype: type = int
+    else:
+        # If 64 orbitals or more, use Python unbounded integer type
+        dtype = object
+        bitstring_matrix = bitstring_matrix.astype(object)
+
+    result = np.zeros(n_bitstrings, dtype=dtype)
+    for i in range(n_bits):
+        result += bitstring_matrix[:, i] * (1 << (n_bits - 1 - i))
+
+    return result

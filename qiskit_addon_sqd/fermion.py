@@ -35,7 +35,7 @@ from qiskit.primitives import BitArray
 from scipy import linalg as LA
 
 from qiskit_addon_sqd.configuration_recovery import recover_configurations
-from qiskit_addon_sqd.counts import bit_array_to_arrays
+from qiskit_addon_sqd.counts import bit_array_to_arrays, bitstring_matrix_to_integers
 from qiskit_addon_sqd.subsampling import postselect_by_hamming_right_and_left, subsample
 
 config.update("jax_enable_x64", True)  # To deal with large integers
@@ -723,28 +723,9 @@ def bitstring_matrix_to_ci_strs(
 
     """
     norb = bitstring_matrix.shape[1] // 2
-    num_configs = bitstring_matrix.shape[0]
 
-    if norb < 64:
-        dtype: type = int
-    else:
-        # If 64 orbitals or more, use Python unbounded integer type
-        dtype = object
-        bitstring_matrix = bitstring_matrix.astype(object)
-
-    ci_str_left = np.zeros(num_configs, dtype=dtype)
-    ci_str_right = np.zeros(num_configs, dtype=dtype)
-    bts_matrix_left = bitstring_matrix[:, :norb]
-    bts_matrix_right = bitstring_matrix[:, norb:]
-
-    # For performance, we accumulate the left and right CI strings together, column-wise,
-    # across the two halves of the input bitstring matrix.
-    for i in range(norb):
-        ci_str_left[:] += bts_matrix_left[:, i] * 2 ** (norb - 1 - i)
-        ci_str_right[:] += bts_matrix_right[:, i] * 2 ** (norb - 1 - i)
-
-    ci_strs_right = np.unique(ci_str_right)
-    ci_strs_left = np.unique(ci_str_left)
+    ci_strs_left = np.unique(bitstring_matrix_to_integers(bitstring_matrix[:, :norb]))
+    ci_strs_right = np.unique(bitstring_matrix_to_integers(bitstring_matrix[:, norb:]))
 
     if not open_shell:
         ci_strs_left = ci_strs_right = np.union1d(ci_strs_left, ci_strs_right)
