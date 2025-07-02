@@ -119,6 +119,63 @@ class TestFermion(unittest.TestCase):
         self.assertAlmostEqual(result.energy + nuclear_repulsion_energy, exact_energy, places=2)
         self.assertAlmostEqual(result.sci_state.spin_square(), expected_spin_square)
 
+    def test_diagonalize_fermionic_hamiltonian_reproducible_with_seed(self):
+        """Test diagonalize_fermionic_hamiltonian result is reproducible with seed."""
+        # Build N2 molecule
+        mol = pyscf.gto.Mole()
+        mol.build(
+            atom=[["N", (0, 0, 0)], ["N", (1.0, 0, 0)]],
+            basis="sto-6g",
+            symmetry="Dooh",
+        )
+
+        # Define active space
+        n_frozen = 2
+        active_space = range(n_frozen, mol.nao_nr())
+
+        # Get molecular integrals
+        scf = pyscf.scf.RHF(mol).run()
+        norb = len(active_space)
+        n_electrons = int(sum(scf.mo_occ[active_space]))
+        n_alpha = (n_electrons + mol.spin) // 2
+        n_beta = (n_electrons - mol.spin) // 2
+        nelec = (n_alpha, n_beta)
+        cas = pyscf.mcscf.CASCI(scf, norb, nelec)
+        mo = cas.sort_mo(active_space, base=0)
+        hcore, _ = cas.get_h1cas(mo)
+        eri = pyscf.ao2mo.restore(1, cas.get_h2cas(mo), norb)
+
+        # Generate random bitstrings
+        bit_array = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=self.rng)
+
+        # Diagonalize two times with the same seed
+        result1 = diagonalize_fermionic_hamiltonian(
+            hcore,
+            eri,
+            bit_array,
+            samples_per_batch=10,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=3,
+            seed=12345,
+        )
+        result2 = diagonalize_fermionic_hamiltonian(
+            hcore,
+            eri,
+            bit_array,
+            samples_per_batch=10,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=3,
+            seed=12345,
+        )
+
+        # Check that the results match
+        np.testing.assert_allclose(result1.energy, result2.energy)
+        np.testing.assert_allclose(result1.sci_state.amplitudes, result2.sci_state.amplitudes)
+        np.testing.assert_array_equal(result1.sci_state.ci_strs_a, result2.sci_state.ci_strs_a)
+        np.testing.assert_allclose(result1.sci_state.ci_strs_b, result2.sci_state.ci_strs_b)
+
     def test_bitstring_matrix_to_ci_strs(self):
         norb = 57
         bitstring = "001111101111111110110001011101100001010000100101100001010"
