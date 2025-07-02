@@ -254,6 +254,7 @@ class TestFermion(unittest.TestCase):
             norb=norb,
             nelec=nelec,
             max_iterations=3,
+            max_dim=(10, 9),
             seed=12345,
         )
         result2 = diagonalize_fermionic_hamiltonian(
@@ -264,6 +265,7 @@ class TestFermion(unittest.TestCase):
             norb=norb,
             nelec=nelec,
             max_iterations=3,
+            max_dim=(10, 9),
             seed=12345,
         )
 
