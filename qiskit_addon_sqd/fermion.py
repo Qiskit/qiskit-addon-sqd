@@ -205,7 +205,20 @@ def diagonalize_fermionic_hamiltonian(
         symmetrize_spin: Whether to always merge spin-alpha and spin-beta CI strings
             into a single list, so that the diagonalization subspace is invariant with
             respect to the exchange of spin alpha with spin beta.
-        max_dim: Limit on the dimension of the SCI subspace.
+        max_dim: Limit on the dimension of the spin sectors of the SCI subspace.
+            It can be either:
+
+            - A tuple ``(max_dim_a, max_dim_b)`` of integers giving separate limits for the
+              spin-alpha and spin-beta sectors. In this case, the dimension of the
+              SCI subspace won't exceed ``max_dim_a * max_dim_b``.
+            - A single integer specifying a limit that will be used for both the
+              spin-alpha and spin-beta sectors. In this case, the dimension of the
+              SCI subspace won't exceed ``max_dim**2``.
+            - ``None``, in which case no limit is set.
+
+            Note that the dimension limit is set on the spin-sector(s), while the
+            full dimension of the SCI subspace is the product of the dimensions of the
+            individual spin sectors.
         include_configurations: Configurations to always include in the diagonalization
             subspace. You can specify either a single list of single-spin strings to
             use for both spin sectors, or a pair (alpha_strings, beta_strings) of lists
@@ -326,6 +339,7 @@ def diagonalize_fermionic_hamiltonian(
                 rng.shuffle(samples_b)
                 strs_a = np.concatenate((strs_a, samples_a[: cast(int, max_dim_a) - len(strs_a)]))
                 strs_b = np.concatenate((strs_b, samples_b[: cast(int, max_dim_b) - len(strs_b)]))
+                # Sort the bitstrings
                 strs_a.sort()
                 strs_b.sort()
             if symmetrize_spin:
