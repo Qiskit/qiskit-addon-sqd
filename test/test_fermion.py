@@ -150,7 +150,6 @@ class TestFermion(unittest.TestCase):
 
         # Compute exact energy
         _, _, fci_vec, _, _ = cas.kernel()
-        exact_energy = cas.e_tot
 
         # Generate samples from ground state
         fci_vec = fci_vec.reshape(-1)
