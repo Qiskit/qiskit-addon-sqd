@@ -251,8 +251,8 @@ def diagonalize_fermionic_hamiltonian(
         )
 
     if include_configurations is None:
-        include_a = np.array([], dtype=int)
-        include_b = np.array([], dtype=int)
+        include_a: list[int] | np.ndarray = np.array([], dtype=int)
+        include_b: list[int] | np.ndarray = np.array([], dtype=int)
     elif isinstance(include_configurations, tuple):
         include_a, include_b = include_configurations
     else:
@@ -313,15 +313,19 @@ def diagonalize_fermionic_hamiltonian(
                 # Next, prioritize carryover strings. Pick from them randomly.
                 rng.shuffle(carryover_strings_a)
                 rng.shuffle(carryover_strings_b)
-                strs_a = np.concatenate((strs_a, carryover_strings_a[: max_dim_a - len(strs_a)]))
-                strs_b = np.concatenate((strs_b, carryover_strings_b[: max_dim_b - len(strs_b)]))
+                strs_a = np.concatenate(
+                    (strs_a, carryover_strings_a[: cast(int, max_dim_a) - len(strs_a)])
+                )
+                strs_b = np.concatenate(
+                    (strs_b, carryover_strings_b[: cast(int, max_dim_b) - len(strs_b)])
+                )
                 # Finally, include sampled bitstrings. Pick from them randomly.
                 samples_a = np.setdiff1d(samples_a, strs_a, assume_unique=True)
                 samples_b = np.setdiff1d(samples_b, strs_b, assume_unique=True)
                 rng.shuffle(samples_a)
                 rng.shuffle(samples_b)
-                strs_a = np.concatenate((strs_a, samples_a[: max_dim_a - len(strs_a)]))
-                strs_b = np.concatenate((strs_b, samples_b[: max_dim_b - len(strs_b)]))
+                strs_a = np.concatenate((strs_a, samples_a[: cast(int, max_dim_a) - len(strs_a)]))
+                strs_b = np.concatenate((strs_b, samples_b[: cast(int, max_dim_b) - len(strs_b)]))
                 strs_a.sort()
                 strs_b.sort()
             if symmetrize_spin:
