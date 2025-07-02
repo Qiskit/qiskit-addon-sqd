@@ -315,9 +315,11 @@ def diagonalize_fermionic_hamiltonian(
                 rng.shuffle(carryover_strings_b)
                 strs_a = np.concatenate((strs_a, carryover_strings_a[: max_dim_a - len(strs_a)]))
                 strs_b = np.concatenate((strs_b, carryover_strings_b[: max_dim_b - len(strs_b)]))
-                # Finally, include sampled bitstrings
+                # Finally, include sampled bitstrings. Pick from them randomly.
                 samples_a = np.setdiff1d(samples_a, strs_a, assume_unique=True)
                 samples_b = np.setdiff1d(samples_b, strs_b, assume_unique=True)
+                rng.shuffle(samples_a)
+                rng.shuffle(samples_b)
                 strs_a = np.concatenate((strs_a, samples_a[: max_dim_a - len(strs_a)]))
                 strs_b = np.concatenate((strs_b, samples_b[: max_dim_b - len(strs_b)]))
                 strs_a.sort()
