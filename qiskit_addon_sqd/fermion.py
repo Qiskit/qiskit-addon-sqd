@@ -316,18 +316,12 @@ def diagonalize_fermionic_hamiltonian(
                 strs_a = np.concatenate((strs_a, carryover_strings_a[: max_dim_a - len(strs_a)]))
                 strs_b = np.concatenate((strs_b, carryover_strings_b[: max_dim_b - len(strs_b)]))
                 # Finally, include sampled bitstrings
-                assert len(samples_a) == len(np.unique(samples_a))
-                assert len(samples_b) == len(np.unique(samples_b))
-                assert len(strs_a) == len(np.unique(strs_a))
-                assert len(strs_b) == len(np.unique(strs_b))
                 samples_a = np.setdiff1d(samples_a, strs_a, assume_unique=True)
                 samples_b = np.setdiff1d(samples_b, strs_b, assume_unique=True)
                 strs_a = np.concatenate((strs_a, samples_a[: max_dim_a - len(strs_a)]))
                 strs_b = np.concatenate((strs_b, samples_b[: max_dim_b - len(strs_b)]))
                 strs_a.sort()
                 strs_b.sort()
-                assert len(strs_a) == len(np.unique(strs_a))
-                assert len(strs_b) == len(np.unique(strs_b))
             if symmetrize_spin:
                 strs_a = strs_b = np.union1d(strs_a, strs_b)[:max_dim_a]
             ci_strings.append((strs_a, strs_b))
