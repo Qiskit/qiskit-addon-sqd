@@ -323,27 +323,53 @@ def diagonalize_fermionic_hamiltonian(
                 # Prioritize explicitly requested bitstrings
                 strs_a = include_a.copy()
                 strs_b = include_b.copy()
-                # Next, prioritize carryover strings. Pick from them randomly.
-                rng.shuffle(carryover_strings_a)
-                rng.shuffle(carryover_strings_b)
-                strs_a = np.concatenate(
-                    (strs_a, carryover_strings_a[: cast(int, max_dim_a) - len(strs_a)])
+                # Next, prioritize carryover strings. Pick them randomly.
+                num_a = cast(int, max_dim_a) - len(strs_a)
+                num_b = cast(int, max_dim_b) - len(strs_b)
+                selected_a = (
+                    carryover_strings_a
+                    if len(carryover_strings_a) <= num_a
+                    else rng.choice(carryover_strings_a, size=num_a, replace=False)
                 )
-                strs_b = np.concatenate(
-                    (strs_b, carryover_strings_b[: cast(int, max_dim_b) - len(strs_b)])
+                selected_b = (
+                    carryover_strings_b
+                    if len(carryover_strings_b) <= num_b
+                    else rng.choice(carryover_strings_b, size=num_b, replace=False)
                 )
+                strs_a = np.concatenate((strs_a, selected_a))
+                strs_b = np.concatenate((strs_b, selected_b))
                 # Finally, include sampled bitstrings. Pick from them randomly.
                 samples_a = np.setdiff1d(samples_a, strs_a, assume_unique=True)
                 samples_b = np.setdiff1d(samples_b, strs_b, assume_unique=True)
-                rng.shuffle(samples_a)
-                rng.shuffle(samples_b)
-                strs_a = np.concatenate((strs_a, samples_a[: cast(int, max_dim_a) - len(strs_a)]))
-                strs_b = np.concatenate((strs_b, samples_b[: cast(int, max_dim_b) - len(strs_b)]))
+                num_a = cast(int, max_dim_a) - len(strs_a)
+                num_b = cast(int, max_dim_b) - len(strs_b)
+                selected_a = (
+                    samples_a
+                    if len(samples_a) <= num_a
+                    else rng.choice(samples_a, size=num_a, replace=False)
+                )
+                selected_b = (
+                    samples_b
+                    if len(samples_b) <= num_b
+                    else rng.choice(samples_b, size=num_b, replace=False)
+                )
+                strs_a = np.concatenate((strs_a, selected_a))
+                strs_b = np.concatenate((strs_b, selected_b))
                 # Sort the bitstrings
                 strs_a.sort()
                 strs_b.sort()
             if symmetrize_spin:
-                strs_a = strs_b = np.union1d(strs_a, strs_b)[:max_dim_a]
+                merged = np.union1d(strs_a, strs_b)
+                if max_dim is None:
+                    strs_a = strs_b = merged
+                else:
+                    selected = (
+                        merged
+                        if len(merged) <= cast(int, max_dim_a)
+                        else rng.choice(merged, size=max_dim_a, replace=False)
+                    )
+                    selected.sort()
+                    strs_a = strs_b = selected
             ci_strings.append((strs_a, strs_b))
 
         # Run diagonalization
