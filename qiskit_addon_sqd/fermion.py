@@ -35,7 +35,7 @@ from qiskit.primitives import BitArray
 from scipy import linalg as LA
 
 from qiskit_addon_sqd.configuration_recovery import recover_configurations
-from qiskit_addon_sqd.counts import bit_array_to_arrays
+from qiskit_addon_sqd.counts import bit_array_to_arrays, bitstring_matrix_to_integers
 from qiskit_addon_sqd.subsampling import postselect_by_hamming_right_and_left, subsample
 
 config.update("jax_enable_x64", True)  # To deal with large integers
@@ -153,7 +153,8 @@ def diagonalize_fermionic_hamiltonian(
     ]
     | None = None,
     symmetrize_spin: bool = False,
-    include_configurations: list[int] | tuple[list[int], list[int]] | None = None,
+    max_dim: int | tuple[int, int] | None = None,
+    include_configurations: list[int] | tuple[list[int], list[int]] | np.ndarray | None = None,
     initial_occupancies: tuple[np.ndarray, np.ndarray] | None = None,
     carryover_threshold: float = 1e-4,
     callback: Callable[[list[SCIResult]], None] | None = None,
@@ -204,6 +205,20 @@ def diagonalize_fermionic_hamiltonian(
         symmetrize_spin: Whether to always merge spin-alpha and spin-beta CI strings
             into a single list, so that the diagonalization subspace is invariant with
             respect to the exchange of spin alpha with spin beta.
+        max_dim: Limit on the dimension of the spin sectors of the SCI subspace.
+            It can be either:
+
+            - A tuple ``(max_dim_a, max_dim_b)`` of integers giving separate limits for the
+              spin-alpha and spin-beta sectors. In this case, the dimension of the
+              SCI subspace won't exceed ``max_dim_a * max_dim_b``.
+            - A single integer specifying a limit that will be used for both the
+              spin-alpha and spin-beta sectors. In this case, the dimension of the
+              SCI subspace won't exceed ``max_dim**2``.
+            - ``None``, in which case no limit is set.
+
+            Note that the dimension limit is set on the spin-sector(s), while the
+            full dimension of the SCI subspace is the product of the dimensions of the
+            individual spin sectors.
         include_configurations: Configurations to always include in the diagonalization
             subspace. You can specify either a single list of single-spin strings to
             use for both spin sectors, or a pair (alpha_strings, beta_strings) of lists
@@ -235,6 +250,28 @@ def diagonalize_fermionic_hamiltonian(
             f"electrons are equal. Instead, got {n_alpha} and {n_beta}."
         )
 
+    if max_dim is None:
+        max_dim_a = max_dim_b = None
+    elif isinstance(max_dim, tuple):
+        max_dim_a, max_dim_b = max_dim
+    else:
+        max_dim_a = max_dim_b = max_dim
+    if symmetrize_spin and max_dim_a != max_dim_b:
+        raise ValueError(
+            "When requesting spin symmetrization, the maximum dimension must be "
+            "the same for both spin alpha and spin beta. "
+            f"Instead, got {max_dim_a} and {max_dim_b}"
+        )
+
+    if include_configurations is None:
+        include_a: list[int] | np.ndarray = np.array([], dtype=int)
+        include_b: list[int] | np.ndarray = np.array([], dtype=int)
+    elif isinstance(include_configurations, tuple):
+        include_a, include_b = include_configurations
+    else:
+        include_a = include_configurations
+        include_b = include_configurations
+
     rng = np.random.default_rng(seed)
     current_occupancies = initial_occupancies
     best_result = None
@@ -242,17 +279,8 @@ def diagonalize_fermionic_hamiltonian(
     if sci_solver is None:
         sci_solver = solve_sci_batch
 
-    if include_configurations is None:
-        include_a: list[int] | np.ndarray = []
-        include_b: list[int] | np.ndarray = []
-    elif isinstance(include_configurations, tuple):
-        include_a, include_b = include_configurations
-    else:
-        include_a = include_configurations
-        include_b = include_configurations
-
-    include_a = np.array(include_a, dtype=np.int64)
-    include_b = np.array(include_b, dtype=np.int64)
+    include_a = np.unique(include_a)
+    include_b = np.unique(include_b)
     carryover_strings_a = np.array([], dtype=np.int64)
     carryover_strings_b = np.array([], dtype=np.int64)
 
@@ -286,9 +314,62 @@ def diagonalize_fermionic_hamiltonian(
         # Convert bitstrings to CI strings and include requested and carryover strings
         ci_strings = []
         for samples in subsamples:
-            strs_a, strs_b = bitstring_matrix_to_ci_strs(samples, open_shell=not symmetrize_spin)
-            strs_a = np.union1d(strs_a, np.union1d(include_a, carryover_strings_a))
-            strs_b = np.union1d(strs_b, np.union1d(include_b, carryover_strings_b))
+            samples_a = np.unique(bitstring_matrix_to_integers(samples[:, norb:]))
+            samples_b = np.unique(bitstring_matrix_to_integers(samples[:, :norb]))
+            if max_dim is None:
+                strs_a = np.unique(np.concatenate((samples_a, include_a, carryover_strings_a)))
+                strs_b = np.unique(np.concatenate((samples_b, include_b, carryover_strings_b)))
+            else:
+                # Prioritize explicitly requested bitstrings
+                strs_a = include_a.copy()
+                strs_b = include_b.copy()
+                # Next, prioritize carryover strings. Pick them randomly.
+                num_a = cast(int, max_dim_a) - len(strs_a)
+                num_b = cast(int, max_dim_b) - len(strs_b)
+                selected_a = (
+                    carryover_strings_a
+                    if len(carryover_strings_a) <= num_a
+                    else rng.choice(carryover_strings_a, size=num_a, replace=False)
+                )
+                selected_b = (
+                    carryover_strings_b
+                    if len(carryover_strings_b) <= num_b
+                    else rng.choice(carryover_strings_b, size=num_b, replace=False)
+                )
+                strs_a = np.concatenate((strs_a, selected_a))
+                strs_b = np.concatenate((strs_b, selected_b))
+                # Finally, include sampled bitstrings. Pick from them randomly.
+                samples_a = np.setdiff1d(samples_a, strs_a, assume_unique=True)
+                samples_b = np.setdiff1d(samples_b, strs_b, assume_unique=True)
+                num_a = cast(int, max_dim_a) - len(strs_a)
+                num_b = cast(int, max_dim_b) - len(strs_b)
+                selected_a = (
+                    samples_a
+                    if len(samples_a) <= num_a
+                    else rng.choice(samples_a, size=num_a, replace=False)
+                )
+                selected_b = (
+                    samples_b
+                    if len(samples_b) <= num_b
+                    else rng.choice(samples_b, size=num_b, replace=False)
+                )
+                strs_a = np.concatenate((strs_a, selected_a))
+                strs_b = np.concatenate((strs_b, selected_b))
+                # Sort the bitstrings
+                strs_a.sort()
+                strs_b.sort()
+            if symmetrize_spin:
+                merged = np.union1d(strs_a, strs_b)
+                if max_dim is None:
+                    strs_a = strs_b = merged
+                else:
+                    selected = (
+                        merged
+                        if len(merged) <= cast(int, max_dim_a)
+                        else rng.choice(merged, size=max_dim_a, replace=False)
+                    )
+                    selected.sort()
+                    strs_a = strs_b = selected
             ci_strings.append((strs_a, strs_b))
 
         # Run diagonalization
@@ -335,6 +416,10 @@ def diagonalize_fermionic_hamiltonian(
             carryover_strings_a = carryover_strings_b = np.union1d(
                 carryover_strings_a, carryover_strings_b
             )
+        # Remove carryover strings that were explicitly requested and therefore will be
+        # included anyway
+        carryover_strings_a = np.setdiff1d(carryover_strings_a, include_a)
+        carryover_strings_b = np.setdiff1d(carryover_strings_b, include_b)
 
     # best_result is not None because there must have been at least one iteration
     return cast(SCIResult, best_result)
@@ -723,28 +808,9 @@ def bitstring_matrix_to_ci_strs(
 
     """
     norb = bitstring_matrix.shape[1] // 2
-    num_configs = bitstring_matrix.shape[0]
 
-    if norb < 64:
-        dtype: type = int
-    else:
-        # If 64 orbitals or more, use Python unbounded integer type
-        dtype = object
-        bitstring_matrix = bitstring_matrix.astype(object)
-
-    ci_str_left = np.zeros(num_configs, dtype=dtype)
-    ci_str_right = np.zeros(num_configs, dtype=dtype)
-    bts_matrix_left = bitstring_matrix[:, :norb]
-    bts_matrix_right = bitstring_matrix[:, norb:]
-
-    # For performance, we accumulate the left and right CI strings together, column-wise,
-    # across the two halves of the input bitstring matrix.
-    for i in range(norb):
-        ci_str_left[:] += bts_matrix_left[:, i] * 2 ** (norb - 1 - i)
-        ci_str_right[:] += bts_matrix_right[:, i] * 2 ** (norb - 1 - i)
-
-    ci_strs_right = np.unique(ci_str_right)
-    ci_strs_left = np.unique(ci_str_left)
+    ci_strs_left = np.unique(bitstring_matrix_to_integers(bitstring_matrix[:, :norb]))
+    ci_strs_right = np.unique(bitstring_matrix_to_integers(bitstring_matrix[:, norb:]))
 
     if not open_shell:
         ci_strs_left = ci_strs_right = np.union1d(ci_strs_left, ci_strs_right)

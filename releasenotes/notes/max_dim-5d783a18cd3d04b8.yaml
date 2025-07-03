@@ -1,0 +1,4 @@
+---
+features:
+  - Added the ``max_dim`` argument to the :func:`qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` function.
+    This argument is used to limit the dimension of the SCI subspace.
