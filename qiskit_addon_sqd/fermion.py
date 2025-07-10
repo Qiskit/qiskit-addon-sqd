@@ -321,50 +321,30 @@ def diagonalize_fermionic_hamiltonian(
             samples_b, counts_b = np.unique(
                 bitstring_matrix_to_integers(samples[:, :norb]), return_counts=True
             )
-            # Sort the single-spin bitstrings by marginal probability.
-            samples_a = samples_a[np.argsort(counts_a)[::-1]]
-            samples_b = samples_b[np.argsort(counts_b)[::-1]]
-            if max_dim is None:
-                # No maximum dimension, use all the bitstrings.
-                strs_a = np.unique(np.concatenate((samples_a, include_a, carryover_strings_a)))
-                strs_b = np.unique(np.concatenate((samples_b, include_b, carryover_strings_b)))
-            else:
-                # Prioritize explicitly requested bitstrings.
-                strs_a = include_a.copy()
-                strs_b = include_b.copy()
-                # Next, prioritize carryover strings.
-                # The carryover strings are sorted in descending order by marginal weight.
-                # Passing assume_unique=True preserves this order.
-                carryover_strings_a = np.setdiff1d(carryover_strings_a, strs_a, assume_unique=True)
-                carryover_strings_b = np.setdiff1d(carryover_strings_b, strs_b, assume_unique=True)
-                num_a = cast(int, max_dim_a) - len(strs_a)
-                num_b = cast(int, max_dim_b) - len(strs_b)
-                strs_a = np.concatenate((strs_a, carryover_strings_a[:num_a]))
-                strs_b = np.concatenate((strs_b, carryover_strings_b[:num_b]))
-                # Finally, include sampled bitstrings.
-                # The sampled strings are sorted in descending order by marginal probability.
-                # Passing assume_unique=True preserves this order.
-                samples_a = np.setdiff1d(samples_a, strs_a, assume_unique=True)
-                samples_b = np.setdiff1d(samples_b, strs_b, assume_unique=True)
-                num_a = cast(int, max_dim_a) - len(strs_a)
-                num_b = cast(int, max_dim_b) - len(strs_b)
-                strs_a = np.concatenate((strs_a, samples_a[:num_a]))
-                strs_b = np.concatenate((strs_b, samples_b[:num_b]))
-                # Sort the bitstrings
-                strs_a.sort()
-                strs_b.sort()
             if symmetrize_spin:
-                merged = np.union1d(strs_a, strs_b)
-                if max_dim is None:
-                    strs_a = strs_b = merged
-                else:
-                    selected = (
-                        merged
-                        if len(merged) <= cast(int, max_dim_a)
-                        else rng.choice(merged, size=max_dim_a, replace=False)
-                    )
-                    selected.sort()
-                    strs_a = strs_b = selected
+                # Merge the bitstrings for spin alpha and spin beta.
+                samples = np.concatenate((samples_a, samples_b))
+                counts = np.concatenate((counts_a, counts_b))
+                # Sort the single-spin bitstrings in descending order by marginal probability.
+                samples = samples[np.argsort(counts)[::-1]]
+                # Prioritize explicitly requested bitstrings, then carryover strings, and
+                # finally sampled bitstrings.
+                # Note that in this case, carryover_strings_a and carryover_strings_b are equal.
+                strs = np.concatenate((include_a, include_b, carryover_strings_a, samples))
+                # Truncate bitstrings to the maximum dimension.
+                # In this case, max_dim_a and max_dim_b are equal.
+                strs_a = strs_b = _unique_with_order_preserved(strs)[:max_dim_a]
+            else:
+                # Sort the single-spin bitstrings in descending order by marginal probability.
+                samples_a = samples_a[np.argsort(counts_a)[::-1]]
+                samples_b = samples_b[np.argsort(counts_b)[::-1]]
+                # Prioritize explicitly requested bitstrings, then carryover strings, and
+                # finally sampled bitstrings
+                strs_a = np.concatenate((include_a, carryover_strings_a, samples_a))
+                strs_b = np.concatenate((include_b, carryover_strings_b, samples_b))
+                # Truncate bitstrings to the maximum dimension.
+                strs_a = _unique_with_order_preserved(strs_a)[:max_dim_a]
+                strs_b = _unique_with_order_preserved(strs_b)[:max_dim_b]
             ci_strings.append((strs_a, strs_b))
 
         # Run diagonalization
@@ -416,9 +396,7 @@ def diagonalize_fermionic_hamiltonian(
             carryover_strings = np.concatenate((carryover_strings_a, carryover_strings_b))
             weights = np.concatenate((weights_a, weights_b))
             carryover_strings = carryover_strings[np.argsort(weights)[::-1]]
-            _, indices = np.unique(carryover_strings, return_index=True)
-            indices.sort()
-            carryover_strings = carryover_strings[indices]
+            carryover_strings = _unique_with_order_preserved(carryover_strings)
             carryover_strings_a = carryover_strings_b = carryover_strings
         else:
             carryover_strings_a = carryover_strings_a[np.argsort(weights_a)[::-1]]
@@ -426,6 +404,13 @@ def diagonalize_fermionic_hamiltonian(
 
     # best_result is not None because there must have been at least one iteration
     return cast(SCIResult, best_result)
+
+
+def _unique_with_order_preserved(vals: np.ndarray) -> np.ndarray:
+    """Return unique values of an array while preserving the original order."""
+    _, indices = np.unique(vals, return_index=True)
+    indices.sort()
+    return vals[indices]
 
 
 def solve_sci_batch(
