@@ -197,7 +197,7 @@ class TestFermion(unittest.TestCase):
             hcore,
             eri,
             bit_array,
-            samples_per_batch=10,
+            samples_per_batch=20,
             norb=norb,
             nelec=nelec,
             max_iterations=5,

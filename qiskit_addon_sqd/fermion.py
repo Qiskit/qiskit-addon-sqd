@@ -415,7 +415,10 @@ def diagonalize_fermionic_hamiltonian(
         carryover_indices = indices[carryover_index:]
         _, n_strings_b = sci_state.amplitudes.shape
         alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
+        alpha_indices = np.unique(alpha_indices)
+        beta_indices = np.unique(beta_indices)
         carryover_strings_a = sci_state.ci_strs_a[alpha_indices]
+        assert len(carryover_strings_a) == len(np.unique(carryover_strings_a))
         carryover_strings_b = sci_state.ci_strs_b[beta_indices]
         # Sort carryover strings in descending order by marginal weight
         weights_a = np.sum(np.abs(sci_state.amplitudes[alpha_indices]) ** 2, axis=1)
@@ -431,6 +434,7 @@ def diagonalize_fermionic_hamiltonian(
         else:
             carryover_strings_a = carryover_strings_a[np.argsort(weights_a)[::-1]]
             carryover_strings_b = carryover_strings_b[np.argsort(weights_b)[::-1]]
+            assert len(carryover_strings_a) == len(np.unique(carryover_strings_a))
 
     # best_result is not None because there must have been at least one iteration
     return cast(SCIResult, best_result)
