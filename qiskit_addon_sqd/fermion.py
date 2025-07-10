@@ -314,50 +314,55 @@ def diagonalize_fermionic_hamiltonian(
         # Convert bitstrings to CI strings and include requested and carryover strings
         ci_strings = []
         for samples in subsamples:
-            samples_a = np.unique(bitstring_matrix_to_integers(samples[:, norb:]))
-            samples_b = np.unique(bitstring_matrix_to_integers(samples[:, :norb]))
+            # Get the single-spin bitstrings and counts.
+            samples_a, counts_a = np.unique(
+                bitstring_matrix_to_integers(samples[:, norb:]), return_counts=True
+            )
+            samples_b, counts_b = np.unique(
+                bitstring_matrix_to_integers(samples[:, :norb]), return_counts=True
+            )
+            # Sort the single-spin bitstrings by marginal probability.
+            samples_a = samples_a[np.argsort(counts_a)[::-1]]
+            samples_b = samples_b[np.argsort(counts_b)[::-1]]
             if max_dim is None:
+                # No maximum dimension, use all the bitstrings.
                 strs_a = np.unique(np.concatenate((samples_a, include_a, carryover_strings_a)))
                 strs_b = np.unique(np.concatenate((samples_b, include_b, carryover_strings_b)))
             else:
-                # Prioritize explicitly requested bitstrings
+                # Prioritize explicitly requested bitstrings.
                 strs_a = include_a.copy()
                 strs_b = include_b.copy()
-                # Next, prioritize carryover strings. Pick them randomly.
+                # Next, prioritize carryover strings.
+                # The carryover strings are sorted in descending order by marginal weight.
+                # Passing assume_unique=True preserves this order.
+                assert len(carryover_strings_a) == len(np.unique(carryover_strings_a))
+                assert len(carryover_strings_b) == len(np.unique(carryover_strings_b))
+                assert len(strs_a) == len(np.unique(strs_a))
+                assert len(strs_b) == len(np.unique(strs_b))
+                carryover_strings_a = np.setdiff1d(carryover_strings_a, strs_a, assume_unique=True)
+                carryover_strings_b = np.setdiff1d(carryover_strings_b, strs_b, assume_unique=True)
                 num_a = cast(int, max_dim_a) - len(strs_a)
                 num_b = cast(int, max_dim_b) - len(strs_b)
-                selected_a = (
-                    carryover_strings_a
-                    if len(carryover_strings_a) <= num_a
-                    else rng.choice(carryover_strings_a, size=num_a, replace=False)
-                )
-                selected_b = (
-                    carryover_strings_b
-                    if len(carryover_strings_b) <= num_b
-                    else rng.choice(carryover_strings_b, size=num_b, replace=False)
-                )
-                strs_a = np.concatenate((strs_a, selected_a))
-                strs_b = np.concatenate((strs_b, selected_b))
-                # Finally, include sampled bitstrings. Pick from them randomly.
+                strs_a = np.concatenate((strs_a, carryover_strings_a[:num_a]))
+                strs_b = np.concatenate((strs_b, carryover_strings_b[:num_b]))
+                # Finally, include sampled bitstrings.
+                # The sampled strings are sorted in descending order by marginal probability.
+                # Passing assume_unique=True preserves this order.
+                assert len(samples_a) == len(np.unique(samples_a))
+                assert len(samples_b) == len(np.unique(samples_b))
+                assert len(strs_a) == len(np.unique(strs_a))
+                assert len(strs_b) == len(np.unique(strs_b))
                 samples_a = np.setdiff1d(samples_a, strs_a, assume_unique=True)
                 samples_b = np.setdiff1d(samples_b, strs_b, assume_unique=True)
                 num_a = cast(int, max_dim_a) - len(strs_a)
                 num_b = cast(int, max_dim_b) - len(strs_b)
-                selected_a = (
-                    samples_a
-                    if len(samples_a) <= num_a
-                    else rng.choice(samples_a, size=num_a, replace=False)
-                )
-                selected_b = (
-                    samples_b
-                    if len(samples_b) <= num_b
-                    else rng.choice(samples_b, size=num_b, replace=False)
-                )
-                strs_a = np.concatenate((strs_a, selected_a))
-                strs_b = np.concatenate((strs_b, selected_b))
+                strs_a = np.concatenate((strs_a, samples_a[:num_a]))
+                strs_b = np.concatenate((strs_b, samples_b[:num_b]))
                 # Sort the bitstrings
                 strs_a.sort()
                 strs_b.sort()
+                assert len(strs_a) == len(np.unique(strs_a))
+                assert len(strs_b) == len(np.unique(strs_b))
             if symmetrize_spin:
                 merged = np.union1d(strs_a, strs_b)
                 if max_dim is None:
@@ -412,14 +417,20 @@ def diagonalize_fermionic_hamiltonian(
         alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
         carryover_strings_a = sci_state.ci_strs_a[alpha_indices]
         carryover_strings_b = sci_state.ci_strs_b[beta_indices]
+        # Sort carryover strings in descending order by marginal weight
+        weights_a = np.sum(np.abs(sci_state.amplitudes[alpha_indices]) ** 2, axis=1)
+        weights_b = np.sum(np.abs(sci_state.amplitudes[:, beta_indices]) ** 2, axis=0)
         if symmetrize_spin:
-            carryover_strings_a = carryover_strings_b = np.union1d(
-                carryover_strings_a, carryover_strings_b
-            )
-        # Remove carryover strings that were explicitly requested and therefore will be
-        # included anyway
-        carryover_strings_a = np.setdiff1d(carryover_strings_a, include_a)
-        carryover_strings_b = np.setdiff1d(carryover_strings_b, include_b)
+            carryover_strings = np.concatenate((carryover_strings_a, carryover_strings_b))
+            weights = np.concatenate((weights_a, weights_b))
+            carryover_strings = carryover_strings[np.argsort(weights)[::-1]]
+            _, indices = np.unique(carryover_strings, return_index=True)
+            indices.sort()
+            carryover_strings = carryover_strings[indices]
+            carryover_strings_a = carryover_strings_b = carryover_strings
+        else:
+            carryover_strings_a = carryover_strings_a[np.argsort(weights_a)[::-1]]
+            carryover_strings_b = carryover_strings_b[np.argsort(weights_b)[::-1]]
 
     # best_result is not None because there must have been at least one iteration
     return cast(SCIResult, best_result)
