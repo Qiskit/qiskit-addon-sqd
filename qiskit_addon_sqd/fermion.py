@@ -345,6 +345,8 @@ def diagonalize_fermionic_hamiltonian(
                 # Truncate bitstrings to the maximum dimension.
                 strs_a = _unique_with_order_preserved(strs_a)[:max_dim_a]
                 strs_b = _unique_with_order_preserved(strs_b)[:max_dim_b]
+            strs_a.sort()
+            strs_b.sort()
             ci_strings.append((strs_a, strs_b))
 
         # Run diagonalization
