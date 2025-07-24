@@ -217,7 +217,7 @@ class TestFermion(unittest.TestCase):
         self.assertEqual(sci_dim_b, 10)
         self.assertAlmostEqual(result.sci_state.spin_square(), expected_spin_square)
 
-    def test_diagonalize_fermionic_hamiltonian_empty_string(self):
+    def test_diagonalize_fermionic_hamiltonian_no_valid_bitstrings(self):
         """Test diagonalize_fermionic_hamiltonian when no valid bitstrings for subsampling."""
         # Build N2 molecule
         mol = pyscf.gto.Mole()
