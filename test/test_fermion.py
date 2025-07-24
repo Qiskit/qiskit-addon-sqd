@@ -249,7 +249,8 @@ class TestFermion(unittest.TestCase):
         bit_array = BitArray.from_samples(strings, num_bits=2 * norb)
 
         # Diagonalize
-        with pytest.raises(ValueError) as e_info:
+        # Check error with raise if no valid bitstrings
+        with pytest.raises(ValueError, match="did not contain any valid bitstrings"):
             _ = diagonalize_fermionic_hamiltonian(
                 hcore,
                 eri,
@@ -261,8 +262,21 @@ class TestFermion(unittest.TestCase):
                 symmetrize_spin=True,
                 seed=self.rng,
             )
-        # Check
-        assert e_info.value.args[0] == "No valid bitstrings for subsample."
+
+        # check when passing in initial_occupancies, no error will be raised
+        average_occupancy = np.zeros(norb) + 0.1
+        _ = diagonalize_fermionic_hamiltonian(
+            hcore,
+            eri,
+            bit_array,
+            samples_per_batch=1,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=5,
+            symmetrize_spin=True,
+            initial_occupancies=(average_occupancy, average_occupancy),
+            seed=self.rng,
+        )
 
     def test_diagonalize_fermionic_hamiltonian_reproducible_with_seed(self):
         """Test diagonalize_fermionic_hamiltonian result is reproducible with seed."""

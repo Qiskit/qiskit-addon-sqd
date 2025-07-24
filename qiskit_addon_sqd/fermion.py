@@ -295,15 +295,18 @@ def diagonalize_fermionic_hamiltonian(
             bitstrings, probs = postselect_by_hamming_right_and_left(
                 raw_bitstrings, raw_probs, hamming_right=n_alpha, hamming_left=n_beta
             )
+            if bitstrings.size == 0:
+                raise ValueError(
+                    "The input bit array did not contain any valid bitstrings."
+                    "Either pass a bit array that contains at least one valid bitstring "
+                    "(with the correct right and left Hamming weights), or specify a value for initial_occupancies."
+                )
         else:
             # If we do have average orbital occupancy information, use it to refine the
             # full set of noisy configurations
             bitstrings, probs = recover_configurations(
                 raw_bitstrings, raw_probs, current_occupancies, n_alpha, n_beta, rand_seed=rng
             )
-
-        if bitstrings.size == 0:
-            raise ValueError("No valid bitstrings for subsample.")
 
         # Subsample batches of bitstrings
         subsamples = subsample(
