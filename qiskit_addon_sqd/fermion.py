@@ -295,7 +295,7 @@ def diagonalize_fermionic_hamiltonian(
             bitstrings, probs = postselect_by_hamming_right_and_left(
                 raw_bitstrings, raw_probs, hamming_right=n_alpha, hamming_left=n_beta
             )
-            if bitstrings.size == 0:
+            if not bitstrings.size:
                 raise ValueError(
                     "The input bit array did not contain any valid bitstrings. "
                     "Either pass a bit array that contains at least one valid bitstring "
