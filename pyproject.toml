@@ -66,6 +66,8 @@ lint = [
     "pylint==3.3.7",
     "reno>=4.1",
     "toml>=0.9.6",
+    "ruff==0.12.7",
+    "nbqa>=1.8.5",
 ]
 notebook-dependencies = [
     "qiskit-addon-sqd",
