@@ -56,7 +56,7 @@ def solve_qubit(
     """
     # Get a sparse representation of the projected operator
     d, _ = bitstring_matrix.shape
-    ham_proj = project_operator_to_subspace(bitstring_matrix, hamiltonian, verbose=verbose)
+    ham_proj = project_operator_to_subspace(bitstring_matrix, hamiltonian)
 
     if verbose:  # pragma: no cover
         print("Diagonalizing Hamiltonian in the subspace...")
@@ -68,8 +68,6 @@ def solve_qubit(
 def project_operator_to_subspace(
     bitstring_matrix: np.ndarray,
     hamiltonian: SparsePauliOp,
-    *,
-    verbose: bool = False,
 ) -> spmatrix:
     """Project a Pauli operator onto a Hilbert subspace defined by the computational basis states (rows) in ``bitstring_matrix``.
 
@@ -148,7 +146,7 @@ def _bitarray_to_u64_pair(bitarr):
     return (chunk1, chunk2)
 
 
-def _build_operator(connected_bss, idx_map_keys, amplitudes, hamiltonian, d, batch_size=55):
+def _build_operator(connected_bss, idx_map_keys, amplitudes, hamiltonian, d):
     """Project a Hamiltonian onto a subspace."""
     # Create batches
     connected_bss = np.asarray(connected_bss, dtype=bool)
