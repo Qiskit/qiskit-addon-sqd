@@ -13,7 +13,6 @@
 # Reminder: update the RST file in docs/apidocs when adding new interfaces.
 """Functions for handling quantum samples."""
 
-
 import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 from scipy.sparse import coo_matrix, spmatrix
