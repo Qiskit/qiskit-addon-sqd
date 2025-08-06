@@ -34,9 +34,8 @@ dependencies = [
 ]
 
 [tool.maturin]
-manifest-path = "Cargo.toml"
+manifest-path = "qiskit_addon_sqd/_accelerate/Cargo.toml"
 bindings = "pyo3-abi3-py310"
-
 features = []
 profile = "release"
 module-name = "qiskit_addon_sqd._accelerate"
