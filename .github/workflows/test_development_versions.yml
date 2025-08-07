@@ -24,16 +24,12 @@ jobs:
         python-version: ["3.10"]
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: nightly
-          override: true
       - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --manifest-path rust_ext/Cargo.toml
+        run: cargo check --manifest-path rust_ext/Cargo.toml
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
