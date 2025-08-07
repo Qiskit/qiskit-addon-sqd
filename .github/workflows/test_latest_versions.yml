@@ -31,9 +31,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
         run: |
           python -m pip install --upgrade pip
           pip install tox
+          pip install maturin
+      - name: Install package
+        run: maturin develop
       - name: Test using tox environment
         shell: bash
         run: |
