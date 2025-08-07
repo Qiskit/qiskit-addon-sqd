@@ -44,7 +44,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install tox maturin
-          maturin develop --release
+      - name: Build wheel with maturin
+        run: maturin build --release --manifest-path qiskit_addon_sqd/_accelerate/Cargo.toml
+      - name: Install wheel
+        run: pip install target/wheels/*.whl
       - name: Test using tox environment
         shell: bash
         run: |
