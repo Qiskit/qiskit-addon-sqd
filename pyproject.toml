@@ -35,7 +35,7 @@ dependencies = [
 
 [tool.maturin]
 manifest-path = "rust_ext/Cargo.toml"
-bindings = "pyo3-abi3-py39"
+bindings = "pyo3"
 features = []
 profile = "release"
 module-name = "qiskit_addon_sqd._accelerate"
