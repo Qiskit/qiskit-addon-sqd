@@ -138,13 +138,13 @@ def _bitarray_to_u64_pair(bitarr):
     for idx, b in enumerate(bitarr):
         rev_idx = n_bits - 1 - idx
         if rev_idx < 64:
-            chunk1 = np.uint64(chunk1 << 1)
+            chunk1 <<= 1
             if b:
-                chunk1 = np.uint64(chunk1 |= 1)
+                chunk1 |= 1
         else:
-            chunk2 = np.uint64(chunk2 << 1)
+            chunk2 <<= 1
             if b:
-                chunk2 = np.uint64(chunk2 |= 1)
+                chunk2 |= 1
 
     return (chunk1, chunk2)
 
