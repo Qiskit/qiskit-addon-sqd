@@ -26,21 +26,23 @@ jobs:
             python-version: "3.10"
     steps:
       - uses: actions/checkout@v4
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
         run: |
           python -m pip install --upgrade pip
           pip install tox
-          pip install maturin
-      - name: Install package
-        run: maturin develop
       - name: Test using tox environment
         shell: bash
         run: |
