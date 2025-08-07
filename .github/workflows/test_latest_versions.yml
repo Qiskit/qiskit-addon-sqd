@@ -35,6 +35,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
+          args: --manifest-path qiskit_addon_sqd/_accelerate/Cargo.toml
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
