@@ -27,9 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Rust
-        uses: actions/setup-rust@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          rust-version: nightly
+          toolchain: nightly
       - name: Run cargo check
         run: cargo check --manifest-path rust_ext/Cargo.toml
       - name: Set up Python ${{ matrix.python-version }}
