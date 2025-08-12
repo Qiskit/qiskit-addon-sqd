@@ -77,14 +77,25 @@ class SCIState:
     def save(self, filename):
         """Save the SCIState object to an .npz file."""
         np.savez(
-            filename, amplitudes=self.amplitudes, ci_strs_a=self.ci_strs_a, ci_strs_b=self.ci_strs_b
+            filename,
+            amplitudes=self.amplitudes,
+            ci_strs_a=self.ci_strs_a,
+            ci_strs_b=self.ci_strs_b,
+            norb=self.norb,
+            nelec=self.nelec,
         )
 
     @classmethod
     def load(cls, filename):
         """Load an SCIState object from an .npz file."""
         with np.load(filename) as data:
-            return cls(data["amplitudes"], data["ci_strs_a"], data["ci_strs_b"])
+            return cls(
+                data["amplitudes"],
+                data["ci_strs_a"],
+                data["ci_strs_b"],
+                norb=data["norb"],
+                nelec=tuple(data["nelec"]),
+            )
 
     def rdm(self, rank: int = 1, spin_summed: bool = False) -> np.ndarray:
         """Compute reduced density matrix."""

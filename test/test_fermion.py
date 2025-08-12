@@ -22,7 +22,11 @@ import pytest
 from pyscf.fci import cistring, spin_square
 from qiskit.primitives import BitArray
 from qiskit_addon_sqd.counts import generate_bit_array_uniform
-from qiskit_addon_sqd.fermion import bitstring_matrix_to_ci_strs, diagonalize_fermionic_hamiltonian
+from qiskit_addon_sqd.fermion import (
+    SCIState,
+    bitstring_matrix_to_ci_strs,
+    diagonalize_fermionic_hamiltonian,
+)
 
 
 def _sci_vec_to_fci_vec(
@@ -354,3 +358,25 @@ class TestFermion(unittest.TestCase):
         result = bitstring_matrix_to_ci_strs(bitstrings)
         result_string = format(result[0][0], f"0{norb}b")
         assert result_string == bitstring
+
+
+def test_sci_state_save_load(tmp_path):
+    """Test saving and loading SCIState."""
+    norb = 5
+    nelec = (3, 2)
+    ci_strs_a = np.array([0b00111, 0b01011])
+    ci_strs_b = np.array([0b00011, 0b00101])
+    amplitudes = np.array([[0.5, 0.5], [0.5, 0.5]])
+
+    sci_state = SCIState(
+        amplitudes=amplitudes, ci_strs_a=ci_strs_a, ci_strs_b=ci_strs_b, norb=norb, nelec=nelec
+    )
+    filepath = tmp_path / "sci_state.npz"
+    sci_state.save(filepath)
+    loaded_state = SCIState.load(filepath)
+
+    np.testing.assert_array_equal(loaded_state.amplitudes, sci_state.amplitudes)
+    np.testing.assert_array_equal(loaded_state.ci_strs_a, sci_state.ci_strs_a)
+    np.testing.assert_array_equal(loaded_state.ci_strs_b, sci_state.ci_strs_b)
+    assert loaded_state.norb == sci_state.norb
+    assert loaded_state.nelec == sci_state.nelec
