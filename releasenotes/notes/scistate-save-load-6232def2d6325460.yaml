@@ -1,0 +1,4 @@
+---
+fixes:
+  - |
+    Fixed a bug in which saving and loading :class:`qiskit_addon_sqd.fermion.SCIState` objects resulted in an error.
