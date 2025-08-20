@@ -27,7 +27,7 @@ jobs:
         with:
           toolchain: nightly
       - name: Run cargo check
-        run: cargo check --manifest-path rust_ext/Cargo.toml
+        run: cargo check
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
