@@ -86,11 +86,6 @@ def project_operator_to_subspace(
        this can be rather time consuming. See :func:`qiskit_addon_sqd.qubit.sort_and_remove_duplicates`
        for a simple way to ensure your bitstring matrix is well-formatted.
 
-    .. note::
-       This function relies on ``jax`` to efficiently perform some calculations. ``jax``
-       converts the bit arrays to ``int64_t``, which means the bit arrays in
-       ``bitstring_matrix`` may not have length greater than ``63``.
-
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
             values such that each row represents a single bitstring. This set of
