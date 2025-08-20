@@ -34,7 +34,6 @@ dependencies = [
 ]
 
 [tool.maturin]
-manifest-path = "rust_ext/Cargo.toml"
 bindings = "pyo3"
 features = []
 profile = "release"
