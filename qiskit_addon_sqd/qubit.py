@@ -74,17 +74,10 @@ def project_operator_to_subspace(
 ) -> spmatrix:
     """Project a Pauli operator onto a Hilbert subspace defined by the computational basis states (rows) in ``bitstring_matrix``.
 
-    The output sparse matrix, ``A``, represents an ``NxN`` matrix s.t. ``N`` is the number of rows
+    The output sparse matrix, ``A``, represents an ``NxN`` matrix s.t. ``N`` is the number of unique rows
     in ``bitstring_matrix``. The rows of ``A`` represent the input configurations, and the columns
     represent the connected component associated with the configuration in the corresponding row. The
     non-zero elements of the matrix represent the complex amplitudes associated with the connected components.
-
-    .. note::
-       The bitstrings in the ``bitstring_matrix`` must be unique and sorted in ascending order
-       according to their unsigned integer representation. Otherwise the projection will return wrong
-       results. This function does not explicitly check for uniqueness and order because
-       this can be rather time consuming. See :func:`qiskit_addon_sqd.qubit.sort_and_remove_duplicates`
-       for a simple way to ensure your bitstring matrix is well-formatted.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
@@ -104,6 +97,7 @@ def project_operator_to_subspace(
         ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
 
     """
+    bitstring_matrix = np.unique(bitstring_matrix, axis=0)
     num_samples, num_qubits = bitstring_matrix.shape
     num_ham_terms = len(hamiltonian.coeffs)
     diags = np.zeros((num_ham_terms, num_qubits), dtype=bool)
