@@ -49,10 +49,12 @@ If so, the first step is to clone the ``qiskit-addon-sqd`` repository.
 
     git clone git@github.com:Qiskit/qiskit-addon-sqd.git
 
-Next, upgrade pip and enter the repository.
+Next, install the Rust toolchain, upgrade pip, and enter the repository. Refer to the `Rust documentation <https://www.rust-lang.org/tools/install>`__
+for instructions on installing the toolchain.
 
 .. code:: sh
-
+    
+    ### <INSTALL RUST HERE> ###
     pip install --upgrade pip
     cd qiskit-addon-sqd
 
