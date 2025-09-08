@@ -175,20 +175,7 @@ def _p_flip_1_to_0(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  #
         The probability with which to flip the bit
 
     """
-    # Occupancy is < naive expectation.
-    # The probability weight to flip the bit decreases linearly from ``1.0`` to
-    # ``eps`` as the occupation increases towards the expected ratio
-    if occ < ratio_exp:
-        slope = -(1.0 - eps) / ratio_exp
-        return 1.0 + occ * slope
-
-    # Occupancy is >= naive expectation.
-    # Flip 1s to 0 with small (<eps) probability in this case
-    if ratio_exp == 0.0:
-        return 1 - eps
-    slope = -eps / (1 - ratio_exp)
-    intercept = eps / (1 - ratio_exp)
-    return occ * slope + intercept
+    return _p_flip_0_to_1(1 - ratio_exp, 1 - occ, eps)
 
 
 def _bipartite_bitstring_correcting(
