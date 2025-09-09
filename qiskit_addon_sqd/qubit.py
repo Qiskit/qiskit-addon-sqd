@@ -36,6 +36,10 @@ def solve_qubit(
     will be sorted and de-duplicated in this function, as the underlying solver
     requires that structure.
 
+    .. note::
+
+        This function supports systems of up to 128 qubits.
+
     This function calls `scipy.sparse.linalg.eigsh <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.eigsh.html#eigsh>`_ for the diagonalization.
 
     Args:
@@ -73,6 +77,10 @@ def project_operator_to_subspace(
     in ``bitstring_matrix``. The rows of ``A`` represent the input configurations, and the columns
     represent the connected component associated with the configuration in the corresponding row. The
     non-zero elements of the matrix represent the complex amplitudes associated with the connected components.
+
+    .. note::
+
+        This function supports systems of up to 128 qubits.
 
     Args:
         bitstring_matrix: A 2D array of ``bool`` representations of bit
