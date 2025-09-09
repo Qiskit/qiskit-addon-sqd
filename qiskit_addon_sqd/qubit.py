@@ -27,7 +27,6 @@ from qiskit_addon_sqd._accelerate import (  # type: ignore[attr-defined]
 def solve_qubit(
     bitstring_matrix: np.ndarray,
     hamiltonian: SparsePauliOp,
-    *,
     **scipy_kwargs,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Find the energies and eigenstates of a Hamiltonian projected into a subspace.
