@@ -28,7 +28,6 @@ def solve_qubit(
     bitstring_matrix: np.ndarray,
     hamiltonian: SparsePauliOp,
     *,
-    verbose: bool = False,
     **scipy_kwargs,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Find the energies and eigenstates of a Hamiltonian projected into a subspace.
@@ -46,7 +45,6 @@ def solve_qubit(
             bitstrings specifies the subspace into which the ``hamiltonian`` will be
             projected and diagonalized.
         hamiltonian: A Hamiltonian specified as a Pauli operator.
-        verbose: Whether to print the stage of the subroutine.
         **scipy_kwargs: Keyword arguments to be passed to `scipy.sparse.linalg.eigsh <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.eigsh.html#eigsh>`_.
 
     Returns:
@@ -61,8 +59,6 @@ def solve_qubit(
     d, _ = bitstring_matrix.shape
     ham_proj = project_operator_to_subspace(bitstring_matrix, hamiltonian)
 
-    if verbose:  # pragma: no cover
-        print("Diagonalizing Hamiltonian in the subspace...")
     energies, eigenstates = eigsh(ham_proj, **scipy_kwargs)
 
     return energies, eigenstates
@@ -85,7 +81,6 @@ def project_operator_to_subspace(
             bitstrings specifies the subspace into which the ``hamiltonian`` will be
             projected and diagonalized.
         hamiltonian: A Pauli operator to project onto a Hilbert subspace defined by ``bitstring_matrix``.
-        verbose: Whether to print the stage of the subroutine.
 
     Return:
         A `scipy.sparse.coo_matrix <https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html#coo-matrix>`_ representing the operator projected in the subspace. The rows
