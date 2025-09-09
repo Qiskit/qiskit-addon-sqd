@@ -55,9 +55,11 @@ def solve_qubit(
         - 2D array with the eigenvectors. Each column represents an eigenvector.
 
     Raises:
-        ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
+        ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length <= ``128``.
 
     """
+    if bitstring_matrix.shape[1] > 128:
+        raise ValueError("Bitstrings (rows) in bitstring_matrix must have length <= 128.")
     # Get a sparse representation of the projected operator
     d, _ = bitstring_matrix.shape
     ham_proj = project_operator_to_subspace(bitstring_matrix, hamiltonian)
@@ -96,9 +98,11 @@ def project_operator_to_subspace(
         associated with the pairs of connected components.
 
     Raises:
-        ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length < ``64``.
+        ValueError: Bitstrings (rows) in ``bitstring_matrix`` must have length <= ``128``.
 
     """
+    if bitstring_matrix.shape[1] > 128:
+        raise ValueError("Bitstrings (rows) in bitstring_matrix must have length <= 128.")
     bitstring_matrix = np.unique(bitstring_matrix, axis=0)
     num_samples, num_qubits = bitstring_matrix.shape
     num_ham_terms = len(hamiltonian.coeffs)
