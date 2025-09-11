@@ -101,15 +101,17 @@ fn generate_sparse_elements(
     Ok((py_vals.into(), py_rows.into(), py_cols.into()))
 }
 
-/// Project each of the `L` terms in a Pauli operator, specified by `diag`, `sign`, and
-/// `imag` vectors, onto the subspace specified by an `MxN`-shaped `bitstring_matrix`.
-/// This results in `L` `MxN` bitstring matrices, each representing one Pauli term and
-/// associated with a unit amplitude in `{1.0, -1.0, 1.0j, -1.0j}`.
+/// Find the connected elements for each Pauli term, specified by the rows in `diag`,
+/// `sign`, and `diag`, with respect to the subspace defined by `bitstring_matrix`.
+///
+/// This results in `L` `MxN` bitstring matrices representing the connected elements
+/// for each Pauli term. `L` is the number of Pauli terms in the operator
+/// (i.e. rows in `sign`, `imag`, `diag`), `M` is the size of the subspace, and `N`
+/// is the number of qubits in the system. An `LxM` array of amplitudes will also be
+/// output -- one for each connected element associated with each Pauli term.
 ///
 /// The columns of all input data structures represent qubits `(N, 0]` respectively
 /// (i.e. index `0` represents qubit `N` and index `N-1` represents qubit `0`).
-///
-/// Each row in `diag`, `sign`, and `imag` represents one Pauli term in an operator.
 #[pyfunction]
 fn connected_elements_and_amplitudes(
     py: Python<'_>,
