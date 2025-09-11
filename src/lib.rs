@@ -1,3 +1,4 @@
+use hashbrown::HashMap;
 use num_complex::Complex;
 use numpy::ndarray::{Array2, Array3, Axis};
 use numpy::{
@@ -8,8 +9,6 @@ use pyo3::types::PyModule;
 use pyo3::wrap_pyfunction;
 use pyo3::Bound;
 use rayon::prelude::*;
-use hashbrown::HashMap;
-
 
 #[pyfunction]
 fn generate_sparse_elements(
@@ -42,7 +41,7 @@ fn generate_sparse_elements(
         .enumerate()
         .collect();
 
-    // In parallel, create a dict mapping (batch_id, (conn_bs, amps)) to a hash map 
+    // In parallel, create a dict mapping (batch_id, (conn_bs, amps)) to a hash map
     // defining a sparse matrix (i.e. {(batch_id, (conn_bs, amps)): {(row, col): amplitude}})
     let partial_accumulators: Vec<HashMap<(usize, usize), Complex<f64>>> = batch_items
         .par_iter()
@@ -102,6 +101,15 @@ fn generate_sparse_elements(
     Ok((py_vals.into(), py_rows.into(), py_cols.into()))
 }
 
+/// Project each of the `L` terms in a Pauli operator, specified by `diag`, `sign`, and
+/// `imag` vectors, onto the subspace specified by an `MxN`-shaped `bitstring_matrix`.
+/// This results in `L` `MxN` bitstring matrices, each representing one Pauli term and
+/// associated with a unit amplitude in `{1.0, -1.0, 1.0j, -1.0j}`.
+///
+/// The columns of all input data structures represent qubits `(N, 0]` respectively
+/// (i.e. index `0` represents qubit `N` and index `N-1` represents qubit `0`).
+///
+/// Each row in `diag`, `sign`, and `imag` represents one Pauli term in an operator.
 #[pyfunction]
 fn connected_elements_and_amplitudes(
     py: Python<'_>,
@@ -136,27 +144,31 @@ fn connected_elements_and_amplitudes(
         .into_par_iter()
         .zip(amp_batches.into_par_iter())
         .zip(
-            diag_batches
-                .into_par_iter()
-                .zip(sign_batches.into_par_iter().zip(imag_batches.into_par_iter())),
+            diag_batches.into_par_iter().zip(
+                sign_batches
+                    .into_par_iter()
+                    .zip(imag_batches.into_par_iter()),
+            ),
         )
-        .for_each(|((mut conn_batch, mut amp_batch), (diag_row, (sign_row, imag_row)))| {
-            for (i, row) in bitstring_matrix.outer_iter().enumerate() {
-                let mut total = Complex::new(1.0, 0.0);
-                for (j, &b_val) in row.iter().enumerate() {
-                    if b_val == diag_row[j] {
-                        conn_batch[[i, j]] = true;
+        .for_each(
+            |((mut conn_batch, mut amp_batch), (diag_row, (sign_row, imag_row)))| {
+                for (i, row) in bitstring_matrix.outer_iter().enumerate() {
+                    let mut total = Complex::new(1.0, 0.0);
+                    for (j, &b_val) in row.iter().enumerate() {
+                        if b_val == diag_row[j] {
+                            conn_batch[[i, j]] = true;
+                        }
+                        if b_val && sign_row[j] {
+                            total *= -1.0;
+                        }
+                        if imag_row[j] {
+                            total *= Complex::new(0.0, 1.0);
+                        }
                     }
-                    if b_val && sign_row[j] {
-                        total *= -1.0;
-                    }
-                    if imag_row[j] {
-                        total *= Complex::new(0.0, 1.0);
-                    }
+                    amp_batch[i] = total;
                 }
-                amp_batch[i] = total;
-            }
-        });
+            },
+        );
 
     Ok((
         conn_ele.into_pyarray(py).into(),
