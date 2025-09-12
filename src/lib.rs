@@ -120,7 +120,7 @@ fn generate_sparse_elements(
 }
 
 /// Find the connected elements for each Pauli term, specified by the rows in `diag`,
-/// `sign`, and `diag`, with respect to the subspace defined by `bitstring_matrix`.
+/// `sign`, and `imag`, with respect to the subspace defined by `bitstring_matrix`.
 ///
 /// This results in `L` `MxN` bitstring matrices representing the connected elements
 /// for each Pauli term. `L` is the number of Pauli terms in the operator
