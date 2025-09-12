@@ -1,3 +1,5 @@
+//! Module for projecting a Pauli observable onto a subspace defined by bitstring samples
+
 use hashbrown::HashMap;
 use num_complex::Complex;
 use numpy::ndarray::{Array2, Array3, Axis};
@@ -10,6 +12,20 @@ use pyo3::wrap_pyfunction;
 use pyo3::Bound;
 use rayon::prelude::*;
 
+/// Generate a sparse matrix representing a Pauli observable projected onto the subspace defined
+/// by the `keys`.
+///
+/// `keys` is an `Nx2` array where each row represents a bit-packed bitstring sample and the
+/// row index represents the column index in the output sparse matrix.
+///
+/// `connected_bs_batch` is a 3D array containing a connected elements matrix for each Pauli
+/// term in the observable. For each connected element (row) in each connected element matrix,
+/// we determine whether it is in the original subspace (`keys`). If it is, we add the connected
+/// element's associated value (coeff * amplitude) to the output sparse matrix.
+///
+/// `amplitudes` are factors associated with each connected element. `coeffs` are factors
+/// associated with each Pauli term in the observable. These will be multiplied to determine
+/// the magnitude of a connected element in the projected operator.
 #[pyfunction]
 fn generate_sparse_elements(
     py: Python<'_>,
@@ -43,11 +59,11 @@ fn generate_sparse_elements(
 
     // In parallel, create a dict mapping (batch_id, (conn_bs, amps)) to a hash map
     // defining a sparse matrix (i.e. {(batch_id, (conn_bs, amps)): {(row, col): amplitude}})
-    let partial_accumulators: Vec<HashMap<(usize, usize), Complex<f64>>> = batch_items
+    let partial_accumulators: Vec<Vec<(usize, usize, Complex<f64>)>> = batch_items
         .par_iter()
         .map(|(batch_id, (bs, amps))| {
             let coeff = coeffs_arr[*batch_id];
-            let mut local_acc = HashMap::new();
+            let mut local_acc = Vec::<(usize, usize, Complex<f64>)>::new();
 
             for (i, row) in bs.outer_iter().enumerate() {
                 let mut key_bits = (0u64, 0u64);
@@ -68,7 +84,7 @@ fn generate_sparse_elements(
                 }
                 if let Some(&col) = idx_map.get(&key_bits) {
                     let val = coeff * amps[i];
-                    *local_acc.entry((i, col)).or_insert(Complex::new(0.0, 0.0)) += val;
+                    local_acc.push((i, col, val));
                 }
             }
             local_acc
@@ -77,9 +93,11 @@ fn generate_sparse_elements(
 
     // Merge all partial accumulators
     let mut accumulator: HashMap<(usize, usize), Complex<f64>> = HashMap::new();
-    for local_acc in partial_accumulators {
-        for (key, val) in local_acc {
-            *accumulator.entry(key).or_insert(Complex::new(0.0, 0.0)) += val;
+    for partial_accumulator in partial_accumulators {
+        for (i, col, val) in partial_accumulator {
+            *accumulator
+                .entry((i, col))
+                .or_insert(Complex::new(0.0, 0.0)) += val;
         }
     }
 
