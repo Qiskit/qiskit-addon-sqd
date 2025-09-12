@@ -29,7 +29,7 @@ Install from PyPI
     pip install 'qiskit-addon-sqd'
 
 
-Option 2: Install from Source
+Install from Source
 ^^^^^^^^^^^^^^^^^^^
 
 Users who wish to develop in the repository or run the notebooks locally may want to install from source.
