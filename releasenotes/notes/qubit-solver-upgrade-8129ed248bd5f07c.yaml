@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    :func:`qiskit_addon_sqd.qubit.solve_qubit` and :func:`qiskit_addon_sqd.qubit.project_operator_to_subspace` now support systems of up to 128 qubits and have been accelerated with a Rust backend. Check out the `tutorial <https://qiskit.github.io/qiskit-addon-sqd/tutorials/03_pauli_hamiltonian.html>`_ for more info.
+upgrade:
+  - |
+    Removed the ``verbose`` kwarg from :func:`qiskit_addon_sqd.qubit.solve_qubit` and :func:`qiskit_addon_sqd.qubit.project_operator_to_subspace`.

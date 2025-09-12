@@ -1,0 +1,15 @@
+[package]
+name = "qiskit_addon_sqd_accelerate"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "_accelerate"
+crate-type = ["cdylib"]
+
+[dependencies]
+rayon = "1.8"
+pyo3 = { version = "0.24" , features = ["abi3-py310", "extension-module", "macros"] }
+numpy   = "0.24"
+num-complex = "0.4"
+hashbrown = "0.15"

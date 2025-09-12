@@ -1,0 +1,5 @@
+---
+upgrade:
+  - |
+    Removed the ``sort_and_remove_duplicates`` and ``matrix_elements_from_pauli`` functions from the ``qubit`` sub-package.
+    These are not needed with the addition of the enhanced qubit solver being released in v0.12.

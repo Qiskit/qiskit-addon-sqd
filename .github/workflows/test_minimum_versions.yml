@@ -19,9 +19,15 @@ jobs:
       max-parallel: 4
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.9]
+        python-version: ["3.10"]
     steps:
       - uses: actions/checkout@v5
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+      - name: Run cargo check
+        run: cargo check
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:

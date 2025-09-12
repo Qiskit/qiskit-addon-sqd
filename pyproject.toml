@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.0"]
+build-backend = "maturin"
 
 [project]
 name = "qiskit-addon-sqd"
@@ -26,12 +26,18 @@ requires-python = ">=3.9"
 
 dependencies = [
     "qiskit>=1.2, <3",
-    "numpy>=1.26",
+    "numpy>=2.0",
     "pyscf>=2.5; sys_platform != 'win32'",
     "jaxlib>=0.4.30",
     "jax>=0.4.30",
     "scipy>=1.13.1",
 ]
+
+[tool.maturin]
+bindings = "pyo3"
+features = []
+profile = "release"
+module-name = "qiskit_addon_sqd._accelerate"
 
 [project.optional-dependencies]
 dev = [
@@ -59,6 +65,8 @@ lint = [
     "pylint==3.3.8",
     "reno>=4.1",
     "toml>=0.9.6",
+    "ruff==0.12.11",
+    "nbqa>=1.8.5",
 ]
 notebook-dependencies = [
     "qiskit-addon-sqd",
