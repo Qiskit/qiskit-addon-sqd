@@ -1,12 +1,8 @@
 Installation Instructions
 =========================
 
-Let's see how to install the package. The first
-thing to do is choose how you're going to run and install the
-package. There are two primary ways to do this:
-
-- :ref:`Option 1`
-- :ref:`Option 2`
+Let's see how to install the package. The first thing to do is ensure your Python environment
+is set up correctly. To create a new environment:
 
 Pre-Installation
 ^^^^^^^^^^^^^^^^
@@ -23,23 +19,18 @@ Activate your new environment.
 
     source /path/to/virtual/environment/bin/activate
 
+There are two primary ways to install this package -- from PyPI or source. The preferred method is to install from PyPI:
 
-.. _Option 1:
-
-Option 1: Install from PyPI
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The most straightforward way to install the ``qiskit-addon-sqd`` package is via ``PyPI``.
+Install from PyPI
+^^^^^^^^^^^^^^^^^
 
 .. code:: sh
 
     pip install 'qiskit-addon-sqd'
 
 
-.. _Option 2:
-
 Option 2: Install from Source
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 
 Users who wish to develop in the repository or run the notebooks locally may want to install from source.
 
