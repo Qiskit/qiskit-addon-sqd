@@ -1,4 +1,4 @@
-name: Publish release
+name: Build and publish release
 
 on:
   workflow_dispatch:
@@ -27,7 +27,7 @@ jobs:
           path: dist/*.tar.gz
 
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build wheel on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
