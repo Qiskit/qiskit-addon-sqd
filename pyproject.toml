@@ -34,7 +34,8 @@ dependencies = [
 
 [tool.maturin]
 bindings = "pyo3"
-features = []
+python-source = "python"
+features = ["pyo3/extension-module"]
 profile = "release"
 module-name = "qiskit_addon_sqd._accelerate"
 
