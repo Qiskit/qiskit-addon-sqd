@@ -34,9 +34,9 @@ from pyscf.fci.selected_ci import (
 from qiskit.primitives import BitArray
 from scipy import linalg as LA
 
-from qiskit_addon_sqd.configuration_recovery import recover_configurations
-from qiskit_addon_sqd.counts import bit_array_to_arrays, bitstring_matrix_to_integers
-from qiskit_addon_sqd.subsampling import postselect_by_hamming_right_and_left, subsample
+from .configuration_recovery import recover_configurations
+from .counts import bit_array_to_arrays, bitstring_matrix_to_integers
+from .subsampling import postselect_by_hamming_right_and_left, subsample
 
 config.update("jax_enable_x64", True)  # To deal with large integers
 

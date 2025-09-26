@@ -18,7 +18,7 @@ from qiskit.quantum_info import SparsePauliOp
 from scipy.sparse import coo_matrix, spmatrix
 from scipy.sparse.linalg import eigsh
 
-from qiskit_addon_sqd._accelerate import (  # type: ignore[attr-defined]
+from ._accelerate import (
     connected_elements_and_amplitudes,
     generate_sparse_elements,
 )
