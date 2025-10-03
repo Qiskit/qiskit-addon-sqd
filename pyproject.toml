@@ -39,6 +39,9 @@ features = ["pyo3/extension-module"]
 profile = "release"
 module-name = "qiskit_addon_sqd._accelerate"
 
+[tool.cibuildwheel]
+skip = ["*-musllinux*"]
+
 [project.optional-dependencies]
 dev = [
     "qiskit-addon-sqd[test,nbtest,lint,docs]",
