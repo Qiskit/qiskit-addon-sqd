@@ -40,7 +40,17 @@ profile = "release"
 module-name = "qiskit_addon_sqd._accelerate"
 
 [tool.cibuildwheel]
-skip = ["*-musllinux*"]
+manylinux-x86_64-image = "manylinux2014"
+manylinux-aarch64-image = "manylinux2014"
+build = "cp310-*"
+skip = "*musllinux* *win32 *i686"
+test-skip = "*win32 *linux_i686"
+test-extras = "test"
+test-command = "pytest {project}/test"
+environment = 'RUSTUP_TOOLCHAIN="stable"'
+
+[tool.cibuildwheel.macos]
+environment = "MACOSX_DEPLOYMENT_TARGET='10.12' RUSTUP_TOOLCHAIN=stable"
 
 [project.optional-dependencies]
 dev = [
