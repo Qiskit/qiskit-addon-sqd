@@ -1,4 +1,0 @@
----
-upgrade:
-  - |
-    Included a Rust acceleration module. Now, users installing from source must first `install the Rust toolchain <https://www.rust-lang.org/tools/install>`_.

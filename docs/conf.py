@@ -83,7 +83,6 @@ autodoc_default_options = {
     "inherited-members": None,
     "show-inheritance": True,
 }
-autodoc_mock_imports = ["qiskit_addon_sqd._accelerate"]
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
 

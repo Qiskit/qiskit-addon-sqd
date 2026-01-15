@@ -23,13 +23,7 @@ jobs:
         os: [ubuntu-latest]
         python-version: ["3.10", "3.12"]
     steps:
-      - uses: actions/checkout@v6
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: nightly
-      - name: Run cargo check
-        run: cargo check
+      - uses: actions/checkout@v5
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
@@ -64,9 +58,9 @@ jobs:
         shell: bash
         run: >-
           extremal-python-dependencies pin-dependencies --inplace
-          "qiskit @ file:$(realpath qiskit/dist/*.whl)"
-          "qiskit-ibm-runtime @ file:$(realpath qiskit-ibm-runtime/dist/*.whl)"
-          "qiskit-addon-utils @ file:$(realpath qiskit-addon-utils/dist/*.whl)"
+          "qiskit @ file:$(echo qiskit/dist/*.whl)"
+          "qiskit-ibm-runtime @ file:$(echo qiskit-ibm-runtime/dist/*.whl)"
+          "qiskit-addon-utils @ file:$(echo qiskit-addon-utils/dist/*.whl)"
       - name: Test using tox environment
         shell: bash
         run: |
