@@ -182,7 +182,7 @@ fn connected_elements_and_amplitudes(
                             total *= -1.0;
                         }
                         if imag_row[j] {
-                            total *= Complex::new(0.0, 1.0);
+                            total *= Complex::new(0.0, -1.0);
                         }
                     }
                     amp_batch[i] = total;
