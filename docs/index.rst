@@ -36,7 +36,7 @@ For more installation information refer to the `installation instructions <insta
 System sizes and computational requirements
 -------------------------------------------
 
-The computational cost of SQD is dominated by the eigenstate solver calls. At each step of the self-consistent configuration recovery iteration, `n_batches` of eigenstate solver calls are performed. The different calls are embarrassingly parallel. In this `tutorial <tutorials/01_chemistry_hamiltonian.ipynb>`_, those calls are inside a `for` loop inside the ``diagonalize_fermionic_hamiltonian`` function. **It is highly recommended to perform these calls in parallel**.
+The computational cost of SQD is dominated by the eigenstate solver calls. At each step of the self-consistent configuration recovery iteration, `n_batches` of eigenstate solver calls are performed. The different calls are embarrassingly parallel. In this `tutorial <tutorials/01_chemistry_hamiltonian.ipynb>`_, those calls are inside a `for` loop. **It is highly recommended to perform these calls in parallel**.
 
 The :func:`qiskit_addon_sqd.fermion.solve_fermion` function is multithreaded and capable of handling systems with ~25 spacial orbitals and ~10 electrons with subspace dimensions of ~$10^7$, using ~10-30 cores.
 
