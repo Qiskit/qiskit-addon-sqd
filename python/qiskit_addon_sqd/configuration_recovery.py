@@ -223,6 +223,9 @@ def _bipartite_bitstring_correcting(
             probs_right[i] = _p_flip_0_to_1(
                 hamming_right / partition_size, avg_occupancies[i + partition_size], 0.01
             )
+    # Force probabilities to be beween 0 and 1, which can fail due to floating point precision
+    probs_left = np.minimum(1, np.maximum(0, probs_left))
+    probs_right = np.minimum(1, np.maximum(0, probs_right))
 
     ######################## Handle LEFT bits ########################
     if np.any(probs_left):
