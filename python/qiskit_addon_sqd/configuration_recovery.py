@@ -227,8 +227,7 @@ def _bipartite_bitstring_correcting(
     ######################## Handle LEFT bits ########################
     if np.any(probs_left):
         # Normalize
-        probs_left = np.absolute(probs_left)
-        probs_left = probs_left / np.sum(probs_left)
+        probs_left /= np.sum(probs_left)
 
         # Get difference between # of 1s and expected # of 1s in LEFT bits
         n_left = np.sum(bit_array[:partition_size])
@@ -265,8 +264,7 @@ def _bipartite_bitstring_correcting(
     ######################## Handle RIGHT bits ########################
     if np.any(probs_right):
         # Normalize
-        probs_right = np.absolute(probs_right)
-        probs_right = probs_right / np.sum(probs_right)
+        probs_right /= np.sum(probs_right)
 
         # Get difference between # of 1s and expected # of 1s in RIGHT bits
         n_right = np.sum(bit_array[partition_size:])
