@@ -18,10 +18,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, cast
 
+import jax
 import numpy as np
-from jax import Array, config, grad, jit, vmap
 from jax import numpy as jnp
-from jax.scipy.linalg import expm
 from pyscf import fci
 from pyscf.fci.selected_ci import (
     _as_SCIvector,
@@ -38,7 +37,7 @@ from .configuration_recovery import recover_configurations
 from .counts import bit_array_to_arrays, bitstring_matrix_to_integers
 from .subsampling import postselect_by_hamming_right_and_left, subsample
 
-config.update("jax_enable_x64", True)  # To deal with large integers
+jax.config.update("jax_enable_x64", True)  # To deal with large integers
 
 
 @dataclass(frozen=True)
@@ -648,7 +647,7 @@ def optimize_orbitals(
     spin_sq: float = 0.0,
     num_iters: int = 10,
     num_steps_grad: int = 10_000,
-    learning_rate: float = 0.01,
+    learning_rate: float = 0.001,
     **kwargs,
 ) -> tuple[float, np.ndarray, tuple[np.ndarray, np.ndarray]]:
     """Optimize orbitals to produce a minimal ground state.
@@ -679,8 +678,9 @@ def optimize_orbitals(
 
         hcore: Core Hamiltonian matrix representing single-electron integrals
         eri: Electronic repulsion integrals representing two-electron integrals
-        k_flat: 1D array defining the orbital transform, ``K``. The array should specify the upper
-            triangle of the anti-symmetric transform operator in row-major order, excluding the diagonal.
+        k_flat: 1D array defining the orbital transform, ``K``. The anti-symmetric
+            matrix defining the transfomration is construccted by the anti-symmetrization
+            of the matrix obtained by re-shaping ``k_flat`` into a square matrix.
         open_shell: A flag specifying whether configurations from the left and right
             halves of the bitstrings should be kept separate. If ``False``, CI strings
             from the left and right halves of the bitstrings are combined into a single
@@ -699,11 +699,11 @@ def optimize_orbitals(
 
     """
     norb = hcore.shape[0]
-    num_params = (norb**2 - norb) // 2
+    num_params = norb**2
     if len(k_flat) != num_params:
         raise ValueError(
-            f"k_flat must specify the upper triangle of the transform matrix. k_flat length is {len(k_flat)}. "
-            f"Expected {num_params}."
+            f"k_flat must specify the unitary parameters. k_flat length is {len(k_flat)}. "
+            f"Expected {num_params}: num_orb**2"
         )
     if isinstance(bitstring_matrix, tuple):
         ci_strs = bitstring_matrix
@@ -717,11 +717,9 @@ def optimize_orbitals(
     # TODO: Need metadata showing the optimization history
     ## hcore and eri in physicist ordering
     k_flat = k_flat.copy()
-    eri_phys = np.asarray(eri.transpose(0, 2, 3, 1), order="C")  # physicist ordering
     for _ in range(num_iters):
         # Rotate integrals
-        hcore_rot, eri_rot = rotate_integrals(hcore, eri_phys, k_flat)
-        eri_rot_chem = np.asarray(eri_rot.transpose(0, 3, 1, 2), order="C")  # chemist ordering
+        hcore_rot, eri_rot = rotate_integrals(hcore, eri, k_flat)
 
         # Solve for ground state with respect to optimized integrals
         myci = fci.selected_ci.SelectedCI()
@@ -729,7 +727,7 @@ def optimize_orbitals(
         e_qsci, amplitudes = fci.selected_ci.kernel_fixed_space(
             myci,
             hcore_rot,
-            eri_rot_chem,
+            eri_rot,
             norb,
             (num_up, num_dn),
             ci_strs,
@@ -737,58 +735,16 @@ def optimize_orbitals(
         )
 
         # Generate the one and two-body reduced density matrices from latest wavefunction amplitudes
-        dm1, dm2_chem = myci.make_rdm12(amplitudes, norb, (num_up, num_dn))
-        dm2 = np.asarray(dm2_chem.transpose(0, 2, 3, 1), order="C")
+        dm1, dm2 = myci.make_rdm12(amplitudes, norb, (num_up, num_dn))
         dm1a, dm1b = myci.make_rdm1s(amplitudes, norb, (num_up, num_dn))
         avg_occupancy = (np.diagonal(dm1a), np.diagonal(dm1b))
 
-        # TODO: Expose the momentum parameter as an input option
         # Optimize the basis rotations
-        _optimize_orbitals_sci(
-            k_flat, learning_rate, 0.9, num_steps_grad, dm1, dm2, hcore, eri_phys
+        e_hist, k_flat = _orbital_SCI_optimizer_ADAM(
+            k_flat, learning_rate, num_steps_grad, dm1, dm2, hcore, eri
         )
 
-    return e_qsci, k_flat, avg_occupancy
-
-
-def rotate_integrals(
-    hcore: np.ndarray, eri: np.ndarray, k_flat: np.ndarray
-) -> tuple[np.ndarray, np.ndarray]:
-    r"""Perform a similarity transform on the integrals.
-
-    The transformation is described as:
-
-    .. math::
-
-       \hat{\widetilde{H}} = \hat{U^{\dagger}}(k)\hat{H}\hat{U}(k)
-
-    For more information on how :math:`\hat{U}` and :math:`\hat{U^{\dagger}}` are generated from ``k_flat``
-    and applied to the one- and two-body integrals, refer to `Sec. II A 4 <https://arxiv.org/pdf/2405.05068>`_.
-
-    Args:
-        hcore: Core Hamiltonian matrix representing single-electron integrals
-        eri: Electronic repulsion integrals representing two-electron integrals
-        k_flat: 1D array defining the orbital transform, ``K``. The array should specify the upper
-            triangle of the anti-symmetric transform operator in row-major order, excluding the diagonal.
-
-    Returns:
-        - The rotated core Hamiltonian matrix
-        - The rotated ERI matrix
-
-    """
-    norb = hcore.shape[0]
-    num_params = (norb**2 - norb) // 2
-    if len(k_flat) != num_params:
-        raise ValueError(
-            f"k_flat must specify the upper triangle of the transform matrix. k_flat length is {len(k_flat)}. "
-            f"Expected {num_params}."
-        )
-    K = _antisymmetric_matrix_from_upper_tri(k_flat, norb)
-    U = LA.expm(K)
-    hcore_rot = np.matmul(np.transpose(U), np.matmul(hcore, U))
-    eri_rot = np.einsum("pqrs, pi, qj, rk, sl->ijkl", eri, U, U, U, U, optimize=True)
-
-    return np.array(hcore_rot), np.array(eri_rot)
+    return np.min(e_hist), k_flat, avg_occupancy
 
 
 def bitstring_matrix_to_ci_strs(
@@ -851,17 +807,6 @@ def enlarge_batch_from_transitions(
     return np.array(bitstring_matrix_augmented)
 
 
-def _antisymmetric_matrix_from_upper_tri(k_flat: np.ndarray, k_dim: int) -> Array:
-    """Create an anti-symmetric matrix given the upper triangle."""
-    K = jnp.zeros((k_dim, k_dim))
-    upper_indices = jnp.triu_indices(k_dim, k=1)
-    lower_indices = jnp.tril_indices(k_dim, k=-1)
-    K = K.at[upper_indices].set(k_flat)
-    K = K.at[lower_indices].set(-k_flat)
-
-    return K
-
-
 def _check_ci_strs(
     ci_strs: tuple[np.ndarray, np.ndarray],
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -887,55 +832,88 @@ def _check_ci_strs(
     return np.sort(np.unique(addr_up)), np.sort(np.unique(addr_dn))
 
 
-def _optimize_orbitals_sci(
-    k_flat: np.ndarray,
-    learning_rate: float,
-    momentum: float,
-    num_steps: int,
-    dm1: np.ndarray,
-    dm2: np.ndarray,
-    hcore: np.ndarray,
-    eri: np.ndarray,
-) -> None:
-    """Optimize orbital rotation parameters in-place using gradient descent.
+def rotate_integrals(
+    hcore: np.ndarray, eri: np.ndarray, k_flat: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Perform a similarity transform on the integrals.
+
+    The transformation is described as:
+
+    .. math::
+
+       \hat{\widetilde{H}} = \hat{U^{\dagger}}(k)\hat{H}\hat{U}(k)
+
+    For more information on how :math:`\hat{U}` and :math:`\hat{U^{\dagger}}` are generated from ``k_flat``
+    and applied to the one- and two-body integrals, refer to `Sec. II A 4 <https://arxiv.org/pdf/2405.05068>`_.
+
+    Args:
+        hcore: Core Hamiltonian matrix representing single-electron integrals
+        eri: Electronic repulsion integrals representing two-electron integrals
+        k_flat: 1D array defining the orbital transform, ``K``. The anti-symmetric
+            matrix defining the transfomration is construccted by the anti-symmetrization
+        of the matrix obtained by re-shaping ``k_flat`` into a square matrix.
+
+    Returns:
+        - The rotated core Hamiltonian matrix
+        - The rotated ERI matrix
+
+    """
+    norb, _ = hcore.shape
+    p = np.reshape(k_flat, (norb, norb))
+    K = (p - np.transpose(p)) / 2.0
+    U = LA.expm(K)
+    hcore_rot = np.matmul(np.transpose(U), np.matmul(hcore, U))
+    eri_rot = np.einsum("pqrs, pi, qj, rk, sl->ijkl", eri, U, U, U, U, optimize=True)
+    return np.array(hcore_rot), np.array(eri_rot)
+
+
+def _SCISCF_Energy_contract(dm1, dm2, h1, h2, N_orb, p_flat):
+    p = jnp.reshape(p_flat, (N_orb, N_orb))
+    K = (p - jnp.transpose(p)) / 2.0
+    U = jax.scipy.linalg.expm(K)
+    h1_rot = jnp.matmul(jnp.transpose(U), jnp.matmul(h1, U))
+    h2_rot = jnp.einsum("pqrs, pi, qj, rk, sl->ijkl", h2, U, U, U, U)
+
+    E = jnp.sum(dm1 * h1_rot) + jnp.sum(dm2 * h2_rot / 2.0)
+    return E
+
+
+_SCISCF_Energy_contract_grad_and_val = jax.jit(
+    jax.value_and_grad(_SCISCF_Energy_contract, argnums=5), static_argnums=4
+)
+_SCISCF_Energy_contract_grad = jax.jit(jax.grad(_SCISCF_Energy_contract, argnums=4))
+
+
+def _orbital_SCI_optimizer_ADAM(
+    k_flat, learning_rate, num_steps, dm1, dm2, hcore, eri
+) -> tuple[np.ndarray, np.ndarray]:
+    """Optimize orbital rotation parameters using the ADAM optimizer.
 
     This procedure is described in `Sec. II A 4 <https://arxiv.org/pdf/2405.05068>`_.
     """
-    prev_update = np.zeros(len(k_flat))
-    for _ in range(num_steps):
-        grad = _SCISCF_Energy_contract_grad(dm1, dm2, hcore, eri, k_flat)
-        prev_update = learning_rate * grad + momentum * prev_update
-        k_flat -= prev_update
-
-
-def _SCISCF_Energy_contract(
-    dm1: np.ndarray,
-    dm2: np.ndarray,
-    hcore: np.ndarray,
-    eri: np.ndarray,
-    k_flat: np.ndarray,
-) -> Array:
-    """Calculate gradient.
-
-    The gradient can be calculated by contracting the bare one and two-body
-    reduced density matrices with the gradients of the of the one and two-body
-    integrals with respect to the rotation parameters, ``k_flat``.
-    """
-    K = _antisymmetric_matrix_from_upper_tri(k_flat, hcore.shape[0])
-    U = expm(K)
-    hcore_rot = jnp.matmul(jnp.transpose(U), jnp.matmul(hcore, U))
-    eri_rot = jnp.einsum("pqrs, pi, qj, rk, sl->ijkl", eri, U, U, U, U)
-    grad = jnp.sum(dm1 * hcore_rot) + jnp.sum(dm2 * eri_rot / 2.0)
-
-    return grad
-
-
-_SCISCF_Energy_contract_grad = jit(grad(_SCISCF_Energy_contract, argnums=4))
+    # prev_update = p_flat * 0
+    N_orb = dm1.shape[0]
+    b1 = 0.9
+    b2 = 0.999
+    e = 1e-8
+    m = k_flat * 0
+    v = k_flat * 0
+    E_hist = np.zeros(num_steps)
+    for i in range(num_steps):
+        E, grad = _SCISCF_Energy_contract_grad_and_val(dm1, dm2, hcore, eri, N_orb, k_flat)
+        E_hist[i] = E
+        m = b1 * m + (1 - b1) * grad
+        v = b2 * v + (1 - b2) * grad**2
+        m_hat = m / (1 - b1 ** (i + 1))
+        v_hat = v / (1 - b2 ** (i + 1))
+        change_params = learning_rate * m_hat / (np.sqrt(v_hat) + e)
+        k_flat -= change_params
+    return E_hist, np.array(k_flat)
 
 
 def _apply_excitation_single(
     single_bts: np.ndarray, diag: np.ndarray, create: np.ndarray, annihilate: np.ndarray
-) -> tuple[Array, Array]:
+) -> tuple[jax.Array, jax.Array]:
     falses = jnp.array([False for _ in range(len(diag))])
 
     bts_ret = single_bts == diag
@@ -947,9 +925,9 @@ def _apply_excitation_single(
     return bts_ret, include_crit
 
 
-_apply_excitation = jit(vmap(_apply_excitation_single, (0, None, None, None), 0))
+_apply_excitation = jax.jit(jax.vmap(_apply_excitation_single, (0, None, None, None), 0))
 
-apply_excitations = jit(vmap(_apply_excitation, (None, 0, 0, 0), 0))
+apply_excitations = jax.jit(jax.vmap(_apply_excitation, (None, 0, 0, 0), 0))
 
 
 def _transition_str_to_bool(string_rep: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
