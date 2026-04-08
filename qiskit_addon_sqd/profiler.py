@@ -27,6 +27,7 @@ from __future__ import annotations
 import os
 import platform
 import resource
+import threading
 import time
 from dataclasses import dataclass, field
 
@@ -105,16 +106,19 @@ class ResourceMonitor:
         checkpoints: List of snapshots taken via ``checkpoint()``.
     """
 
-    def __init__(self, gpu: bool = True) -> None:
+    def __init__(self, gpu: bool = True, gpu_poll_interval: float = 0.5) -> None:
         """Create a ResourceMonitor.
 
         Args:
             gpu: Whether to report GPU metrics.  Set to ``False`` for
                 CPU-only workloads on machines that have GPUs, to avoid
                 misleading GPU memory readings from the idle driver context.
+            gpu_poll_interval: Seconds between GPU memory polls for peak
+                tracking.  Set to 0 to disable polling (snapshot only).
         """
         self._process = psutil.Process()
         self._report_gpu = gpu
+        self._gpu_poll_interval = gpu_poll_interval
 
         # MPI info
         if _MPI_AVAILABLE and _MPI.COMM_WORLD.Get_size() > 1:
@@ -151,6 +155,12 @@ class ResourceMonitor:
             except Exception:
                 pass
 
+        # GPU polling thread state
+        self._gpu_poll_thread: threading.Thread | None = None
+        self._gpu_poll_stop = threading.Event()
+        self._gpu_peak_used: float = 0.0  # bytes, tracked by polling thread
+        self._gpu_peak_util_pct: float = 0.0  # peak GPU compute utilization %
+
         # State
         self._started = False
         self._stopped = False
@@ -167,10 +177,12 @@ class ResourceMonitor:
         self.gpu_memory_used_gb: float | None = None
         self.gpu_memory_total_gb: float | None = None
         self.gpu_memory_free_gb: float | None = None
+        self.gpu_utilization_pct: float | None = None
 
         # Aggregated results (rank 0 only, after stop)
         self._agg_peak_rss: _AggregatedMetric | None = None
         self._agg_gpu_used: _AggregatedMetric | None = None
+        self._agg_gpu_util: _AggregatedMetric | None = None
 
     # ------------------------------------------------------------------
     # Context manager
@@ -187,6 +199,28 @@ class ResourceMonitor:
     # Core API
     # ------------------------------------------------------------------
 
+    def _gpu_poll_loop(self) -> None:
+        """Background thread that polls GPU memory and utilization."""
+        handle = self._gpu_handle
+        interval = self._gpu_poll_interval
+        stop_event = self._gpu_poll_stop
+        peak_mem = 0.0
+        util_sum = 0.0
+        util_count = 0
+        while not stop_event.is_set():
+            try:
+                info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                if info.used > peak_mem:
+                    peak_mem = info.used
+                util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                util_sum += util.gpu
+                util_count += 1
+            except Exception:
+                break
+            stop_event.wait(interval)
+        self._gpu_peak_used = peak_mem
+        self._gpu_peak_util_pct = util_sum / util_count if util_count > 0 else 0.0
+
     def start(self) -> None:
         """Begin monitoring."""
         if self._started:
@@ -194,6 +228,14 @@ class ResourceMonitor:
         self._started = True
         self._start_wall = time.perf_counter()
         self._start_cpu_times = self._process.cpu_times()
+
+        # Start GPU polling thread
+        if self._has_gpu and self._gpu_poll_interval > 0:
+            self._gpu_poll_stop.clear()
+            self._gpu_poll_thread = threading.Thread(
+                target=self._gpu_poll_loop, daemon=True
+            )
+            self._gpu_poll_thread.start()
 
     def stop(self) -> None:
         """End monitoring, compute metrics, aggregate across MPI ranks."""
@@ -224,15 +266,27 @@ class ResourceMonitor:
         else:
             self.cpu_utilization_pct = 0.0
 
-        # GPU memory
+        # GPU memory — stop polling thread, use peak
         if self._has_gpu and self._gpu_handle is not None:
+            if self._gpu_poll_thread is not None:
+                self._gpu_poll_stop.set()
+                self._gpu_poll_thread.join(timeout=2.0)
             try:
                 info = pynvml.nvmlDeviceGetMemoryInfo(self._gpu_handle)
-                self.gpu_memory_used_gb = info.used / _GB
                 self.gpu_memory_total_gb = info.total / _GB
-                self.gpu_memory_free_gb = (info.total - info.used) / _GB
+                # Use polled peak if available, otherwise snapshot
+                if self._gpu_peak_used > 0:
+                    self.gpu_memory_used_gb = self._gpu_peak_used / _GB
+                else:
+                    self.gpu_memory_used_gb = info.used / _GB
+                self.gpu_memory_free_gb = (
+                    self.gpu_memory_total_gb - self.gpu_memory_used_gb
+                )
             except Exception:
                 pass
+            # GPU utilization from polling
+            if self._gpu_peak_util_pct > 0:
+                self.gpu_utilization_pct = self._gpu_peak_util_pct
 
         # Estimated free CPU memory
         self.cpu_memory_free_gb = (
@@ -286,10 +340,14 @@ class ResourceMonitor:
         local_rss = self.cpu_memory_peak_gb
         local_gpu = self.gpu_memory_used_gb if self.gpu_memory_used_gb is not None else 0.0
 
+        local_gpu_util = self.gpu_utilization_pct if self.gpu_utilization_pct is not None else 0.0
+
         if self._comm is None:
             self._agg_peak_rss = _AggregatedMetric(local_rss, 0)
             if self.gpu_memory_used_gb is not None:
                 self._agg_gpu_used = _AggregatedMetric(local_gpu, 0)
+            if self.gpu_utilization_pct is not None:
+                self._agg_gpu_util = _AggregatedMetric(local_gpu_util, 0)
             return
 
         # MPI_MAXLOC on (value, rank) pairs
@@ -302,6 +360,11 @@ class ResourceMonitor:
         if self.gpu_memory_used_gb is not None:
             max_gpu_pair = self._comm.allreduce(local_gpu_pair, op=_MPI.MAXLOC)
             self._agg_gpu_used = _AggregatedMetric(max_gpu_pair[0], max_gpu_pair[1])
+
+        if self.gpu_utilization_pct is not None:
+            sum_gpu_util = self._comm.allreduce(local_gpu_util, op=_MPI.SUM)
+            avg_gpu_util = sum_gpu_util / self._world_size
+            self._agg_gpu_util = _AggregatedMetric(avg_gpu_util, 0)
 
         # Collect total CPU memory used across all ranks (for the summary line)
         total_cpu_used = self._comm.reduce(local_rss, op=_MPI.SUM, root=0)
@@ -422,6 +485,13 @@ class ResourceMonitor:
                     )
                 )
             lines.append(self._row("GPU free (est):", f"{gpu_free:.1f} GB"))
+
+        # GPU utilization (average)
+        if self._agg_gpu_util is not None and self._agg_gpu_util.value > 0:
+            gpu_util = self._agg_gpu_util.value
+            lines.append(
+                self._row("GPU utilization:", f"{gpu_util:.0f}% avg")
+            )
 
         # MPI / OMP summary
         lines.append(
