@@ -105,8 +105,16 @@ class ResourceMonitor:
         checkpoints: List of snapshots taken via ``checkpoint()``.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, gpu: bool = True) -> None:
+        """Create a ResourceMonitor.
+
+        Args:
+            gpu: Whether to report GPU metrics.  Set to ``False`` for
+                CPU-only workloads on machines that have GPUs, to avoid
+                misleading GPU memory readings from the idle driver context.
+        """
         self._process = psutil.Process()
+        self._report_gpu = gpu
 
         # MPI info
         if _MPI_AVAILABLE and _MPI.COMM_WORLD.Get_size() > 1:
@@ -133,7 +141,7 @@ class ResourceMonitor:
         # GPU info (local device for this rank)
         self._gpu_handle = None
         self._has_gpu = False
-        if _PYNVML_AVAILABLE:
+        if _PYNVML_AVAILABLE and self._report_gpu:
             try:
                 gpu_count = pynvml.nvmlDeviceGetCount()
                 if gpu_count > 0:
