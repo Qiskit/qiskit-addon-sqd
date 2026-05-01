@@ -77,7 +77,7 @@ docs = [
     "sphinx-autodoc-typehints",
     "sphinx-copybutton",
     "sphinx_reredirects",
-    "nbsphinx>=0.9.4",
+    "nbsphinx>=0.9.8",
     "reno>=4.1",
 ]
 
