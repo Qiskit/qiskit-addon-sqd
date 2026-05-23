@@ -1,8 +1,6 @@
-########################################################
-Sample-based quantum diagonalization (SQD) Qiskit addon
-########################################################
-
-`Qiskit addons <https://quantum.cloud.ibm.com/docs/guides/addons>`_ are a collection of modular tools for building utility-scale workloads powered by Qiskit.
+##########################################
+Sample-based quantum diagonalization (SQD)
+##########################################
 
 This package contains the Qiskit addon for sample-based quantum diagonalization (SQD) &mdash; a technique for finding eigenvalues and eigenvectors of quantum operators, such as a quantum system Hamiltonian, using quantum and distributed classical computing together [1-5]. This technique can be run on current quantum computers and has been shown to scale to problem sizes beyond what was possible with variational methods &mdash; and even beyond the reach of exact classical diagonalization methods [1,2].
 
@@ -15,18 +13,6 @@ SQD can be used in various ways in practice. For example, we can use two categor
     2. A set of Krylov basis states are prepared over increasing time intervals. Assuming a good initial state and sparsity of the ground state, this approach is proven to converge efficiently. As one needs to prepare Trotterized time evolution circuits on a quantum device, this approach is best for applications to lattice models [2]. For an example of this approach applied to fermionic lattice Hamiltonians, see the `tutorial for approximating the ground state energy of a simplified single-impurity Anderson model <https://quantum.cloud.ibm.com/docs/tutorials/sample-based-krylov-quantum-diagonalization>`_.
 
 This package contains the functionality for the classical processing of user-provided samples. It can target Hamiltonians expressed as linear combinations of Pauli operators or second-quantized fermionic operators. The projection and diagonalization steps are performed by a classical solver. We provide here two generic solvers, one for fermionic systems and another for qubit systems. Other solvers that might be more efficient for specific systems can be interfaced by the users.
-
-Installation
-------------
-
-We encourage installing this package via ``pip``, when possible:
-
-.. code-block:: bash
-
-   pip install 'qiskit-addon-sqd'
-
-
-For more installation information, refer to the `installation instructions <install.rst>`_ in the documentation.
 
 System sizes and computational requirements
 -------------------------------------------
@@ -67,8 +53,6 @@ release notes.
 Contributing
 ------------
 
-The source code is available `on GitHub <https://github.com/Qiskit/qiskit-addon-sqd>`_.
-
 The developer guide is located at `CONTRIBUTING.md <https://github.com/Qiskit/qiskit-addon-sqd/blob/main/CONTRIBUTING.md>`_
 in the root of this project's repository.
 By participating, you are expected to uphold Qiskit's `code of conduct <https://github.com/Qiskit/qiskit/blob/main/CODE_OF_CONDUCT.md>`_.
@@ -95,13 +79,3 @@ References
 
 [5] Mathias Mikkelsen, Yuya O. Nakagawa, [Quantum-selected configuration interaction with time-evolved state](https://arxiv.org/abs/2412.13839), arXiv:2412.13839 [quant-ph].
 
-.. toctree::
-  :hidden:
-   
-   Documentation Home <self>
-   Installation Instructions <install>
-   Tutorials <tutorials/index>
-   How-To Guides <how_tos/index>
-   API Reference <apidocs/index>
-   GitHub <https://github.com/qiskit/qiskit-addon-sqd>
-   Release Notes <release-notes>
