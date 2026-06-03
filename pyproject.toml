@@ -35,7 +35,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "qiskit-addon-sqd[test,nbtest,lint,docs]",
-    "tox>=4.4.3",
+    "tox>=4.55.0",
 ]
 basetest = [
     "pytest>=8.0",
