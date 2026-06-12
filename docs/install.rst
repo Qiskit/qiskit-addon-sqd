@@ -1,9 +1,9 @@
-Installation Instructions
+Installation instructions
 =========================
 
 To install, first create a new Python environment:
 
-Pre-Installation
+Prerequisites
 ^^^^^^^^^^^^^^^^
 
 Create a minimal environment with only Python installed in it. We recommend using `Python virtual environments <https://docs.python.org/3.10/tutorial/venv.html>`__.
