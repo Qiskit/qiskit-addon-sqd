@@ -33,6 +33,19 @@ jobs:
           python -m pip install extremal-python-dependencies~=0.1.0
           pip install "tox==$(extremal-python-dependencies get-tox-minversion)"
           extremal-python-dependencies pin-dependencies-to-minimum --inplace
+      - name: Bootstrap OpenMP-capable compiler (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew install llvm libomp
+          LLVM_PREFIX="$(brew --prefix llvm)"
+          OMP_PREFIX="$(brew --prefix libomp)"
+          {
+            echo "CC=${LLVM_PREFIX}/bin/clang"
+            echo "CXX=${LLVM_PREFIX}/bin/clang++"
+            echo "LDFLAGS=-L${LLVM_PREFIX}/lib -L${OMP_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
+            echo "CPPFLAGS=-I${LLVM_PREFIX}/include -I${OMP_PREFIX}/include"
+          } >> "$GITHUB_ENV"
       - name: Test using tox environment
         run: |
           tox -e py,notebook --parallel --parallel-no-spinner
