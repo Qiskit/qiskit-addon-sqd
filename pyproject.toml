@@ -33,6 +33,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+fulqrum = [
+    "fulqrum @ git+https://github.com/qiskit-community/fulqrum.git@644fafdd02668e24c3fc83cdb00dc42f8bd23631",
+    "primme>=3.2.3",
+]
 dev = [
     "qiskit-addon-sqd[test,nbtest,lint,docs]",
     "tox>=4.4.3",
@@ -60,7 +64,7 @@ lint = [
     "toml>=0.9.6",
 ]
 notebook-dependencies = [
-    "qiskit-addon-sqd",
+    "qiskit-addon-sqd[fulqrum]",
     "qiskit-addon-utils",
     "qiskit-aer",
     "matplotlib",
