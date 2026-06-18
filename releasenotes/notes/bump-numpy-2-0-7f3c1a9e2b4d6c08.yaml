@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    NumPy 2.0 is now the minimum required version.  Support for NumPy 1.x
+    has been dropped, following Qiskit's adoption of `SPEC 0
+    <https://scientific-python.org/specs/spec-0000/>`__.
