@@ -1,0 +1,7 @@
+---
+upgrade:
+  - |
+    NumPy 2.0 and SciPy 1.14.1 are now the minimum required versions, for
+    compatibility with fulqrum.  Support for NumPy 1.x has been dropped,
+    following Qiskit's adoption of `SPEC 0
+    <https://scientific-python.org/specs/spec-0000/>`__.
