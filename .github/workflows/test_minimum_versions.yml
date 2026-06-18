@@ -33,6 +33,11 @@ jobs:
           python -m pip install extremal-python-dependencies~=0.1.0
           pip install "tox==$(extremal-python-dependencies get-tox-minversion)"
           extremal-python-dependencies pin-dependencies-to-minimum --inplace
+      - name: Install BLAS/LAPACK (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libblas-dev liblapack-dev
       - name: Bootstrap OpenMP-capable compiler (macOS)
         if: runner.os == 'macOS'
         shell: bash
