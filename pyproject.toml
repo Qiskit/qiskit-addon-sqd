@@ -18,6 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Physics",
 ]
 
@@ -50,7 +51,7 @@ nbtest = [
     "nbmake>=1.5.0",
 ]
 style = [
-    "ruff==0.12.11",
+    "ruff==0.15.15",
     "nbqa>=1.8.5",
 ]
 lint = [

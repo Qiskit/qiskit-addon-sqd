@@ -66,7 +66,6 @@ def solve_qubit(
     bitstring_matrix = sort_and_remove_duplicates(bitstring_matrix)
 
     # Get a sparse representation of the projected operator
-    d, _ = bitstring_matrix.shape
     ham_proj = project_operator_to_subspace(bitstring_matrix, hamiltonian, verbose=verbose)
 
     if verbose:  # pragma: no cover
@@ -208,7 +207,7 @@ def matrix_elements_from_pauli(
     if bitstring_matrix.shape[1] > 63:
         raise ValueError("Bitstrings (rows) in bitstring_matrix must have length < 64.")
 
-    d, n_qubits = bitstring_matrix.shape
+    d, _ = bitstring_matrix.shape
     input_ids = np.arange(d)
 
     # Get a qubit-wise representation of the Pauli properties

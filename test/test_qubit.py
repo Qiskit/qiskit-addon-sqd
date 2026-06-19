@@ -54,8 +54,8 @@ class TestQubit(unittest.TestCase):
             )
 
             scipy_kwargs = {"k": 1, "which": "SA"}
-            energies_test, eigenstates_test = eigsh(coo_matrix_test, **scipy_kwargs)
-            e, ev = solve_qubit(bs_mat, op, **scipy_kwargs)
+            energies_test, _ = eigsh(coo_matrix_test, **scipy_kwargs)
+            e, _ = solve_qubit(bs_mat, op, **scipy_kwargs)
             self.assertTrue(np.allclose(energies_test, e))
         with self.subTest("64 qubits"):
             op = SparsePauliOp("Z" * 64)
