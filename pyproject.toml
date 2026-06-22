@@ -34,9 +34,8 @@ dependencies = [
 
 [project.optional-dependencies]
 fulqrum = [
-    "fulqrum @ git+https://github.com/qiskit-community/fulqrum.git@644fafdd02668e24c3fc83cdb00dc42f8bd23631",
+    "fulqrum @ git+https://github.com/qiskit-community/fulqrum.git@985d790c2dd95a44f1357e8149a5047aa537a09c",
     "primme>=3.2.3",
-    "openfermion>=1.6.1",
 ]
 dev = [
     "qiskit-addon-sqd[test,nbtest,lint,docs]",
