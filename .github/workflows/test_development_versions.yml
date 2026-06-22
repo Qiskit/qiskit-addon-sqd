@@ -54,7 +54,7 @@ jobs:
           python -m pip install tox build extremal-python-dependencies~=0.2.1
       - name: Build fulqrum development wheel
         run: |
-          git clone https://github.com/qiskit-community/fulqrum
+          git clone --recurse-submodules https://github.com/qiskit-community/fulqrum
           cd fulqrum
           git rev-parse HEAD
           python -m build --wheel
