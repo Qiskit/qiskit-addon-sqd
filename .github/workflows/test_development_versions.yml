@@ -51,7 +51,13 @@ jobs:
           } >> "$GITHUB_ENV"
       - name: Install tools from pypi
         run: |
-          python -m pip install tox build extremal-python-dependencies~=0.1.0
+          python -m pip install tox build extremal-python-dependencies~=0.2.1
+      - name: Build fulqrum development wheel
+        run: |
+          git clone https://github.com/qiskit-community/fulqrum
+          cd fulqrum
+          git rev-parse HEAD
+          python -m build --wheel
       - name: Build Qiskit SDK development wheel
         run: |
           git clone https://github.com/Qiskit/qiskit
@@ -69,13 +75,12 @@ jobs:
           git clone https://github.com/Qiskit/qiskit-addon-utils
           cd qiskit-addon-utils
           git rev-parse HEAD
-          # Unpin qiskit<2
-          extremal-python-dependencies pin-dependencies --inplace qiskit
           python -m build --wheel
       - name: Pin development versions
         shell: bash
         run: >-
           extremal-python-dependencies pin-dependencies --inplace
+          "fulqrum @ file:$(echo fulqrum/dist/*.whl)"
           "qiskit @ file:$(echo qiskit/dist/*.whl)"
           "qiskit-ibm-runtime @ file:$(echo qiskit-ibm-runtime/dist/*.whl)"
           "qiskit-addon-utils @ file:$(echo qiskit-addon-utils/dist/*.whl)"
