@@ -6,7 +6,7 @@ To install, first create a new Python environment:
 Prerequisites
 ^^^^^^^^^^^^^^^^
 
-Create a minimal environment with only Python installed in it. We recommend using `Python virtual environments <https://docs.python.org/3.10/tutorial/venv.html>`__.
+Create a minimal environment with only Python installed in it. We recommend using `Python virtual environments <https://docs.python.org/3/tutorial/venv.html>`__.
 
 .. code:: sh
 
