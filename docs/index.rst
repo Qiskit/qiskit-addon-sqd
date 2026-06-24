@@ -79,3 +79,13 @@ References
 
 [5] Mathias Mikkelsen, Yuya O. Nakagawa, [Quantum-selected configuration interaction with time-evolved state](https://arxiv.org/abs/2412.13839), arXiv:2412.13839 [quant-ph].
 
+.. toctree::
+  :hidden:
+   
+   Documentation Home <self>
+   Installation Instructions <install>
+   Tutorials <tutorials/index>
+   How-To Guides <how_tos/index>
+   API Reference <apidocs/index>
+   GitHub <https://github.com/qiskit/qiskit-addon-sqd>
+   Release Notes <release-notes>
