@@ -1,13 +1,12 @@
-Installation Instructions
+Installation instructions
 =========================
 
-Let's see how to install the package. The first thing to do is ensure your Python environment
-is set up correctly. To create a new environment:
+To install, first create a new Python environment:
 
-Pre-Installation
+Prerequisites
 ^^^^^^^^^^^^^^^^
 
-First, create a minimal environment with only Python installed in it. We recommend using `Python virtual environments <https://docs.python.org/3.10/tutorial/venv.html>`__.
+Create a minimal environment with only Python installed in it. We recommend using `Python virtual environments <https://docs.python.org/3/tutorial/venv.html>`__.
 
 .. code:: sh
 
@@ -29,12 +28,12 @@ Install from PyPI
     pip install 'qiskit-addon-sqd'
 
 
-Install from Source
+Install from source
 ^^^^^^^^^^^^^^^^^^^
 
-Users who wish to develop in the repository or run the notebooks locally may want to install from source.
+Install from source if you wish to develop in the repository or run the notebooks locally.
 
-If so, the first step is to clone the ``qiskit-addon-sqd`` repository.
+The first step is to clone the ``qiskit-addon-sqd`` repository.
 
 .. code:: sh
 
@@ -48,8 +47,7 @@ Next, upgrade pip and enter the repository.
     cd qiskit-addon-sqd
 
 The next step is to install ``qiskit-addon-sqd`` to the virtual environment. If you plan on running the notebooks, install the
-notebook dependencies in order to run all the visualizations in the notebooks. If you plan on developing in the repository, you
-may want to install the ``dev`` dependencies.
+notebook dependencies in order to run all the visualizations in the notebooks. Install the ``dev`` dependencies if you plan on developing in the repository.
 
 Adjust the options below to suit your needs.
 
