@@ -1,37 +1,18 @@
-########################################################
-Qiskit addon: sample-based quantum diagonalization (SQD)
-########################################################
+##########################################
+Sample-based quantum diagonalization (SQD)
+##########################################
 
-`Qiskit addons <https://quantum.cloud.ibm.com/docs/guides/addons>`_ are a collection of modular tools for building utility-scale workloads powered by Qiskit.
+This package contains the Qiskit addon for sample-based quantum diagonalization (SQD) --- a technique for finding eigenvalues and eigenvectors of quantum operators, such as a quantum system Hamiltonian, using quantum and distributed classical computing together [1-5]. This technique can be run on current quantum computers and has been shown to scale to problem sizes beyond what was possible with variational methods --- and even beyond the reach of exact classical diagonalization methods [1,2].
 
-This package contains the Qiskit addon for sample-based quantum diagonalization (SQD) -- a technique for finding eigenvalues and eigenvectors of quantum operators, such as a quantum system Hamiltonian, using quantum and distributed classical computing together [1-5]. This technique can be run on current quantum computers and has been shown to scale to problem sizes beyond what was possible with variational methods and even beyond the reach of exact classical diagonalization methods [1,2].
-
-SQD-based workflows involve first preparing one or more quantum states on a quantum device and sampling from them. Then, classical distributed computing is used to process those noisy samples. This processing occurs iteratively in two steps: First, a configuration recovery step corrects noisy samples using information about the input problem and second, the Hamiltonian is projected and diagonalized in the subspace spanned by those samples. These steps are repeated self-consistently until convergence. The result is an approximated lowest eigenvalue (energy) and lowest energy eigenstate of a given Hamiltonian. SQD is robust to samples corrupted by quantum noise; in fact, as long as a useful signal can be retrieved out of the quantum computer, the outcome of SQD will be insensitive to noisy bitstrings.
+SQD-based workflows involve first preparing one or more quantum states on a quantum device and sampling from them. Then, classical distributed computing is used to process those noisy samples. This processing occurs iteratively in two steps: first, a configuration recovery step corrects noisy samples using information about the input problem; second, the Hamiltonian is projected and diagonalized in the subspace spanned by those samples. These steps are repeated self-consistently until convergence. The result is an approximated lowest eigenvalue (energy) and lowest energy eigenstate of a given Hamiltonian. SQD is robust to samples corrupted by quantum noise; in fact, as long as a useful signal can be retrieved out of the quantum computer, the outcome of SQD will be insensitive to noisy bitstrings.
 
 SQD can be used in various ways in practice. For example, we can use two categories of quantum circuits to sample from:
 
-    1. A variational circuit ansatz with parameters chosen such that sampling the circuit produces electronic configurations on which the target wavefunction (i.e., the ground state) has significant support. This is appealing for chemistry applications where Hamiltonians can have millions of interaction terms [1]. For an example of this approach applied to chemistry see the `tutorial for approximating the ground state energy of the N2 molecule <https://quantum.cloud.ibm.com/docs/en/tutorials/sample-based-quantum-diagonalization>`_.
+    1. A variational circuit ansatz with parameters chosen such that sampling the circuit produces electronic configurations on which the target wavefunction (for example, the ground state) has significant support. This is appealing for chemistry applications where Hamiltonians can have millions of interaction terms [1]. For an example of this approach applied to chemistry, see the `tutorial for approximating the ground state energy of the N2 molecule <https://quantum.cloud.ibm.com/docs/tutorials/sample-based-quantum-diagonalization>`_.
 
-    2. A set of Krylov basis states are prepared over increasing time intervals. Assuming a good initial state and sparsity of the ground state, this approach is proven to converge efficiently. As one needs to prepare Trotterized time evolution circuits on a quantum device, this approach is best for applications to lattice models [2]. For an example of this approach applied to Fermionic lattice Hamiltonians, see the `tutorial for approximating the ground state energy of a simplified single-impurity Anderson model <https://quantum.cloud.ibm.com/docs/en/tutorials/sample-based-krylov-quantum-diagonalization>`_.
+    2. A set of Krylov basis states are prepared over increasing time intervals. Assuming a good initial state and sparsity of the ground state, this approach is proven to converge efficiently. As one needs to prepare Trotterized time evolution circuits on a quantum device, this approach is best for applications to lattice models [2]. For an example of this approach applied to fermionic lattice Hamiltonians, see the `tutorial for approximating the ground state energy of a simplified single-impurity Anderson model <https://quantum.cloud.ibm.com/docs/tutorials/sample-based-krylov-quantum-diagonalization>`_.
 
-This package contains the functionality for the classical processing of user-provided samples. It can target Hamiltonians expressed as linear combinations of Pauli operators or second-quantized Fermionic operators. The projection and diagonalization steps are performed by a classical solver. We provide here two generic solvers, one for Fermionic systems and another for qubit systems. Other solvers that might be more efficient for specific systems can be interfaced by the users.
-
-Documentation
--------------
-
-All documentation is available `here <https://qiskit.github.io/qiskit-addon-sqd/>`_.
-
-Installation
-------------
-
-We encourage installing this package via ``pip``, when possible:
-
-.. code-block:: bash
-
-   pip install 'qiskit-addon-sqd'
-
-
-For more installation information refer to the `installation instructions <install.rst>`_ in the documentation.
+This package contains the functionality for the classical processing of user-provided samples. It can target Hamiltonians expressed as linear combinations of Pauli operators or second-quantized fermionic operators. The projection and diagonalization steps are performed by a classical solver. We provide here two generic solvers, one for fermionic systems and another for qubit systems. Other solvers that might be more efficient for specific systems can be interfaced by the users.
 
 System sizes and computational requirements
 -------------------------------------------
@@ -43,14 +24,14 @@ The :func:`qiskit_addon_sqd.fermion.solve_fermion` function is multithreaded and
 Choosing subspace dimensions
 ----------------------------
 
-The choice of the subspace dimension affects the accuracy and runtime of the eigenstate solver. The larger the subspace the more accurate the calculation, at the cost of increasing the runtime and memory requirements. The optimal subspace size of a given system is not known, thus a convergence study with the subspace dimension may be performed, as described in this `guide <how_tos/choose_subspace_dimension.ipynb>`_.
+The choice of the subspace dimension affects the accuracy and runtime of the eigenstate solver. The larger the subspace, the more accurate the calculation, at the cost of increasing the runtime and memory requirements. The optimal subspace size of a given system is not known; thus, a convergence study with the subspace dimension can be performed, as described in this `guide <how_tos/choose_subspace_dimension.ipynb>`_.
 
 The subspace dimension is set indirectly
 ----------------------------------------
 
 In this package, the user controls the number of bitstrings contained in each subspace with the `samples_per_batch` argument in :func:`.qiskit_addon_sqd.subsampling.postselect_and_subsample`. The value of this argument sets an upper bound to the subspace dimension in the case of quantum chemistry applications. See this `example <how_tos/select_open_closed_shell.ipynb>`_ for more details.
 
-Citing this project
+Cite this project
 -------------------
 
 If you use this package in your research, please cite it according to ``CITATON.bib`` file included in this repository:
@@ -71,8 +52,6 @@ release notes.
 
 Contributing
 ------------
-
-The source code is available `on GitHub <https://github.com/Qiskit/qiskit-addon-sqd>`_.
 
 The developer guide is located at `CONTRIBUTING.md <https://github.com/Qiskit/qiskit-addon-sqd/blob/main/CONTRIBUTING.md>`_
 in the root of this project's repository.
