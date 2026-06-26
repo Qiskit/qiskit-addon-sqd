@@ -111,6 +111,7 @@ def recover_configurations(
 
     corrected_dict: defaultdict[str, float] = defaultdict(float)
     occs_array = np.flip(avg_occupancies).flatten()
+
     for bitstring, freq in zip(bitstring_matrix, probabilities):
         bs_corrected = _bipartite_bitstring_correcting(
             bitstring,
@@ -121,6 +122,7 @@ def recover_configurations(
         )
         bs_str = "".join("1" if bit else "0" for bit in bs_corrected)
         corrected_dict[bs_str] += freq
+
     bs_mat_out = np.array([[bit == "1" for bit in bs] for bs in corrected_dict])
     freqs_out = np.array([f for f in corrected_dict.values()])
     freqs_out = np.abs(freqs_out) / np.sum(np.abs(freqs_out))
@@ -153,7 +155,7 @@ def _p_flip_0_to_1(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  #
     # The probability weight to flip the bit increases linearly from ``eps`` to
     # ``1.0`` as the occupation deviates further from the expected ratio
     if ratio_exp == 1.0:
-        return eps
+        return 1.0
     slope = (1 - eps) / (1 - ratio_exp)
     intercept = 1 - slope
     return occ * slope + intercept
