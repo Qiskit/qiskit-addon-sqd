@@ -33,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
       - name: Install tools from pypi
         run: |
-          python -m pip install tox build extremal-python-dependencies==0.0.3
+          python -m pip install tox build extremal-python-dependencies==0.0.5
       - name: Build Qiskit SDK development wheel
         run: |
           git clone https://github.com/Qiskit/qiskit
