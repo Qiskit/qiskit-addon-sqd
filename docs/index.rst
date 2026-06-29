@@ -37,12 +37,12 @@ The :func:`qiskit_addon_sqd.fermion.solve_fermion` function is multithreaded and
 Choosing subspace dimensions
 """"""""""""""""""""""""""""
 
-The choice of the subspace dimension affects the accuracy and runtime of the eigenstate solver. The larger the subspace, the more accurate the calculation, at the cost of increasing the runtime and memory requirements. The optimal subspace size of a given system is not known; thus, a convergence study with the subspace dimension can be performed, as described in this `guide <how_tos/choose_subspace_dimension.ipynb>`_.
+The choice of the subspace dimension affects the accuracy and runtime of the eigenstate solver. The larger the subspace, the more accurate the calculation, at the cost of increasing the runtime and memory requirements. The optimal subspace size of a given system is not known; thus, a convergence study with the subspace dimension can be performed, as described in this `guide <guides/choose_subspace_dimension.ipynb>`_.
 
 The subspace dimension is set indirectly
 """"""""""""""""""""""""""""""""""""""""
 
-In this package, the user controls the number of bitstrings contained in each subspace with the `samples_per_batch` argument in :func:`.qiskit_addon_sqd.subsampling.postselect_and_subsample`. The value of this argument sets an upper bound to the subspace dimension in the case of quantum chemistry applications. See this `example <how_tos/select_open_closed_shell.ipynb>`_ for more details.
+In this package, the user controls the number of bitstrings contained in each subspace with the `samples_per_batch` argument in :func:`.qiskit_addon_sqd.subsampling.postselect_and_subsample`. The value of this argument sets an upper bound to the subspace dimension in the case of quantum chemistry applications. See this `example <guides/select_open_closed_shell.ipynb>`_ for more details.
 
 Cite this project
 -------------------
