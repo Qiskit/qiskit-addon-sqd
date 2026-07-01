@@ -4,10 +4,10 @@ updates:
     directory: "/"
     labels: ["dependencies"]
     schedule:
-      interval: "weekly"
+      interval: "quarterly"
   - package-ecosystem: "pip"
     directory: "/"
     labels: ["dependencies"]
-    versioning-strategy: increase
+    versioning-strategy: increase-if-necessary
     schedule:
       interval: "monthly"
