@@ -88,7 +88,7 @@ Deprecation Policy
 We follow `semantic versioning <https://semver.org/>`_. We may occasionally make breaking changes in order to
 improve the user experience. When possible, we will keep old interfaces and mark them as deprecated, as long
 as they can co-exist with the new ones. Each substantial improvement, breaking change, or deprecation will be
-documented in the `release notes <https://quantum.cloud.ibm.com/docs/en/api/qiskit-addon-sqd/release-notes>`_.
+documented in the `release notes <https://quantum.cloud.ibm.com/docs/api/qiskit-addon-sqd/release-notes>`_.
 
 .. _references:
 
@@ -132,11 +132,17 @@ References
    :caption: Tutorials
 
    Sample-based quantum diagonalization on a chemistry Hamiltonian <https://quantum.cloud.ibm.com/docs/tutorials/sample-based-quantum-diagonalization>
-   Sample-based Krylov quantum diagonalization of a Fermionic lattice model <https://quantum.cloud.ibm.com/docs/en/tutorials/sample-based-krylov-quantum-diagonalization>
+   Sample-based Krylov quantum diagonalization of a Fermionic lattice model <https://quantum.cloud.ibm.com/docs/tutorials/sample-based-krylov-quantum-diagonalization>
+
+.. toctree::
+   :hidden:
+   :caption: Learning
+
+   Quantum diagonalization algorithms <https://quantum.cloud.ibm.com/learning/courses/quantum-diagonalization-algorithms>
 
 .. toctree::
    :hidden:
    :caption: API reference
 
-   Python API reference <https://quantum.cloud.ibm.com/docs/en/api/qiskit-addon-sqd>
+   Python API reference <https://quantum.cloud.ibm.com/docs/api/qiskit-addon-sqd>
    Release notes <release-notes>
