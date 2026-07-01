@@ -24,17 +24,17 @@ Use case examples
 
 The sample-based quantum diagonalization technique can be used to implement a diverse set of workflows. Some examples of where it has been used include:
 
-- Electronic structure calculations of the ground state energies of iron-sulfur clusters `[ref] <https://arxiv.org/abs/2405.05068>`__
-- Estimating ground state energies to predict band gaps of dielectrics `[ref] <https://arxiv.org/abs/2503.10901>`__
-- Estimating low-lying molecular excited states `[ref] <https://arxiv.org/abs/2411.00468>`__
-- Simulating interactions between molecules `[ref] <https://arxiv.org/abs/2410.09209>`__
-- Studying solute-solvent interactions in simulations of electronic structure `[ref] <https://arxiv.org/abs/2502.10189>`__
-- Open-shell analysis of molecular dissociation `[ref] <https://arxiv.org/abs/2411.04827>`__
-- Modeling reaction pathways for photochemistry problems `[ref] <https://arxiv.org/abs/2510.00484>`__
-- Combining with entanglement forging to study reaction pathways for materials degradation via hydrogen abstraction `[ref] <https://arxiv.org/abs/2508.08229>`__
-- Constructing subspaces from quantum Krylov basis states to perform ground state simulations of impurity models for fermionic systems `[ref] <https://arxiv.org/abs/2501.09702>`__
-- Using qDRIFT randomized compilation to lower the overhead of implementing Krylov basis states for chemistry Hamiltonians [ref] and with application to a molecule exhibiting a half-Mobius electronic topology `[ref] <https://arxiv.org/abs/2603.08696>`__
-- Using SQD as a solver in the context of embedding and fragmentation methods for molecular systems, such as to compute energies of hydrogen rings and cyclohexane `[ref] <https://arxiv.org/abs/2411.09861>`__ and of bi- and tri-metallic complexes `[ref] <https://arxiv.org/abs/2512.14936>`__, study the oxygen reduction reaction `[ref] <https://arxiv.org/abs/2503.10923>`__, estimate energies of proteins `[ref] <https://arxiv.org/abs/2512.17130>`__ and protein–ligand complexes `[ref] <https://arxiv.org/abs/2605.01138>`__, and predict tritium speciation `[ref] <https://arxiv.org/abs/2606.30402>`__.
+- Electronic structure calculations of the ground state energies of iron-sulfur clusters `[arxiv] <https://arxiv.org/abs/2405.05068>`__
+- Estimating ground state energies to predict band gaps of dielectrics `[arxiv] <https://arxiv.org/abs/2503.10901>`__
+- Estimating low-lying molecular excited states `[arxiv] <https://arxiv.org/abs/2411.00468>`__
+- Simulating interactions between molecules `[arxiv] <https://arxiv.org/abs/2410.09209>`__
+- Studying solute-solvent interactions in simulations of electronic structure `[arxiv] <https://arxiv.org/abs/2502.10189>`__
+- Open-shell analysis of molecular dissociation `[arxiv] <https://arxiv.org/abs/2411.04827>`__
+- Modeling reaction pathways for photochemistry problems `[arxiv] <https://arxiv.org/abs/2510.00484>`__
+- Combining with entanglement forging to study reaction pathways for materials degradation via hydrogen abstraction `[arxiv] <https://arxiv.org/abs/2508.08229>`__
+- Constructing subspaces from quantum Krylov basis states to perform ground state simulations of impurity models for fermionic systems `[arxiv] <https://arxiv.org/abs/2501.09702>`__
+- Using qDRIFT randomized compilation to lower the overhead of implementing Krylov basis states for chemistry Hamiltonians `[arxiv] <https://arxiv.org/abs/2508.02578>`__ and with application to a molecule exhibiting a half-Mobius electronic topology `[arxiv] <https://arxiv.org/abs/2603.08696>`__
+- Using SQD as a solver in the context of embedding and fragmentation methods for molecular systems, such as to compute energies of hydrogen rings and cyclohexane `[arxiv] <https://arxiv.org/abs/2411.09861>`__ and of bi- and tri-metallic complexes `[arxiv] <https://arxiv.org/abs/2512.14936>`__, study the oxygen reduction reaction `[arxiv] <https://arxiv.org/abs/2503.10923>`__, estimate energies of proteins `[arxiv] <https://arxiv.org/abs/2512.17130>`__ and protein–ligand complexes `[arxiv] <https://arxiv.org/abs/2605.01138>`__, and predict tritium speciation `[arxiv] <https://arxiv.org/abs/2606.30402>`__.
 
 Technical discussion
 --------------------
@@ -59,7 +59,7 @@ In this package, the user controls the number of bitstrings contained in each su
 Solvers
 """""""
 
-This package contains the functionality for the classical processing of user-provided samples. It can target Hamiltonians expressed as linear combinations of Pauli operators or second-quantized fermionic operators. The projection and diagonalization steps are performed by a classical solver. We provide here two generic solvers, one for fermionic systems and another for qubit systems. Other solvers that might be more efficient for specific systems can be interfaced by the users.
+The projection and diagonalization steps are performed by a classical solver. We provide here two generic solvers, one for fermionic systems and another for qubit systems. Other solvers that might be more efficient for specific systems can be interfaced by the users.
 
 Contributing
 ------------
