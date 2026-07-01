@@ -55,17 +55,17 @@ A simple guide to help you get started quickly with this package is available [h
 
 The sample-based quantum diagonalization technique can be used to implement a diverse set of workflows. Some examples of where it has been used include:
 
-- Electronic structure calculations of the ground state energies of iron-sulfur clusters [[arxiv]](https://arxiv.org/abs/2405.05068)
-- Estimating ground state energies to predict band gaps of dielectrics [[arxiv]](https://arxiv.org/abs/2503.10901)
-- Estimating low-lying molecular excited states [[arxiv]](https://arxiv.org/abs/2411.00468)
-- Simulating interactions between molecules [[arxiv]](https://arxiv.org/abs/2410.09209)
-- Studying solute-solvent interactions in simulations of electronic structure [[arxiv]](https://arxiv.org/abs/2502.10189)
-- Open-shell analysis of molecular dissociation [[arxiv]](https://arxiv.org/abs/2411.04827)
-- Modeling reaction pathways for photochemistry problems. [[arxiv]](https://arxiv.org/abs/2510.00484)
-- Combining with entanglement forging to study reaction pathways for materials degradation via hydrogen abstraction [[arxiv]](https://arxiv.org/abs/2508.08229)
-- Constructing subspaces from quantum Krylov basis states to perform ground state simulations of impurity models for Fermionic systems [[arxiv]](https://arxiv.org/abs/2501.09702)
-- Using qDRIFT randomized compilation to lower the overhead of implementing Krylov basis states for chemistry Hamiltonians [[arxiv]](https://arxiv.org/abs/2508.02578) and with application to a molecule exhibiting a half-Mobius electronic topology [[arxiv]](https://arxiv.org/abs/2603.08696)
-- Using SQD as a solver used in the context of embedding and fragmentation methods for molecular systems, such as to compute energies of hydrogen rings and cyclohexane [[arxiv]](https://arxiv.org/abs/2411.09861) and of bi- and tri-metallic complexes [[arxiv]](https://arxiv.org/abs/2512.14936), study oxygen reduction reaction [[arxiv]](https://arxiv.org/abs/2503.10923), estimate energies of proteins [[arxiv]](https://arxiv.org/abs/2512.17130) and protein–ligand complexes [[arxiv]](https://arxiv.org/abs/2605.01138), and to predict tritium speciation [[arxiv]](https://arxiv.org/abs/2606.30402).
+- [Electronic structure calculations of the ground state energies of iron-sulfur clusters](https://arxiv.org/abs/2405.05068)
+- [Estimating ground state energies to predict band gaps of dielectrics](https://arxiv.org/abs/2503.10901)
+- [Estimating low-lying molecular excited states](https://arxiv.org/abs/2411.00468)
+- [Simulating interactions between molecules](https://arxiv.org/abs/2410.09209)
+- [Studying solute-solvent interactions in simulations of electronic structure](https://arxiv.org/abs/2502.10189)
+- [Open-shell analysis of molecular dissociation](https://arxiv.org/abs/2411.04827)
+- [Modeling reaction pathways for photochemistry problems.](https://arxiv.org/abs/2510.00484)
+- [Combining with entanglement forging to study reaction pathways for materials degradation via hydrogen abstraction](https://arxiv.org/abs/2508.08229)
+- [Constructing subspaces from quantum Krylov basis states to perform ground state simulations of impurity models for Fermionic systems](https://arxiv.org/abs/2501.09702)
+- [Using qDRIFT randomized compilation to lower the overhead of implementing Krylov basis states for chemistry Hamiltonians](https://arxiv.org/abs/2508.02578) and [with application to a molecule exhibiting a half-Mobius electronic topology](https://arxiv.org/abs/2603.08696)
+- [Using SQD as a solver used in the context of embedding and fragmentation methods for molecular systems, such as to compute energies of hydrogen rings and cyclohexane](https://arxiv.org/abs/2411.09861) and [of bi- and tri-metallic complexes](https://arxiv.org/abs/2512.14936), [study oxygen reduction reaction](https://arxiv.org/abs/2503.10923), [estimate energies of proteins](https://arxiv.org/abs/2512.17130) and [protein–ligand complexes](https://arxiv.org/abs/2605.01138), and to [predict tritium speciation](https://arxiv.org/abs/2606.30402).
 
 ----------------------------------------------------------------------------------------------------
 ### Technical discussion
