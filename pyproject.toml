@@ -59,7 +59,7 @@ lint = [
     "mypy==1.20.0",
     "pylint==4.0.6",
     "reno>=4.1",
-    "toml>=0.9.6",
+    "toml>=0.10.2",
 ]
 notebook-dependencies = [
     "qiskit-addon-sqd",
