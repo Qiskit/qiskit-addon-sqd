@@ -73,7 +73,7 @@ notebook-dependencies = [
 ]
 docs = [
     "qiskit-addon-sqd[test,notebook-dependencies]",
-    "qiskit-sphinx-theme~=2.0.0",
+    "qiskit-sphinx-theme~=2.1.0",
     "jupyter-sphinx",
     "sphinx-design",
     "sphinx-autodoc-typehints",
