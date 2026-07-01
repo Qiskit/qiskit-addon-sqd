@@ -29,7 +29,7 @@ SQD-based workflows involve first preparing one or more quantum states on a quan
 
 ### Documentation
 
-All documentation is available at https://qiskit.github.io/qiskit-addon-sqd/.
+All documentation is available at https://quantum.cloud.ibm.com/docs/addons/qiskit-addon-sqd.
 
 ----------------------------------------------------------------------------------------------------
 
