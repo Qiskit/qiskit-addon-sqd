@@ -29,5 +29,34 @@ Fermionic systems
 
 Spin systems
 """"""""""""
-- :doc:`Build a projected H amiltonian matrix for qubit Hamiltonians <project_pauli_operators_onto_hilbert_subspaces>`
+- :doc:`Build a projected Hamiltonian matrix for qubit Hamiltonians <project_pauli_operators_onto_hilbert_subspaces>`
 - :doc:`Benchmark performance of subspace projection for qubit Hamiltonians <benchmark_pauli_projection>`
+
+.. toctree::
+   :hidden:
+   :caption: Getting started
+
+   self
+   quickstart
+
+.. toctree::
+   :hidden:
+   :caption: General
+
+   choose_subspace_dimension
+
+.. toctree::
+   :hidden:
+   :caption: Fermionic systems
+
+   integrate_dice_solver
+   use_oo_to_optimize_hamiltonian_basis
+   select_open_closed_shell
+   add_fermionic_excitations_to_configuration_pool
+
+.. toctree::
+   :hidden:
+   :caption: Spin systems
+
+   project_pauli_operators_onto_hilbert_subspaces
+   benchmark_pauli_projection
