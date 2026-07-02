@@ -31,9 +31,33 @@ jobs:
       - name: Upgrade pip
         run: |
           python -m pip install --upgrade pip
+      - name: Install BLAS/LAPACK (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libblas-dev liblapack-dev
+      - name: Bootstrap OpenMP-capable compiler (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew install llvm libomp
+          LLVM_PREFIX="$(brew --prefix llvm)"
+          OMP_PREFIX="$(brew --prefix libomp)"
+          {
+            echo "CC=${LLVM_PREFIX}/bin/clang"
+            echo "CXX=${LLVM_PREFIX}/bin/clang++"
+            echo "LDFLAGS=-L${LLVM_PREFIX}/lib -L${OMP_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
+            echo "CPPFLAGS=-I${LLVM_PREFIX}/include -I${OMP_PREFIX}/include"
+          } >> "$GITHUB_ENV"
       - name: Install tools from pypi
         run: |
-          python -m pip install tox build extremal-python-dependencies~=0.1.0
+          python -m pip install tox build extremal-python-dependencies~=0.2.1
+      - name: Build fulqrum development wheel
+        run: |
+          git clone --recurse-submodules https://github.com/qiskit-community/fulqrum
+          cd fulqrum
+          git rev-parse HEAD
+          python -m build --wheel
       - name: Build Qiskit SDK development wheel
         run: |
           git clone https://github.com/Qiskit/qiskit
@@ -51,13 +75,12 @@ jobs:
           git clone https://github.com/Qiskit/qiskit-addon-utils
           cd qiskit-addon-utils
           git rev-parse HEAD
-          # Unpin qiskit<2
-          extremal-python-dependencies pin-dependencies --inplace qiskit
           python -m build --wheel
       - name: Pin development versions
         shell: bash
         run: >-
           extremal-python-dependencies pin-dependencies --inplace
+          "fulqrum @ file:$(echo fulqrum/dist/*.whl)"
           "qiskit @ file:$(echo qiskit/dist/*.whl)"
           "qiskit-ibm-runtime @ file:$(echo qiskit-ibm-runtime/dist/*.whl)"
           "qiskit-addon-utils @ file:$(echo qiskit-addon-utils/dist/*.whl)"

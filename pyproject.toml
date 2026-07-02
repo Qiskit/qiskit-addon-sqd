@@ -27,14 +27,18 @@ requires-python = ">=3.10"
 
 dependencies = [
     "qiskit>=1.2, <3",
-    "numpy>=1.26",
+    "numpy>=2.0",
     "pyscf>=2.5; sys_platform != 'win32'",
     "jaxlib>=0.4.30",
     "jax>=0.4.30",
-    "scipy>=1.13.1",
+    "scipy>=1.14.1",
 ]
 
 [project.optional-dependencies]
+fulqrum = [
+    "fulqrum @ git+https://github.com/qiskit-community/fulqrum.git@7f903f4b7190d4b61bdabdd9789f72b5d0e3e146",
+    "primme>=3.2.3",
+]
 dev = [
     "qiskit-addon-sqd[test,nbtest,lint,docs]",
     "tox>=4.4.3",
@@ -62,7 +66,7 @@ lint = [
     "toml>=0.9.6",
 ]
 notebook-dependencies = [
-    "qiskit-addon-sqd",
+    "qiskit-addon-sqd[fulqrum]",
     "qiskit-addon-utils",
     "qiskit-aer",
     "matplotlib",
