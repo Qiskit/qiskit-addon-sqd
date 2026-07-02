@@ -136,7 +136,7 @@ References
 
 .. toctree::
    :hidden:
-   :caption: Learning
+   :caption: Learning resources
 
    Quantum diagonalization algorithms <https://quantum.cloud.ibm.com/learning/courses/quantum-diagonalization-algorithms>
 
