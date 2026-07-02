@@ -43,20 +43,20 @@ Spin systems
    :hidden:
    :caption: General
 
-   choose_subspace_dimension
+   Choose the subspace dimension <choose_subspace_dimension>
 
 .. toctree::
    :hidden:
    :caption: Fermionic systems
 
-   integrate_dice_solver
-   use_oo_to_optimize_hamiltonian_basis
-   select_open_closed_shell
-   add_fermionic_excitations_to_configuration_pool
+   Scale workloads with the Dice solver <integrate_dice_solver>
+   Orbital optimization <use_oo_to_optimize_hamiltonian_basis>
+   Open- and closed-shell options <select_open_closed_shell>
+   Augment pool of electronic configurations <add_fermionic_excitations_to_configuration_pool>
 
 .. toctree::
    :hidden:
    :caption: Spin systems
 
-   project_pauli_operators_onto_hilbert_subspaces
-   benchmark_pauli_projection
+   Projected qubit Hamiltonians <project_pauli_operators_onto_hilbert_subspaces>
+   Benchmark qubit Hamiltonian projection <benchmark_pauli_projection>
