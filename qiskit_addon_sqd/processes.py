@@ -15,6 +15,9 @@
 This module exists to support coordinated parallel execution across multiple
 isolated processes, with explicit global synchronization and communication
 (e.g., MPI-style SPMD collectives).
+
+The current implementation relies on MPI, but the public interface is designed
+to support other collective-execution backends in the future.
 """
 
 from __future__ import annotations
