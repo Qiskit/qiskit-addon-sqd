@@ -34,9 +34,9 @@ from pyscf.fci.selected_ci import (
 from qiskit.primitives import BitArray
 from scipy import linalg as LA
 
-from qiskit_addon_sqd import distributed
 from qiskit_addon_sqd.configuration_recovery import recover_configurations
 from qiskit_addon_sqd.counts import bit_array_to_arrays, bitstring_matrix_to_integers
+from qiskit_addon_sqd.processes import broadcast, is_control_process
 from qiskit_addon_sqd.subsampling import postselect_by_hamming_right_and_left, subsample
 
 config.update("jax_enable_x64", True)  # To deal with large integers
@@ -300,11 +300,14 @@ def diagonalize_fermionic_hamiltonian(
     raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
 
     # Run configuration recovery loop
-    # In distributed mode, only rank 0 orchestrates the loop
-    # All ranks participate in sci_solver calls for MPI collective operations
-    for iteration_idx in range(max_iterations):
-        # Only rank 0 performs configuration recovery and subsampling
-        if distributed.is_main_rank():
+    #
+    # In distributed (SPMD) mode, the control process orchestrates the loop and
+    # performs procedures that do not have a distributed implementation, while
+    # all ranks participate in sci_solver calls for collective operations.
+    for _ in range(max_iterations):
+        # Only the control process performs configuration recovery and
+        # subsampling
+        if is_control_process():
             if current_occupancies is None:
                 # If we don't have average orbital occupancy information, simply postselect
                 # bitstrings with the correct numbers of spin-up and spin-down electrons
@@ -375,17 +378,17 @@ def diagonalize_fermionic_hamiltonian(
             ci_strings = None
 
         # Broadcast ci_strings to all ranks for MPI collective operations in sci_solver
-        ci_strings = distributed.broadcast(ci_strings, root=0)
+        ci_strings = broadcast(ci_strings, root=0)
 
         # Run diagonalization
         results = sci_solver(ci_strings, one_body_tensor, two_body_tensor, norb, nelec)
 
-        # Call callback function if provided (only on rank 0)
-        if callback is not None and distributed.is_main_rank():
+        # Call callback function if provided (only on the control process)
+        if callback is not None and is_control_process():
             callback(results)
 
-        # Only rank 0 processes results and determines convergence
-        if distributed.is_main_rank():
+        # Only the controller processes results and determines convergence
+        if is_control_process():
             # Get best result from batch
             best_result_in_batch = min(results, key=lambda result: result.energy)
 
@@ -400,7 +403,7 @@ def diagonalize_fermionic_hamiltonian(
                 and abs(current_result.energy - best_result_in_batch.energy) < energy_tol
                 and np.linalg.norm(
                     # Reason for type: ignore: mypy thinks current_occupancies can be None
-                    np.ravel(current_occupancies)
+                    np.ravel(current_occupancies)  # type: ignore
                     - np.ravel(best_result_in_batch.orbital_occupancies),  # type: ignore
                     ord=np.inf,
                 )
@@ -440,20 +443,20 @@ def diagonalize_fermionic_hamiltonian(
             # Non-main ranks wait for convergence decision
             converged = None
             current_occupancies = None
-            carryover_strings_a = None
-            carryover_strings_b = None
+            carryover_strings_a = None  # type: ignore
+            carryover_strings_b = None  # type: ignore
 
         # Broadcast convergence decision and state to all ranks
-        converged = distributed.broadcast(converged, root=0)
+        converged = broadcast(converged, root=0)
         if converged:
             break
 
-        current_occupancies = distributed.broadcast(current_occupancies, root=0)
-        carryover_strings_a = distributed.broadcast(carryover_strings_a, root=0)
-        carryover_strings_b = distributed.broadcast(carryover_strings_b, root=0)
+        current_occupancies = broadcast(current_occupancies, root=0)
+        carryover_strings_a = broadcast(carryover_strings_a, root=0)
+        carryover_strings_b = broadcast(carryover_strings_b, root=0)
 
     # Broadcast final result to all ranks
-    best_result = distributed.broadcast(best_result, root=0)
+    best_result = broadcast(best_result, root=0)
 
     # best_result is not None because there must have been at least one iteration
     return cast(SCIResult, best_result)
