@@ -147,7 +147,7 @@ class TestFermion(unittest.TestCase):
         nelec = (n_alpha, n_beta)
         cas = pyscf.mcscf.CASCI(scf, norb, nelec)
         mo = cas.sort_mo(active_space, base=0)
-        hcore, nuclear_repulsion_energy = cas.get_h1cas(mo)
+        hcore, _ = cas.get_h1cas(mo)
         eri = pyscf.ao2mo.restore(1, cas.get_h2cas(mo), norb)
         dim_a = math.comb(norb, n_alpha)
         dim_b = math.comb(norb, n_beta)
@@ -244,7 +244,7 @@ class TestFermion(unittest.TestCase):
         nelec = (n_alpha, n_beta)
         cas = pyscf.mcscf.CASCI(scf, norb, nelec)
         mo = cas.sort_mo(active_space, base=0)
-        hcore, nuclear_repulsion_energy = cas.get_h1cas(mo)
+        hcore, _ = cas.get_h1cas(mo)
         eri = pyscf.ao2mo.restore(1, cas.get_h2cas(mo), norb)
 
         # Generate invalid samples from ground state
