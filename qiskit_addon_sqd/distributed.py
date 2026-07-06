@@ -28,28 +28,28 @@ _distributed_state: dict[str, Any] = {
 
 def _detect_mpi() -> None:
     """Automatically detect if running under MPI and initialize state.
-    
+
     This function is called at module import time to detect MPI environment.
     It checks for common MPI environment variables and attempts to import mpi4py.
     """
     # Check for common MPI environment variables
     mpi_env_vars = [
         "OMPI_COMM_WORLD_SIZE",  # OpenMPI
-        "PMI_SIZE",               # Intel MPI, MPICH
-        "SLURM_NTASKS",          # SLURM
-        "MPI_LOCALNRANKS",       # IBM Spectrum MPI
+        "PMI_SIZE",  # Intel MPI, MPICH
+        "SLURM_NTASKS",  # SLURM
+        "MPI_LOCALNRANKS",  # IBM Spectrum MPI
     ]
-    
+
     mpi_detected = any(var in os.environ for var in mpi_env_vars)
-    
+
     if mpi_detected:
         try:
             from mpi4py import MPI
-            
+
             comm = MPI.COMM_WORLD
             rank = comm.Get_rank()
             size = comm.Get_size()
-            
+
             # Only enable distributed mode if we have multiple processes
             if size > 1:
                 _distributed_state["enabled"] = True
@@ -63,7 +63,7 @@ def _detect_mpi() -> None:
 
 def is_distributed() -> bool:
     """Check if running in distributed mode.
-    
+
     Returns:
         True if MPI is detected and multiple processes are running.
     """
@@ -72,7 +72,7 @@ def is_distributed() -> bool:
 
 def get_comm():
     """Get the MPI communicator.
-    
+
     Returns:
         MPI communicator if distributed mode is enabled, None otherwise.
     """
@@ -81,7 +81,7 @@ def get_comm():
 
 def get_rank() -> int:
     """Get the MPI rank of the current process.
-    
+
     Returns:
         MPI rank (0 if not in distributed mode).
     """
@@ -90,7 +90,7 @@ def get_rank() -> int:
 
 def get_size() -> int:
     """Get the total number of MPI processes.
-    
+
     Returns:
         Number of MPI processes (1 if not in distributed mode).
     """
@@ -99,7 +99,7 @@ def get_size() -> int:
 
 def is_main_rank() -> bool:
     """Check if this is the main rank (rank 0).
-    
+
     Returns:
         True if this is rank 0 or not in distributed mode.
     """
@@ -108,24 +108,24 @@ def is_main_rank() -> bool:
 
 def broadcast(obj: Any, root: int = 0) -> Any:
     """Broadcast an object from root to all processes.
-    
+
     Args:
         obj: Object to broadcast (only used on root rank).
         root: Root rank for broadcast (default: 0).
-        
+
     Returns:
         The broadcasted object on all ranks.
     """
     if not is_distributed():
         return obj
-    
+
     comm = get_comm()
     return comm.bcast(obj, root=root)
 
 
 def barrier() -> None:
     """Synchronize all processes.
-    
+
     This is a no-op if not in distributed mode.
     """
     if is_distributed():

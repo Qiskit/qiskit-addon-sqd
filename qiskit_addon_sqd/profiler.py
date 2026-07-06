@@ -1,5 +1,4 @@
-"""
-Lightweight resource profiler for QCSC workloads (SBD, fulqrum, etc.).
+"""Lightweight resource profiler for QCSC workloads (SBD, fulqrum, etc.).
 
 Captures CPU/GPU memory, CPU utilization, and timing via before/after
 snapshots — no background polling.  MPI-aware: rank 0 collects the max
@@ -29,7 +28,7 @@ import platform
 import resource
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import psutil
 
@@ -232,9 +231,7 @@ class ResourceMonitor:
         # Start GPU polling thread
         if self._has_gpu and self._gpu_poll_interval > 0:
             self._gpu_poll_stop.clear()
-            self._gpu_poll_thread = threading.Thread(
-                target=self._gpu_poll_loop, daemon=True
-            )
+            self._gpu_poll_thread = threading.Thread(target=self._gpu_poll_loop, daemon=True)
             self._gpu_poll_thread.start()
 
     def stop(self) -> None:
@@ -258,9 +255,7 @@ class ResourceMonitor:
         # CPU utilization
         end_cpu = self._process.cpu_times()
         start_cpu = self._start_cpu_times
-        cpu_seconds = (
-            (end_cpu.user - start_cpu.user) + (end_cpu.system - start_cpu.system)
-        )
+        cpu_seconds = (end_cpu.user - start_cpu.user) + (end_cpu.system - start_cpu.system)
         if self.wall_time > 0:
             self.cpu_utilization_pct = (cpu_seconds / self.wall_time) * 100.0
         else:
@@ -279,9 +274,7 @@ class ResourceMonitor:
                     self.gpu_memory_used_gb = self._gpu_peak_used / _GB
                 else:
                     self.gpu_memory_used_gb = info.used / _GB
-                self.gpu_memory_free_gb = (
-                    self.gpu_memory_total_gb - self.gpu_memory_used_gb
-                )
+                self.gpu_memory_free_gb = self.gpu_memory_total_gb - self.gpu_memory_used_gb
             except Exception:
                 pass
             # GPU utilization from polling
@@ -290,8 +283,7 @@ class ResourceMonitor:
 
         # Estimated free CPU memory
         self.cpu_memory_free_gb = (
-            self.cpu_memory_total_gb
-            - self.cpu_memory_peak_gb * self._ranks_on_node
+            self.cpu_memory_total_gb - self.cpu_memory_peak_gb * self._ranks_on_node
         )
         if self.cpu_memory_free_gb < 0:
             self.cpu_memory_free_gb = 0.0
@@ -460,9 +452,7 @@ class ResourceMonitor:
             )
 
         # CPU free estimate
-        lines.append(
-            self._row("CPU free (est):", f"{self.cpu_memory_free_gb:.1f} GB")
-        )
+        lines.append(self._row("CPU free (est):", f"{self.cpu_memory_free_gb:.1f} GB"))
 
         # GPU memory
         if self._agg_gpu_used is not None:
@@ -489,9 +479,7 @@ class ResourceMonitor:
         # GPU utilization (average)
         if self._agg_gpu_util is not None and self._agg_gpu_util.value > 0:
             gpu_util = self._agg_gpu_util.value
-            lines.append(
-                self._row("GPU utilization:", f"{gpu_util:.0f}% avg")
-            )
+            lines.append(self._row("GPU utilization:", f"{gpu_util:.0f}% avg"))
 
         # MPI / OMP summary
         lines.append(
@@ -513,8 +501,7 @@ class ResourceMonitor:
                 if cp.gpu_used_gb is not None:
                     gpu_str = f"  GPU: {cp.gpu_used_gb:.2f} GB"
                 lines.append(
-                    f"  {cp.name:20s}  t={cp.wall_time:7.2f}s  "
-                    f"RSS: {cp.rss_gb:.2f} GB{gpu_str}"
+                    f"  {cp.name:20s}  t={cp.wall_time:7.2f}s  RSS: {cp.rss_gb:.2f} GB{gpu_str}"
                 )
 
         print("\n".join(lines))
