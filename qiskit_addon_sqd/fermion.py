@@ -409,8 +409,9 @@ def _prepare_ci_strings(
 ) -> list[tuple[np.ndarray, np.ndarray]]:
     """Perform configuration recovery and subsampling to build the CI strings.
 
-    This is the portion of one configuration recovery iteration that does not have a
-    distributed implementation, so in SPMD mode it runs only on the control process.
+    This is the first half of one configuration recovery iteration: it postselects
+    or recovers configurations, subsamples them into batches, and builds the CI
+    strings for each batch.
     """
     if current_occupancies is None:
         # If we don't have average orbital occupancy information, simply postselect
@@ -500,10 +501,9 @@ def _process_sci_results(
 ) -> _IterationState:
     """Process the diagonalization results of one configuration recovery iteration.
 
-    Updates the best result seen so far, checks for convergence, and (when not
-    converged) computes the carryover strings for the next iteration. This is the
-    portion of the iteration that does not have a distributed implementation, so in
-    SPMD mode it runs only on the control process.
+    This is the second half of one configuration recovery iteration: it updates the
+    best result seen so far, checks for convergence, and (when not converged) computes
+    the carryover strings for the next iteration.
     """
     # Get best result from batch
     best_result_in_batch = min(results, key=lambda result: result.energy)
