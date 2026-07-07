@@ -146,6 +146,44 @@ class SCIResult:
     """Spin-summed 2-particle reduced density matrix."""
 
 
+@dataclass(frozen=True)
+class _LoopConfig:
+    """Loop-invariant configuration for the configuration recovery loop.
+
+    These values are computed once before the loop and do not change between
+    iterations. Bundling them keeps the per-iteration helper calls concise.
+    """
+
+    raw_bitstrings: np.ndarray
+    raw_probs: np.ndarray
+    n_alpha: int
+    n_beta: int
+    samples_per_batch: int
+    num_batches: int
+    norb: int
+    symmetrize_spin: bool
+    include_a: np.ndarray
+    include_b: np.ndarray
+    max_dim_a: int | None
+    max_dim_b: int | None
+    energy_tol: float
+    occupancies_tol: float
+    carryover_threshold: float
+    rng: np.random.Generator
+
+
+@dataclass(frozen=True)
+class _IterationState:
+    """State produced by processing the results of one configuration recovery iteration."""
+
+    best_result: SCIResult
+    current_result: SCIResult
+    current_occupancies: tuple[np.ndarray, np.ndarray]
+    carryover_strings_a: np.ndarray
+    carryover_strings_b: np.ndarray
+    converged: bool
+
+
 def diagonalize_fermionic_hamiltonian(
     one_body_tensor: np.ndarray,
     two_body_tensor: np.ndarray,
@@ -337,7 +375,7 @@ def diagonalize_fermionic_hamiltonian(
             callback(results)
 
         # Process results: update best result, check convergence, compute carryover
-        state = _process_results(
+        state = _process_sci_results(
             config,
             results,
             best_result,
@@ -361,32 +399,6 @@ def _unique_with_order_preserved(vals: np.ndarray) -> np.ndarray:
     _, indices = np.unique(vals, return_index=True)
     indices.sort()
     return vals[indices]
-
-
-@dataclass(frozen=True)
-class _LoopConfig:
-    """Loop-invariant configuration for the configuration recovery loop.
-
-    These values are computed once before the loop and do not change between
-    iterations. Bundling them keeps the per-iteration helper calls concise.
-    """
-
-    raw_bitstrings: np.ndarray
-    raw_probs: np.ndarray
-    n_alpha: int
-    n_beta: int
-    samples_per_batch: int
-    num_batches: int
-    norb: int
-    symmetrize_spin: bool
-    include_a: np.ndarray
-    include_b: np.ndarray
-    max_dim_a: int | None
-    max_dim_b: int | None
-    energy_tol: float
-    occupancies_tol: float
-    carryover_threshold: float
-    rng: np.random.Generator
 
 
 def _prepare_ci_strings(
@@ -479,19 +491,7 @@ def _prepare_ci_strings(
     return ci_strings
 
 
-@dataclass(frozen=True)
-class _IterationState:
-    """State produced by processing the results of one configuration recovery iteration."""
-
-    best_result: SCIResult
-    current_result: SCIResult
-    current_occupancies: tuple[np.ndarray, np.ndarray]
-    carryover_strings_a: np.ndarray
-    carryover_strings_b: np.ndarray
-    converged: bool
-
-
-def _process_results(
+def _process_sci_results(
     config: _LoopConfig,
     results: list[SCIResult],
     best_result: SCIResult | None,
