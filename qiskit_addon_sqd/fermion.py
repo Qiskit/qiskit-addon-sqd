@@ -300,71 +300,25 @@ def diagonalize_fermionic_hamiltonian(
 
     # Run configuration recovery loop
     for _ in range(max_iterations):
-        if current_occupancies is None:
-            # If we don't have average orbital occupancy information, simply postselect
-            # bitstrings with the correct numbers of spin-up and spin-down electrons
-            bitstrings, probs = postselect_by_hamming_right_and_left(
-                raw_bitstrings, raw_probs, hamming_right=n_alpha, hamming_left=n_beta
-            )
-            if not bitstrings.size:
-                raise ValueError(
-                    "The input bit array did not contain any valid bitstrings. "
-                    "Either pass a bit array that contains at least one valid bitstring "
-                    "(with the correct right and left Hamming weights), or specify a value for initial_occupancies."
-                )
-        else:
-            # If we do have average orbital occupancy information, use it to refine the
-            # full set of noisy configurations
-            bitstrings, probs = recover_configurations(
-                raw_bitstrings, raw_probs, current_occupancies, n_alpha, n_beta, rand_seed=rng
-            )
-
-        # Subsample batches of bitstrings
-        subsamples = subsample(
-            bitstrings,
-            probs,
-            samples_per_batch=samples_per_batch,
-            num_batches=num_batches,
-            rand_seed=rng,
+        # Convert bitstrings to CI strings, including requested and carryover strings
+        ci_strings = _prepare_ci_strings(
+            raw_bitstrings,
+            raw_probs,
+            current_occupancies,
+            n_alpha,
+            n_beta,
+            samples_per_batch,
+            num_batches,
+            norb,
+            symmetrize_spin,
+            include_a,
+            include_b,
+            carryover_strings_a,
+            carryover_strings_b,
+            max_dim_a,
+            max_dim_b,
+            rng,
         )
-
-        # Convert bitstrings to CI strings and include requested and carryover strings
-        ci_strings = []
-        for samples in subsamples:
-            # Get the single-spin bitstrings and counts.
-            samples_a, counts_a = np.unique(
-                bitstring_matrix_to_integers(samples[:, norb:]), return_counts=True
-            )
-            samples_b, counts_b = np.unique(
-                bitstring_matrix_to_integers(samples[:, :norb]), return_counts=True
-            )
-            if symmetrize_spin:
-                # Merge the bitstrings for spin alpha and spin beta.
-                samples = np.concatenate((samples_a, samples_b))
-                counts = np.concatenate((counts_a, counts_b))
-                # Sort the single-spin bitstrings in descending order by marginal probability.
-                samples = samples[np.argsort(counts)[::-1]]
-                # Prioritize explicitly requested bitstrings, then carryover strings, and
-                # finally sampled bitstrings.
-                # Note that in this case, carryover_strings_a and carryover_strings_b are equal.
-                strs = np.concatenate((include_a, include_b, carryover_strings_a, samples))
-                # Truncate bitstrings to the maximum dimension.
-                # In this case, max_dim_a and max_dim_b are equal.
-                strs_a = strs_b = _unique_with_order_preserved(strs)[:max_dim_a]
-            else:
-                # Sort the single-spin bitstrings in descending order by marginal probability.
-                samples_a = samples_a[np.argsort(counts_a)[::-1]]
-                samples_b = samples_b[np.argsort(counts_b)[::-1]]
-                # Prioritize explicitly requested bitstrings, then carryover strings, and
-                # finally sampled bitstrings
-                strs_a = np.concatenate((include_a, carryover_strings_a, samples_a))
-                strs_b = np.concatenate((include_b, carryover_strings_b, samples_b))
-                # Truncate bitstrings to the maximum dimension.
-                strs_a = _unique_with_order_preserved(strs_a)[:max_dim_a]
-                strs_b = _unique_with_order_preserved(strs_b)[:max_dim_b]
-            strs_a.sort()
-            strs_b.sort()
-            ci_strings.append((strs_a, strs_b))
 
         # Run diagonalization
         results = sci_solver(ci_strings, one_body_tensor, two_body_tensor, norb, nelec)
@@ -373,53 +327,24 @@ def diagonalize_fermionic_hamiltonian(
         if callback is not None:
             callback(results)
 
-        # Get best result from batch
-        best_result_in_batch = min(results, key=lambda result: result.energy)
-
-        # Check if the energy is the lowest seen so far
-        if best_result is None or best_result_in_batch.energy < best_result.energy:
-            best_result = best_result_in_batch
-
-        # Check convergence
-        if (
-            current_result is not None
-            and abs(current_result.energy - best_result_in_batch.energy) < energy_tol
-            and np.linalg.norm(
-                # Reason for type: ignore: mypy thinks current_occupancies can be None
-                np.ravel(current_occupancies) - np.ravel(best_result_in_batch.orbital_occupancies),  # type: ignore
-                ord=np.inf,
-            )
-            < occupancies_tol
-        ):
+        # Process results: update best result, check convergence, compute carryover
+        state = _process_results(
+            results,
+            best_result,
+            current_result,
+            current_occupancies,
+            energy_tol,
+            occupancies_tol,
+            carryover_threshold,
+            symmetrize_spin,
+        )
+        best_result = state.best_result
+        if state.converged:
             break
-        current_result = best_result_in_batch
-        current_occupancies = current_result.orbital_occupancies
-
-        # Carry over bitstrings with large CI weight
-        sci_state = current_result.sci_state
-        flattened = sci_state.amplitudes.reshape(-1)
-        absolute_vals = np.abs(flattened)
-        indices = np.argsort(absolute_vals)
-        carryover_index = np.searchsorted(absolute_vals, carryover_threshold, sorter=indices)
-        carryover_indices = indices[carryover_index:]
-        _, n_strings_b = sci_state.amplitudes.shape
-        alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
-        alpha_indices = np.unique(alpha_indices)
-        beta_indices = np.unique(beta_indices)
-        carryover_strings_a = sci_state.ci_strs_a[alpha_indices]
-        carryover_strings_b = sci_state.ci_strs_b[beta_indices]
-        # Sort carryover strings in descending order by marginal weight
-        weights_a = np.sum(np.abs(sci_state.amplitudes[alpha_indices]) ** 2, axis=1)
-        weights_b = np.sum(np.abs(sci_state.amplitudes[:, beta_indices]) ** 2, axis=0)
-        if symmetrize_spin:
-            carryover_strings = np.concatenate((carryover_strings_a, carryover_strings_b))
-            weights = np.concatenate((weights_a, weights_b))
-            carryover_strings = carryover_strings[np.argsort(weights)[::-1]]
-            carryover_strings = _unique_with_order_preserved(carryover_strings)
-            carryover_strings_a = carryover_strings_b = carryover_strings
-        else:
-            carryover_strings_a = carryover_strings_a[np.argsort(weights_a)[::-1]]
-            carryover_strings_b = carryover_strings_b[np.argsort(weights_b)[::-1]]
+        current_result = state.current_result
+        current_occupancies = state.current_occupancies
+        carryover_strings_a = state.carryover_strings_a
+        carryover_strings_b = state.carryover_strings_b
 
     # best_result is not None because there must have been at least one iteration
     return cast(SCIResult, best_result)
@@ -430,6 +355,194 @@ def _unique_with_order_preserved(vals: np.ndarray) -> np.ndarray:
     _, indices = np.unique(vals, return_index=True)
     indices.sort()
     return vals[indices]
+
+
+def _prepare_ci_strings(
+    raw_bitstrings: np.ndarray,
+    raw_probs: np.ndarray,
+    current_occupancies: tuple[np.ndarray, np.ndarray] | None,
+    n_alpha: int,
+    n_beta: int,
+    samples_per_batch: int,
+    num_batches: int,
+    norb: int,
+    symmetrize_spin: bool,
+    include_a: np.ndarray,
+    include_b: np.ndarray,
+    carryover_strings_a: np.ndarray,
+    carryover_strings_b: np.ndarray,
+    max_dim_a: int | None,
+    max_dim_b: int | None,
+    rng: np.random.Generator,
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Perform configuration recovery and subsampling to build the CI strings.
+
+    This is the portion of one configuration recovery iteration that does not have a
+    distributed implementation, so in SPMD mode it runs only on the control process.
+    """
+    if current_occupancies is None:
+        # If we don't have average orbital occupancy information, simply postselect
+        # bitstrings with the correct numbers of spin-up and spin-down electrons
+        bitstrings, probs = postselect_by_hamming_right_and_left(
+            raw_bitstrings, raw_probs, hamming_right=n_alpha, hamming_left=n_beta
+        )
+        if not bitstrings.size:
+            raise ValueError(
+                "The input bit array did not contain any valid bitstrings. "
+                "Either pass a bit array that contains at least one valid bitstring "
+                "(with the correct right and left Hamming weights), or specify a value for initial_occupancies."
+            )
+    else:
+        # If we do have average orbital occupancy information, use it to refine the
+        # full set of noisy configurations
+        bitstrings, probs = recover_configurations(
+            raw_bitstrings, raw_probs, current_occupancies, n_alpha, n_beta, rand_seed=rng
+        )
+
+    # Subsample batches of bitstrings
+    subsamples = subsample(
+        bitstrings,
+        probs,
+        samples_per_batch=samples_per_batch,
+        num_batches=num_batches,
+        rand_seed=rng,
+    )
+
+    # Convert bitstrings to CI strings and include requested and carryover strings
+    ci_strings = []
+    for samples in subsamples:
+        # Get the single-spin bitstrings and counts.
+        samples_a, counts_a = np.unique(
+            bitstring_matrix_to_integers(samples[:, norb:]), return_counts=True
+        )
+        samples_b, counts_b = np.unique(
+            bitstring_matrix_to_integers(samples[:, :norb]), return_counts=True
+        )
+        if symmetrize_spin:
+            # Merge the bitstrings for spin alpha and spin beta.
+            samples = np.concatenate((samples_a, samples_b))
+            counts = np.concatenate((counts_a, counts_b))
+            # Sort the single-spin bitstrings in descending order by marginal probability.
+            samples = samples[np.argsort(counts)[::-1]]
+            # Prioritize explicitly requested bitstrings, then carryover strings, and
+            # finally sampled bitstrings.
+            # Note that in this case, carryover_strings_a and carryover_strings_b are equal.
+            strs = np.concatenate((include_a, include_b, carryover_strings_a, samples))
+            # Truncate bitstrings to the maximum dimension.
+            # In this case, max_dim_a and max_dim_b are equal.
+            strs_a = strs_b = _unique_with_order_preserved(strs)[:max_dim_a]
+        else:
+            # Sort the single-spin bitstrings in descending order by marginal probability.
+            samples_a = samples_a[np.argsort(counts_a)[::-1]]
+            samples_b = samples_b[np.argsort(counts_b)[::-1]]
+            # Prioritize explicitly requested bitstrings, then carryover strings, and
+            # finally sampled bitstrings
+            strs_a = np.concatenate((include_a, carryover_strings_a, samples_a))
+            strs_b = np.concatenate((include_b, carryover_strings_b, samples_b))
+            # Truncate bitstrings to the maximum dimension.
+            strs_a = _unique_with_order_preserved(strs_a)[:max_dim_a]
+            strs_b = _unique_with_order_preserved(strs_b)[:max_dim_b]
+        strs_a.sort()
+        strs_b.sort()
+        ci_strings.append((strs_a, strs_b))
+
+    return ci_strings
+
+
+@dataclass(frozen=True)
+class _IterationState:
+    """State produced by processing the results of one configuration recovery iteration."""
+
+    best_result: SCIResult
+    current_result: SCIResult
+    current_occupancies: tuple[np.ndarray, np.ndarray]
+    carryover_strings_a: np.ndarray
+    carryover_strings_b: np.ndarray
+    converged: bool
+
+
+def _process_results(
+    results: list[SCIResult],
+    best_result: SCIResult | None,
+    current_result: SCIResult | None,
+    current_occupancies: tuple[np.ndarray, np.ndarray] | None,
+    energy_tol: float,
+    occupancies_tol: float,
+    carryover_threshold: float,
+    symmetrize_spin: bool,
+) -> _IterationState:
+    """Process the diagonalization results of one configuration recovery iteration.
+
+    Updates the best result seen so far, checks for convergence, and (when not
+    converged) computes the carryover strings for the next iteration. This is the
+    portion of the iteration that does not have a distributed implementation, so in
+    SPMD mode it runs only on the control process.
+    """
+    # Get best result from batch
+    best_result_in_batch = min(results, key=lambda result: result.energy)
+
+    # Check if the energy is the lowest seen so far
+    if best_result is None or best_result_in_batch.energy < best_result.energy:
+        best_result = best_result_in_batch
+
+    # Check convergence
+    if (
+        current_result is not None
+        and abs(current_result.energy - best_result_in_batch.energy) < energy_tol
+        and np.linalg.norm(
+            # Reason for type: ignore: mypy thinks current_occupancies can be None
+            np.ravel(current_occupancies) - np.ravel(best_result_in_batch.orbital_occupancies),  # type: ignore
+            ord=np.inf,
+        )
+        < occupancies_tol
+    ):
+        # Converged: carry the pre-existing state through unchanged, since the caller
+        # will stop iterating and these fields will not be used again.
+        return _IterationState(
+            best_result=best_result,
+            current_result=current_result,
+            current_occupancies=cast("tuple[np.ndarray, np.ndarray]", current_occupancies),
+            carryover_strings_a=np.array([], dtype=np.int64),
+            carryover_strings_b=np.array([], dtype=np.int64),
+            converged=True,
+        )
+    current_result = best_result_in_batch
+    current_occupancies = current_result.orbital_occupancies
+
+    # Carry over bitstrings with large CI weight
+    sci_state = current_result.sci_state
+    flattened = sci_state.amplitudes.reshape(-1)
+    absolute_vals = np.abs(flattened)
+    indices = np.argsort(absolute_vals)
+    carryover_index = np.searchsorted(absolute_vals, carryover_threshold, sorter=indices)
+    carryover_indices = indices[carryover_index:]
+    _, n_strings_b = sci_state.amplitudes.shape
+    alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
+    alpha_indices = np.unique(alpha_indices)
+    beta_indices = np.unique(beta_indices)
+    carryover_strings_a = sci_state.ci_strs_a[alpha_indices]
+    carryover_strings_b = sci_state.ci_strs_b[beta_indices]
+    # Sort carryover strings in descending order by marginal weight
+    weights_a = np.sum(np.abs(sci_state.amplitudes[alpha_indices]) ** 2, axis=1)
+    weights_b = np.sum(np.abs(sci_state.amplitudes[:, beta_indices]) ** 2, axis=0)
+    if symmetrize_spin:
+        carryover_strings = np.concatenate((carryover_strings_a, carryover_strings_b))
+        weights = np.concatenate((weights_a, weights_b))
+        carryover_strings = carryover_strings[np.argsort(weights)[::-1]]
+        carryover_strings = _unique_with_order_preserved(carryover_strings)
+        carryover_strings_a = carryover_strings_b = carryover_strings
+    else:
+        carryover_strings_a = carryover_strings_a[np.argsort(weights_a)[::-1]]
+        carryover_strings_b = carryover_strings_b[np.argsort(weights_b)[::-1]]
+
+    return _IterationState(
+        best_result=best_result,
+        current_result=current_result,
+        current_occupancies=current_occupancies,
+        carryover_strings_a=carryover_strings_a,
+        carryover_strings_b=carryover_strings_b,
+        converged=False,
+    )
 
 
 def solve_sci_batch(
