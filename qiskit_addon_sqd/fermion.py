@@ -152,6 +152,10 @@ class _LoopConfig:
 
     These values are computed once before the loop and do not change between
     iterations. Bundling them keeps the per-iteration helper calls concise.
+
+    NOTE: The elements stored in this dataclass do not mutate *except* for the
+    random number generator (rng), which will change state when used for
+    configuration recovery and subsampling.
     """
 
     raw_bitstrings: np.ndarray
