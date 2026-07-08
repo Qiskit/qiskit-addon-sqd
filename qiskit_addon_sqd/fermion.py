@@ -36,6 +36,7 @@ from scipy import linalg as LA
 
 from .configuration_recovery import recover_configurations
 from .counts import bit_array_to_arrays, bitstring_matrix_to_integers
+from .processes import broadcast, is_control_process
 from .subsampling import postselect_by_hamming_right_and_left, subsample
 
 config.update("jax_enable_x64", True)  # To deal with large integers
@@ -362,30 +363,48 @@ def diagonalize_fermionic_hamiltonian(
     )
 
     # Run configuration recovery loop
+    #
+    # In distributed (SPMD) mode, the control process orchestrates the loop and
+    # performs procedures that do not have a distributed implementation, while
+    # all ranks participate in sci_solver calls for collective operations.
     for _ in range(max_iterations):
-        # Convert bitstrings to CI strings, including requested and carryover strings
-        ci_strings = _prepare_ci_strings(
-            config,
-            current_occupancies,
-            carryover_strings_a,
-            carryover_strings_b,
-        )
+        # Convert bitstrings to CI strings, including requested and carryover
+        # strings. This has no distributed implementation, so only the control
+        # process performs it; the result is then broadcast to all ranks for the
+        # MPI collective operations in sci_solver.
+        if is_control_process():
+            ci_strings = _prepare_ci_strings(
+                config,
+                current_occupancies,
+                carryover_strings_a,
+                carryover_strings_b,
+            )
+        else:
+            ci_strings = None
+        ci_strings = broadcast(ci_strings, root=0)
 
         # Run diagonalization
         results = sci_solver(ci_strings, one_body_tensor, two_body_tensor, norb, nelec)
 
-        # Call callback function if provided
-        if callback is not None:
+        # Call callback function if provided (only on the control process)
+        if callback is not None and is_control_process():
             callback(results)
 
-        # Process results: update best result, check convergence, compute carryover
-        state = _process_sci_results(
-            config,
-            results,
-            best_result,
-            current_result,
-            current_occupancies,
-        )
+        # Process results: update best result, check convergence, compute
+        # carryover. This has no distributed implementation, so only the control
+        # process performs it; the resulting state is then broadcast to all ranks.
+        if is_control_process():
+            state = _process_sci_results(
+                config,
+                results,
+                best_result,
+                current_result,
+                current_occupancies,
+            )
+        else:
+            state = None
+        state = broadcast(state, root=0)
+
         best_result = state.best_result
         if state.converged:
             break
