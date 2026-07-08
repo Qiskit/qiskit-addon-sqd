@@ -179,9 +179,13 @@ class _LoopConfig:
 
 @dataclass(frozen=True)
 class _IterationState:
-    """State produced by processing the results of one configuration recovery iteration."""
+    """State produced by processing the results of one configuration recovery iteration.
 
-    best_result: SCIResult
+    This state is control-local: it feeds the next iteration's ``_prepare_ci_strings``
+    call, which also runs only on the control process. It is therefore not broadcast to
+    the other ranks (only the ``converged`` flag is).
+    """
+
     current_result: SCIResult
     current_occupancies: tuple[np.ndarray, np.ndarray]
     carryover_strings_a: np.ndarray
@@ -390,28 +394,37 @@ def diagonalize_fermionic_hamiltonian(
         if callback is not None and is_control_process():
             callback(results)
 
-        # Process results: update best result, check convergence, compute
-        # carryover. This has no distributed implementation, so only the control
-        # process performs it; the resulting state is then broadcast to all ranks.
+        # Process results: select the batch's best result, check convergence, and
+        # compute carryover. This has no distributed implementation, so only the
+        # control process performs it. The resulting state is control-local (it
+        # feeds the next iteration's control-only _prepare_ci_strings call), so only
+        # the convergence decision is broadcast to the other ranks.
         if is_control_process():
             state = _process_sci_results(
                 config,
                 results,
-                best_result,
                 current_result,
                 current_occupancies,
             )
+            # Fold the batch's best result into the running best result.
+            if best_result is None or state.current_result.energy < best_result.energy:
+                best_result = state.current_result
+            converged = state.converged
         else:
-            state = None
-        state = broadcast(state, root=0)
-
-        best_result = state.best_result
-        if state.converged:
+            converged = None
+        converged = broadcast(converged, root=0)
+        if converged:
             break
-        current_result = state.current_result
-        current_occupancies = state.current_occupancies
-        carryover_strings_a = state.carryover_strings_a
-        carryover_strings_b = state.carryover_strings_b
+
+        # Only the control process carries state into the next iteration.
+        if is_control_process():
+            current_result = state.current_result
+            current_occupancies = state.current_occupancies
+            carryover_strings_a = state.carryover_strings_a
+            carryover_strings_b = state.carryover_strings_b
+
+    # Broadcast the final result to all ranks (it was tracked on the control process).
+    best_result = broadcast(best_result, root=0)
 
     # best_result is not None because there must have been at least one iteration
     return cast(SCIResult, best_result)
@@ -518,22 +531,21 @@ def _prepare_ci_strings(
 def _process_sci_results(
     config: _LoopConfig,
     results: list[SCIResult],
-    best_result: SCIResult | None,
     current_result: SCIResult | None,
     current_occupancies: tuple[np.ndarray, np.ndarray] | None,
 ) -> _IterationState:
     """Process the diagonalization results of one configuration recovery iteration.
 
-    This is the second half of one configuration recovery iteration: it updates the
-    best result seen so far, checks for convergence, and (when not converged) computes
+    This is the second half of one configuration recovery iteration: it selects the
+    best result of the batch, checks for convergence, and (when not converged) computes
     the carryover strings for the next iteration.
+
+    The running best result across iterations is tracked by the caller (it is a simple
+    fold over ``current_result`` and does not need to happen on the control process
+    alone), so it is not part of the returned state.
     """
     # Get best result from batch
     best_result_in_batch = min(results, key=lambda result: result.energy)
-
-    # Check if the energy is the lowest seen so far
-    if best_result is None or best_result_in_batch.energy < best_result.energy:
-        best_result = best_result_in_batch
 
     # Check convergence
     if (
@@ -546,11 +558,11 @@ def _process_sci_results(
         )
         < config.occupancies_tol
     ):
-        # Converged: carry the pre-existing state through unchanged, since the caller
-        # will stop iterating and these fields will not be used again.
+        # Converged: the carryover strings will not be used again since the caller will
+        # stop iterating, but current_result still reports this batch's best so the
+        # caller can fold it into the running best result.
         return _IterationState(
-            best_result=best_result,
-            current_result=current_result,
+            current_result=best_result_in_batch,
             current_occupancies=cast("tuple[np.ndarray, np.ndarray]", current_occupancies),
             carryover_strings_a=np.array([], dtype=np.int64),
             carryover_strings_b=np.array([], dtype=np.int64),
@@ -586,7 +598,6 @@ def _process_sci_results(
         carryover_strings_b = carryover_strings_b[np.argsort(weights_b)[::-1]]
 
     return _IterationState(
-        best_result=best_result,
         current_result=current_result,
         current_occupancies=current_occupancies,
         carryover_strings_a=carryover_strings_a,
