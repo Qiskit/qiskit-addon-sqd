@@ -50,6 +50,7 @@ Spin systems
    :hidden:
    :caption: Fermionic systems
 
+   Scale workloads with the Fulqrum <integrate_fulqrum>
    Scale workloads with the Dice solver <integrate_dice_solver>
    Orbital optimization <use_oo_to_optimize_hamiltonian_basis>
    Open- and closed-shell options <select_open_closed_shell>
