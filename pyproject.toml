@@ -17,6 +17,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Physics",
 ]
 
@@ -53,13 +55,13 @@ nbtest = [
     "nbmake>=1.5.0",
 ]
 style = [
-    "ruff==0.12.11",
+    "ruff==0.15.20",
     "nbqa>=1.8.5",
 ]
 lint = [
     "qiskit-addon-sqd[style]",
-    "mypy==1.20.0",
-    "pylint==4.0.5",
+    "mypy==2.1.0",
+    "pylint==4.0.6",
     "reno>=4.1",
     "toml>=0.9.6",
 ]
@@ -75,7 +77,7 @@ notebook-dependencies = [
 ]
 docs = [
     "qiskit-addon-sqd[test,notebook-dependencies]",
-    "qiskit-sphinx-theme~=2.0.0",
+    "qiskit-sphinx-theme~=2.1.0",
     "jupyter-sphinx",
     "sphinx-design",
     "sphinx-autodoc-typehints",
@@ -167,7 +169,7 @@ max-args = 6
 notice-rgx = """
 # This code is a Qiskit project.
 #
-# \\(C\\) Copyright IBM 2024\\.
+# \\(C\\) Copyright IBM \\d{4}((,\\s)\\d{4})*\\.
 #
 # This code is licensed under the Apache License, Version 2\\.0\\. You may
 # obtain a copy of this license in the LICENSE\\.txt file in the root directory
