@@ -22,6 +22,7 @@ General
 
 Fermionic systems
 """""""""""""""""
+- :doc:`Scale SQD workflows for Fermionic systems with Fulqrum <integrate_fulqrum>`
 - :doc:`Scale SQD workflows for Fermionic systems with the Dice solver <integrate_dice_solver>`
 - :doc:`Optimize the Hamiltonian basis with orbital optimization to improve energy estimations <use_oo_to_optimize_hamiltonian_basis>`
 - :doc:`Understand open- and closed-shell options and their effect on subspace construction <select_open_closed_shell>`
