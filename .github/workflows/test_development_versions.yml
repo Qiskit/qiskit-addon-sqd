@@ -31,6 +31,7 @@ jobs:
       - name: Upgrade pip
         run: |
           python -m pip install --upgrade pip
+      # BLAS/LAPACK and OpenMP needed to build fulqrum for notebook testing
       - name: Install BLAS/LAPACK (Linux)
         if: runner.os == 'Linux'
         run: |
