@@ -67,7 +67,7 @@ notebook-dependencies = [
     "qiskit-aer",
     "matplotlib",
     "pylatexenc",
-    "ffsim",
+    "ffsim>=0.0.58",
     "qiskit",
     "qiskit-ibm-runtime",
 ]
