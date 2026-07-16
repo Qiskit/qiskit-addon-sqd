@@ -50,7 +50,7 @@ Spin systems
    :caption: Fermionic systems
 
    Scale workloads with the Dice solver <integrate_dice_solver>
-   Orbital optimization <use_oo_to_optimize_hamiltonian_basis>
+   Orbital optimization <optimize_orbitals>
    Open- and closed-shell options <select_open_closed_shell>
    Augment pool of electronic configurations <add_fermionic_excitations_to_configuration_pool>
 
