@@ -293,6 +293,30 @@ def diagonalize_fermionic_hamiltonian(
 
     Returns:
         The estimate of the energy and the SCI state with that energy.
+
+    Note:
+        This function supports collective multi-process (SPMD) execution using
+        MPI, with a single thread controlling each process
+        (``MPI_THREAD_FUNNELED`` or lower). When it is invoked collectively from
+        all processes, the arguments must agree across processes, and the
+        following semantics apply:
+
+        - The ``sci_solver`` step is the only collective operation: all
+          processes participate in it, so an ``sci_solver`` implementation may
+          distribute work across every process. The remaining steps of the
+          configuration-recovery loop (preparing the CI strings, processing the
+          diagonalization results, and checking convergence) have no distributed
+          implementation and are performed on the control process alone.
+        - The ``callback``, if provided, is invoked on the control process only.
+        - The return value is the same on every process: the final result is
+          broadcast from the control process to all ranks.
+
+        A collective ``sci_solver`` implementation is not required to raise an
+        exception on a single process when it encounters an error; instead, it
+        may follow fail-stop semantics for the execution context as a whole,
+        aborting all processes collectively. (This describes what such an
+        implementation is permitted to do, not the behavior of the default
+        ``sci_solver``.)
     """
     if max_iterations < 1:
         raise ValueError("Maximum number of iterations must be at least 1.")
