@@ -15,8 +15,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, cast
+from typing import cast
 
 import numpy as np
 from jax import Array, config, grad, jit, vmap
