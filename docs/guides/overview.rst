@@ -23,7 +23,7 @@ General
 Fermionic systems
 """""""""""""""""
 - :doc:`Scale SQD workflows for Fermionic systems with the Dice solver <integrate_dice_solver>`
-- :doc:`Optimize the Hamiltonian basis with orbital optimization to improve energy estimations <use_oo_to_optimize_hamiltonian_basis>`
+- :doc:`Improve an SQD estimate with orbital optimization <optimize_orbitals>`
 - :doc:`Understand open- and closed-shell options and their effect on subspace construction <select_open_closed_shell>`
 - :doc:`Augment the pool of electronic configurations using Fermionic transition operators to improve energy estimations and compute energies of excited states <add_fermionic_excitations_to_configuration_pool>`
 
@@ -50,7 +50,7 @@ Spin systems
    :caption: Fermionic systems
 
    Scale workloads with the Dice solver <integrate_dice_solver>
-   Orbital optimization <use_oo_to_optimize_hamiltonian_basis>
+   Orbital optimization <optimize_orbitals>
    Open- and closed-shell options <select_open_closed_shell>
    Augment pool of electronic configurations <add_fermionic_excitations_to_configuration_pool>
 
