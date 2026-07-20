@@ -91,7 +91,7 @@ class TestFermion(unittest.TestCase):
         indices_a, indices_b = np.divmod(addresses, dim_b)
         strings_a = [int(s) for s in cistring.addrs2str(norb=norb, nelec=n_alpha, addrs=indices_a)]
         strings_b = [int(s) for s in cistring.addrs2str(norb=norb, nelec=n_beta, addrs=indices_b)]
-        strings = [(sb << norb) + sa for sa, sb in zip(strings_a, strings_b)]
+        strings = [(sb << norb) + sa for sa, sb in zip(strings_a, strings_b, strict=True)]
         bit_array_ground_state = BitArray.from_samples(strings, num_bits=2 * norb)
 
         # Generate random bitstrings
@@ -163,7 +163,7 @@ class TestFermion(unittest.TestCase):
         indices_a, indices_b = np.divmod(addresses, dim_b)
         strings_a = [int(s) for s in cistring.addrs2str(norb=norb, nelec=n_alpha, addrs=indices_a)]
         strings_b = [int(s) for s in cistring.addrs2str(norb=norb, nelec=n_beta, addrs=indices_b)]
-        strings = [(sb << norb) + sa for sa, sb in zip(strings_a, strings_b)]
+        strings = [(sb << norb) + sa for sa, sb in zip(strings_a, strings_b, strict=True)]
         bit_array_ground_state = BitArray.from_samples(strings, num_bits=2 * norb)
 
         # Generate random bitstrings

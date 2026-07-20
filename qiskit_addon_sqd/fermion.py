@@ -106,12 +106,12 @@ class SCIState:
         sci_vector = _as_SCIvector(self.amplitudes, (self.ci_strs_a, self.ci_strs_b))
         if rank == 1:
             if spin_summed:
-                return make_rdm1(sci_vector, self.norb, self.nelec)  # type: ignore
-            return make_rdm1s(sci_vector, self.norb, self.nelec)  # type: ignore
+                return make_rdm1(sci_vector, self.norb, self.nelec)  # type: ignore[no-any-return]
+            return make_rdm1s(sci_vector, self.norb, self.nelec)  # type: ignore[no-any-return]
         if rank == 2:
             if spin_summed:
-                return make_rdm2(sci_vector, self.norb, self.nelec)  # type: ignore
-            return make_rdm2s(sci_vector, self.norb, self.nelec)  # type: ignore
+                return make_rdm2(sci_vector, self.norb, self.nelec)  # type: ignore[no-any-return]
+            return make_rdm2s(sci_vector, self.norb, self.nelec)  # type: ignore[no-any-return]
         raise NotImplementedError(
             f"Computing the rank {rank} reduced density matrix is currently not supported."
         )
@@ -542,7 +542,7 @@ def _process_sci_results(
         and abs(current_result.energy - best_result_in_batch.energy) < config.energy_tol
         and np.linalg.norm(
             # Reason for type: ignore: mypy thinks current_occupancies can be None
-            np.ravel(current_occupancies) - np.ravel(best_result_in_batch.orbital_occupancies),  # type: ignore
+            np.ravel(current_occupancies) - np.ravel(best_result_in_batch.orbital_occupancies),  # type: ignore[arg-type]
             ord=np.inf,
         )
         < config.occupancies_tol
