@@ -1,0 +1,8 @@
+---
+deprecations:
+  - |
+    The :func:`qiskit_addon_sqd.fermion.optimize_orbitals` and
+    :func:`qiskit_addon_sqd.fermion.rotate_integrals` functions are now deprecated.
+    Refer to the `orbital optimization guide
+    <https://quantum.cloud.ibm.com/docs/addons/qiskit-addon-sqd/guides/optimize-orbitals>`_
+    for how to optimize the Hamiltonian basis with the ffsim package instead.
