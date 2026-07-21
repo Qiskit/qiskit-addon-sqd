@@ -32,6 +32,7 @@ from pyscf.fci.selected_ci import (
     spin_square,
 )
 from qiskit.primitives import BitArray
+from qiskit.utils.deprecation import deprecate_func
 from scipy import linalg as LA
 
 from .configuration_recovery import recover_configurations
@@ -40,6 +41,17 @@ from .processes import broadcast, is_control_process
 from .subsampling import postselect_by_hamming_right_and_left, subsample
 
 config.update("jax_enable_x64", True)  # To deal with large integers
+
+_ORBITAL_OPTIMIZATION_DEPRECATION = dict(
+    since="0.13.0",
+    package_name="qiskit-addon-sqd",
+    removal_timeline="no earlier than v0.15.0",
+    additional_msg=(
+        "Orbital optimization is now supported by the ffsim package. See "
+        "https://quantum.cloud.ibm.com/docs/addons/qiskit-addon-sqd/guides/optimize-orbitals "
+        "for a guide on how to optimize the Hamiltonian basis with ffsim."
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -800,6 +812,7 @@ def solve_fermion(
     return e_sci, sci_state, avg_occupancy, spin_squared
 
 
+@deprecate_func(**_ORBITAL_OPTIMIZATION_DEPRECATION)
 def optimize_orbitals(
     bitstring_matrix: tuple[np.ndarray, np.ndarray] | np.ndarray,
     /,
@@ -914,6 +927,7 @@ def optimize_orbitals(
     return e_qsci, k_flat, avg_occupancy
 
 
+@deprecate_func(**_ORBITAL_OPTIMIZATION_DEPRECATION)
 def rotate_integrals(
     hcore: np.ndarray, eri: np.ndarray, k_flat: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
