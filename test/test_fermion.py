@@ -50,6 +50,24 @@ def _sci_vec_to_fci_vec(
 class TestFermion(unittest.TestCase):
     def setUp(self):
         self.rng = np.random.default_rng(190560294508743238113331500595174898458)
+        self._pyscf_objects: list = []
+
+    def tearDown(self):
+        # PySCF SCF/CASCI objects hold a ``tempfile.NamedTemporaryFile`` chkfile
+        # (``obj._chkfile``).  If left to be closed at garbage-collection time,
+        # its deallocator can emit a ``ResourceWarning`` during an unrelated
+        # test, which pytest promotes to an error via ``filterwarnings=error``.
+        # Close them deterministically here instead.
+        for obj in self._pyscf_objects:
+            chkfile = getattr(obj, "_chkfile", None)
+            if chkfile is not None:
+                chkfile.close()
+        self._pyscf_objects.clear()
+
+    def _track(self, obj):
+        """Register a PySCF object so its temporary chkfile is closed on teardown."""
+        self._pyscf_objects.append(obj)
+        return obj
 
     def test_diagonalize_fermionic_hamiltonian_basic(self):
         """Test diagonalize_fermionic_hamiltonian basic usage."""
@@ -66,13 +84,13 @@ class TestFermion(unittest.TestCase):
         active_space = range(n_frozen, mol.nao_nr())
 
         # Get molecular integrals
-        scf = pyscf.scf.RHF(mol).run()
+        scf = self._track(pyscf.scf.RHF(mol).run())
         norb = len(active_space)
         n_electrons = int(sum(scf.mo_occ[active_space]))
         n_alpha = (n_electrons + mol.spin) // 2
         n_beta = (n_electrons - mol.spin) // 2
         nelec = (n_alpha, n_beta)
-        cas = pyscf.mcscf.CASCI(scf, norb, nelec)
+        cas = self._track(pyscf.mcscf.CASCI(scf, norb, nelec))
         mo = cas.sort_mo(active_space, base=0)
         hcore, nuclear_repulsion_energy = cas.get_h1cas(mo)
         eri = pyscf.ao2mo.restore(1, cas.get_h2cas(mo), norb)
@@ -139,13 +157,13 @@ class TestFermion(unittest.TestCase):
         active_space = range(n_frozen, mol.nao_nr())
 
         # Get molecular integrals
-        scf = pyscf.scf.RHF(mol).run()
+        scf = self._track(pyscf.scf.RHF(mol).run())
         norb = len(active_space)
         n_electrons = int(sum(scf.mo_occ[active_space]))
         n_alpha = (n_electrons + mol.spin) // 2
         n_beta = (n_electrons - mol.spin) // 2
         nelec = (n_alpha, n_beta)
-        cas = pyscf.mcscf.CASCI(scf, norb, nelec)
+        cas = self._track(pyscf.mcscf.CASCI(scf, norb, nelec))
         mo = cas.sort_mo(active_space, base=0)
         hcore, _ = cas.get_h1cas(mo)
         eri = pyscf.ao2mo.restore(1, cas.get_h2cas(mo), norb)
@@ -236,13 +254,13 @@ class TestFermion(unittest.TestCase):
         active_space = range(n_frozen, mol.nao_nr())
 
         # Get molecular integrals
-        scf = pyscf.scf.RHF(mol).run()
+        scf = self._track(pyscf.scf.RHF(mol).run())
         norb = len(active_space)
         n_electrons = int(sum(scf.mo_occ[active_space]))
         n_alpha = (n_electrons + mol.spin) // 2
         n_beta = (n_electrons - mol.spin) // 2
         nelec = (n_alpha, n_beta)
-        cas = pyscf.mcscf.CASCI(scf, norb, nelec)
+        cas = self._track(pyscf.mcscf.CASCI(scf, norb, nelec))
         mo = cas.sort_mo(active_space, base=0)
         hcore, _ = cas.get_h1cas(mo)
         eri = pyscf.ao2mo.restore(1, cas.get_h2cas(mo), norb)
@@ -297,13 +315,13 @@ class TestFermion(unittest.TestCase):
         active_space = range(n_frozen, mol.nao_nr())
 
         # Get molecular integrals
-        scf = pyscf.scf.RHF(mol).run()
+        scf = self._track(pyscf.scf.RHF(mol).run())
         norb = len(active_space)
         n_electrons = int(sum(scf.mo_occ[active_space]))
         n_alpha = (n_electrons + mol.spin) // 2
         n_beta = (n_electrons - mol.spin) // 2
         nelec = (n_alpha, n_beta)
-        cas = pyscf.mcscf.CASCI(scf, norb, nelec)
+        cas = self._track(pyscf.mcscf.CASCI(scf, norb, nelec))
         mo = cas.sort_mo(active_space, base=0)
         hcore, _ = cas.get_h1cas(mo)
         eri = pyscf.ao2mo.restore(1, cas.get_h2cas(mo), norb)
