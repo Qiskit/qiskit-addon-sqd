@@ -7,11 +7,11 @@ name = "qiskit-addon-sqd"
 version = "0.12.1"
 readme = "README.md"
 description = "Classically postprocess noisy quantum samples to yield more accurate energy estimations"
-license = {file = "LICENSE.txt"}
+license = "Apache-2.0"
+license-files = ["LICENSE.txt"]
 classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.10",
@@ -21,7 +21,6 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Physics",
 ]
-
 
 requires-python = ">=3.10"
 
