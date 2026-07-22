@@ -4,7 +4,7 @@ Support for multi-process and multi-threaded acceleration
 
 This page documents the extent to which ``qiskit-addon-sqd`` supports
 multi-threaded and multi-process acceleration, and the assumptions that a
-high-performance-computing (HPC) developer may rely on when integrating this
+high-performance-computing (HPC) developer can rely on when integrating this
 package into an accelerated workload.
 
 The single-threaded assumption
@@ -27,7 +27,7 @@ single thread controlling each process (``MPI_THREAD_FUNNELED`` or lower).
 Only one function currently supports being called collectively from all
 processes: :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian`.
 When it is invoked collectively, the eigensolver step is where all processes
-participate and contribute work, so an eigensolver implementation may leverage
+participate and contribute work, so an eigensolver implementation can use
 every process. The remaining parts of the configuration-recovery loop have no
 distributed implementation and run on the control process (rank 0) only.
 
@@ -59,13 +59,13 @@ context collectively (for example, via ``MPI_Abort``).
 
 The API cannot guarantee coordinated error reporting or collective delivery of
 exceptions across processes, because MPI implementations do not provide such
-guarantees. An implementation may additionally attempt to make an error visible
+guarantees. An implementation might additionally attempt to make an error visible
 to all participating processes---for example, by having each process raise an
 exception---but this can only be provided on a best-effort basis and must not be
 relied upon for correctness or recovery.
 
 These are properties that a collective implementation is permitted to have, not
 guarantees about any particular one. In this package, the only collective entry
-point is ``sci_solver`` (see above); its default implementation is not
+point is ``sci_solver`` (see the preceding section); its default implementation is not
 distributed, so these considerations apply to a custom, collective
 ``sci_solver`` supplied by the user.

@@ -302,7 +302,7 @@ def diagonalize_fermionic_hamiltonian(
         following semantics apply:
 
         - The ``sci_solver`` step is the only collective operation: all
-          processes participate in it, so an ``sci_solver`` implementation may
+          processes participate in it, so an ``sci_solver`` implementation can
           distribute work across every process. The remaining steps of the
           configuration-recovery loop (preparing the CI strings, processing the
           diagonalization results, and checking convergence) have no distributed
@@ -313,7 +313,7 @@ def diagonalize_fermionic_hamiltonian(
 
         A collective ``sci_solver`` implementation is not required to raise an
         exception on a single process when it encounters an error; instead, it
-        may follow fail-stop semantics for the execution context as a whole,
+        can follow fail-stop semantics for the execution context as a whole,
         aborting all processes collectively. (This describes what such an
         implementation is permitted to do, not the behavior of the default
         ``sci_solver``.)
