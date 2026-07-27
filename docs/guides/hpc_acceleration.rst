@@ -31,18 +31,18 @@ participate and contribute work, so an eigensolver implementation can use
 every process. The remaining parts of the configuration-recovery loop have no
 distributed implementation and run on the control process (rank 0) only.
 
-Every other API in this package is intended to be called from the control
+Every other API in this package must be called from the control
 process alone, on its own local data, and carries no collective semantics.
 
-The precise return-value and synchronization semantics of a collective function
-belong with that function, so they are documented in its API reference rather
-than repeated here. In general, the documentation of any collective function
+The return value and synchronization semantics of a collective function
+belong with that function, so they are documented in its API reference.
+In general, the documentation of any collective function
 should make clear:
 
-- whether the function is meant to be called independently by each process on
-  its own local data, or collectively by all processes;
-- how its arguments must agree across processes;
-- and how its return value is delivered---whether the result exists only on the
+- Whether the function is meant to be called independently by each process on
+  its own local data, or collectively by all processes.
+- How its arguments must agree across processes.
+- How its return value is delivered---whether the result exists only on the
   control process, whether all processes receive the same value, or whether
   each process receives a handle to a local portion of a distributed data
   structure.
@@ -55,7 +55,7 @@ exception or abort only a single process, because that would leave the
 remaining processes deadlocked or in an inconsistent state. Instead, error
 handling follows fail-stop semantics for the execution context as a whole: upon
 an error, the implementation must be prepared to abort the entire execution
-context collectively (for example, via ``MPI_Abort``).
+context collectively (for example, by using ``MPI_Abort``).
 
 The API cannot guarantee coordinated error reporting or collective delivery of
 exceptions across processes, because MPI implementations do not provide such
