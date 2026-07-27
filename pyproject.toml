@@ -36,7 +36,7 @@ dependencies = [
 
 [project.optional-dependencies]
 fulqrum = [
-    "fulqrum @ git+https://github.com/qiskit-community/fulqrum.git@7f903f4b7190d4b61bdabdd9789f72b5d0e3e146",
+    "fulqrum @ git+https://github.com/qiskit-community/fulqrum.git@dafb4091d552d130c42d13dc74a3484e12d70d3f",
     "primme>=3.2.3",
 ]
 dev = [
