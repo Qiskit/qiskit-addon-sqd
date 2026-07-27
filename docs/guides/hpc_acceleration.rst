@@ -19,10 +19,17 @@ Collective multi-process execution
 ===================================
 
 This package supports collective multi-process acceleration in the
-single-program, multiple-data (SPMD) style, in which the same program runs in
-multiple isolated processes with explicit global synchronization and
-communication between them. The current implementation relies on MPI, with a
-single thread controlling each process (``MPI_THREAD_FUNNELED`` or lower).
+single-program, multiple-data (SPMD) style, in which the entire program is
+launched as multiple isolated processes that run with explicit global
+synchronization and communication between them (for example,
+``mpirun -n 128 python my_program.py``). While the API of this package is
+designed to be general, the current implementation relies on MPI,
+the standard message-passing API for HPC systems.  Regardless of implementation,
+this package makes the assumption that there is a single thread controlling
+each process. In the case of MPI, this corresponds to ``MPI_THREAD_FUNNELED`` or lower.
+Because it composes cleanly with job schedulers and other parallel software and
+scales to large process counts, this is the recommended model for
+high-performance and large-scale workloads, and it is the subject of this page.
 
 Only one function currently supports being called collectively from all
 processes: :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian`.
@@ -30,6 +37,14 @@ When it is invoked collectively, the eigensolver step is where all processes
 participate and contribute work, so an eigensolver implementation can use
 every process. The remaining parts of the configuration-recovery loop have no
 distributed implementation and run on the control process (rank 0) only.
+
+Some existing eigensolver implementations instead require the calling program
+to be outside an MPI/SPMD environment, as they launch and manage their own parallel processes internally, for
+example by invoking ``mpirun`` on the user's behalf. That mode is convenient
+for interactive and notebook-based work and remains supported; its requirements
+on the calling program are described in the API reference of the
+:func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` function,
+which accepts such a solver.
 
 Every other API in this package must be called from the control
 process alone, on its own local data, and carries no collective semantics.
