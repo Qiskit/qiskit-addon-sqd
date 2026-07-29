@@ -33,6 +33,22 @@ API for HPC systems. Regardless of implementation, this package assumes that a
 single thread controls each process. In the case of MPI, this corresponds to
 ``MPI_THREAD_FUNNELED`` or lower.
 
+If a function supports collective execution, its documentation must say so. If the
+documentation does not mention collective execution, the function has no
+collective semantics and must be called from the control process alone.
+
+The specific return-value and synchronization semantics of a collective function
+are documented with the function itself. In general, that documentation should
+make clear:
+
+- Whether the function is meant to be called independently by each process on
+  its own local data, or collectively by all processes.
+- How its arguments must agree across processes.
+- How its return value is delivered---whether the result exists only on the
+  control process, whether all processes receive the same value, or whether
+  each process receives a handle to a local portion of a distributed data
+  structure.
+
 Only one function currently supports being called collectively from all
 processes: :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian`.
 When it is invoked collectively, the eigensolver step is where all processes
@@ -47,19 +63,6 @@ behalf. That mode is convenient for interactive and notebook-based work and
 remains supported; its requirements on the calling program are described in the
 API reference of the
 :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` function.
-
-The return value and synchronization semantics of a collective function
-belong with that function, so they are documented in its API reference.
-In general, the documentation of any collective function
-should make clear:
-
-- Whether the function is meant to be called independently by each process on
-  its own local data, or collectively by all processes.
-- How its arguments must agree across processes.
-- How its return value is delivered---whether the result exists only on the
-  control process, whether all processes receive the same value, or whether
-  each process receives a handle to a local portion of a distributed data
-  structure.
 
 Error handling in a multi-process context
 =========================================
