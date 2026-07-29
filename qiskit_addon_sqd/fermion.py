@@ -313,13 +313,12 @@ def diagonalize_fermionic_hamiltonian(
 
         Whether the calling program should be launched under MPI depends on the
         ``sci_solver`` in use. A collective ``sci_solver``, as described above,
-        expects the program to run collectively across all processes. Some
-        ``sci_solver`` implementations instead manage their own parallelism
-        internally (for example, by launching ``mpirun`` themselves), and any
-        ``sci_solver`` that has no distributed implementation runs serially; both
-        of these cases require the calling program to run as a single process,
-        outside any MPI/SPMD environment. The default ``sci_solver`` is not
-        distributed and falls into this latter category.
+        expects the program to run collectively across all processes. Other
+        implementations require the calling program to run as a single process,
+        outside any MPI/SPMD environment.  Some of these implementations might
+        manage their own parallelism internally, for example, by launching
+        ``mpirun`` themselves. The default ``sci_solver`` is not distributed
+        and falls into this latter category.
 
         A collective ``sci_solver`` implementation is not required to raise an
         exception on a single process when it encounters an error; instead, it

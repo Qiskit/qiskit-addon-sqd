@@ -48,9 +48,6 @@ remains supported; its requirements on the calling program are described in the
 API reference of the
 :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` function.
 
-Every other API in this package must be called from the control
-process alone, on its own local data, and carries no collective semantics.
-
 The return value and synchronization semantics of a collective function
 belong with that function, so they are documented in its API reference.
 In general, the documentation of any collective function
