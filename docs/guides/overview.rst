@@ -19,6 +19,7 @@ These guides provide a deeper explanation of specific concepts and components fr
 General
 """""""
 - :doc:`How to choose the subspace dimension from its impact on eigenvalue estimation accuracy <choose_subspace_dimension>`
+- :doc:`Understand this package's support for multi-process and multi-threaded acceleration <hpc_acceleration>`
 
 Fermionic systems
 """""""""""""""""
@@ -44,6 +45,7 @@ Spin systems
    :caption: General
 
    Choose the subspace dimension <choose_subspace_dimension>
+   Multi-process and multi-threaded acceleration <hpc_acceleration>
 
 .. toctree::
    :hidden:

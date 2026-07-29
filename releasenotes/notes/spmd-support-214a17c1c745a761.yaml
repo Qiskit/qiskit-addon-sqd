@@ -1,0 +1,12 @@
+---
+features:
+  - |
+    :func:`qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` can now be
+    called collectively from all processes of a multi-process (SPMD) execution,
+    for example under MPI. When invoked this way, the ``sci_solver`` step runs on
+    every process, so a custom, distributed ``sci_solver`` can spread each
+    diagonalization across the available processes; the rest of the
+    configuration-recovery loop runs on the control process alone, and the return
+    value is the same on every process. Single-process behavior is unchanged. See
+    :doc:`/guides/hpc_acceleration` for details on the package's support for
+    multi-process and multi-threaded acceleration.
