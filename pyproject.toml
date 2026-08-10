@@ -54,7 +54,7 @@ nbtest = [
     "nbmake>=1.5.0",
 ]
 style = [
-    "ruff==0.15.20",
+    "ruff==0.16.0",
     "nbqa>=1.8.5",
 ]
 lint = [
