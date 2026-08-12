@@ -23,7 +23,6 @@ General
 
 Fermionic systems
 """""""""""""""""
-- :doc:`Scale SQD workflows for Fermionic systems with Fulqrum <integrate_fulqrum>`
 - :doc:`Scale SQD workflows for Fermionic systems with the Dice solver <integrate_dice_solver>`
 - :doc:`Improve an SQD estimate with orbital optimization <optimize_orbitals>`
 - :doc:`Understand open- and closed-shell options and their effect on subspace construction <select_open_closed_shell>`
@@ -52,7 +51,6 @@ Spin systems
    :hidden:
    :caption: Fermionic systems
 
-   Scale workloads with Fulqrum <integrate_fulqrum>
    Scale workloads with the Dice solver <integrate_dice_solver>
    Orbital optimization <optimize_orbitals>
    Open- and closed-shell options <select_open_closed_shell>
