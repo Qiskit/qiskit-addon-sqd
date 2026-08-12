@@ -35,7 +35,7 @@ dependencies = [
 
 [project.optional-dependencies]
 fulqrum = [
-    "fulqrum @ git+https://github.com/qiskit-community/fulqrum.git@dafb4091d552d130c42d13dc74a3484e12d70d3f",
+    "fulqrum", # XXX needs version bound before merging
     "primme>=3.2.3",
 ]
 dev = [
@@ -98,9 +98,6 @@ show_missing = true
 only-include = [
     "qiskit_addon_sqd",
 ]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.mypy]
 python_version = "3.10"
