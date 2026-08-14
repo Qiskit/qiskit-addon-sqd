@@ -1,6 +1,6 @@
 # This code is a Qiskit project.
 #
-# (C) Copyright IBM 2024.
+# (C) Copyright IBM 2024, 2026.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -99,6 +99,7 @@ class TestFermion(unittest.TestCase):
 
         # Merge bitstrings
         bit_array = BitArray.concatenate_shots([bit_array_ground_state, bit_array_random])
+        bit_array = np.unpackbits(bit_array.array, axis=-1)[..., -bit_array.num_bits :].astype(bool)
 
         # Diagonalize
         result = diagonalize_fermionic_hamiltonian(
