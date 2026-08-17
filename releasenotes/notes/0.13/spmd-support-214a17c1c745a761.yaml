@@ -8,5 +8,5 @@ features:
     diagonalization across the available processes; the rest of the
     configuration-recovery loop runs on the control process alone, and the return
     value is the same on every process. Single-process behavior is unchanged. See
-    :doc:`/guides/hpc_acceleration` for details on the package's support for
+    `this guide <https://quantum.cloud.ibm.com/docs/addons/qiskit-addon-sqd/guides/hpc-acceleration>`__ for details on the package's support for
     multi-process and multi-threaded acceleration.
