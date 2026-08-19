@@ -1,6 +1,6 @@
 # This code is a Qiskit project.
 #
-# (C) Copyright IBM 2024.
+# (C) Copyright IBM 2024, 2026.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -42,11 +42,11 @@ def counts_to_arrays(counts: Mapping[str, float | int]) -> tuple[np.ndarray, np.
     return bs_mat, freq_arr
 
 
-def bit_array_to_arrays(bit_array: BitArray) -> tuple[np.ndarray, np.ndarray]:
-    """Convert a bit array into a bitstring matrix and a probability array.
+def bit_array_to_arrays(bit_array: BitArray | np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Convert sampled bitstrings into a bitstring matrix and a probability array.
 
     Args:
-        bit_array: The bit array to convert
+        bit_array: The bit array or boolean bitstring matrix to convert.
 
     Returns:
         - A 2D array representing the sampled bitstrings. Each row represents a
@@ -54,10 +54,17 @@ def bit_array_to_arrays(bit_array: BitArray) -> tuple[np.ndarray, np.ndarray]:
           bit's value
         - A 1D array containing the probability with which each bitstring was sampled
     """
-    # TODO can use bit_array.to_bool_array() when it's available
-    bool_array = np.unpackbits(bit_array.array, axis=-1)[..., -bit_array.num_bits :].astype(bool)
+    if isinstance(bit_array, BitArray):
+        # TODO can use bit_array.to_bool_array() when it's available
+        bool_array = np.unpackbits(bit_array.array, axis=-1)[..., -bit_array.num_bits :].astype(
+            bool
+        )
+        num_samples = bit_array.num_shots
+    else:
+        bool_array = bit_array
+        num_samples = len(bool_array)
     bitstrings, counts = np.unique(bool_array, axis=0, return_counts=True)
-    probs = counts / bit_array.num_shots
+    probs = counts / num_samples
     return bitstrings, probs
 
 
