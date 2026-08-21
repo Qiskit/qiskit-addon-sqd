@@ -602,11 +602,10 @@ def _extract_carryover_strings(
     # Sorted amplitude indices based on absolute values
     flattened = sci_state.amplitudes.reshape(-1)
     absolute_vals = np.abs(flattened)
-    sorted_indices = np.argsort(absolute_vals)
 
     # Get indices of CI amplitudes greater than or equal to carryover_threshold
-    carryover_index = np.searchsorted(absolute_vals, carryover_threshold, sorter=sorted_indices)
-    carryover_indices = sorted_indices[carryover_index:]
+    # np.nonzero is highly optimized in C to find indices matching a condition
+    carryover_indices = np.nonzero(absolute_vals >= carryover_threshold)[0]
 
     # Extract unique alpha and beta CI bitstrings that participate in configurations
     # with amplitudes greater than or equal to carryover_threshold
