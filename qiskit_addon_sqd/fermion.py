@@ -577,6 +577,7 @@ def _prepare_ci_strings(
 
     return ci_strings
 
+
 def _extract_carryover_strings(
     sci_state: SCIState,
     carryover_threshold: float,
@@ -633,6 +634,7 @@ def _extract_carryover_strings(
         carryover_strings_b = carryover_strings_b[np.argsort(weights_b)[::-1]]
 
     return carryover_strings_a, carryover_strings_b
+
 
 def _process_sci_results(
     config: _LoopConfig,

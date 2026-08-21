@@ -391,16 +391,12 @@ class TestFermion(unittest.TestCase):
 
         # Execute the continuous reference (2 iterations) using the first RNG
         result_continuous = diagonalize_fermionic_hamiltonian(
-            max_iterations=2,
-            seed=rng_continuous,
-            **kwargs
+            max_iterations=2, seed=rng_continuous, **kwargs
         )
 
         # Execute the interrupted run (1 iteration) using the second RNG
         result_interrupted = diagonalize_fermionic_hamiltonian(
-            max_iterations=1,
-            seed=rng_interrupted,
-            **kwargs
+            max_iterations=1, seed=rng_interrupted, **kwargs
         )
 
         # Resume the interrupted run for 1 more iteration using the same RNG.
@@ -410,23 +406,20 @@ class TestFermion(unittest.TestCase):
             max_iterations=1,
             initial_state=result_interrupted.sci_state,
             seed=rng_interrupted,
-            **kwargs
+            **kwargs,
         )
 
         # Check that the resumed run's results exactly match the continuous
         # run's results
         np.testing.assert_allclose(result_resumed.energy, result_continuous.energy)
         np.testing.assert_allclose(
-            result_resumed.sci_state.amplitudes,
-            result_continuous.sci_state.amplitudes
+            result_resumed.sci_state.amplitudes, result_continuous.sci_state.amplitudes
         )
         np.testing.assert_array_equal(
-            result_resumed.sci_state.ci_strs_a,
-            result_continuous.sci_state.ci_strs_a
+            result_resumed.sci_state.ci_strs_a, result_continuous.sci_state.ci_strs_a
         )
         np.testing.assert_array_equal(
-            result_resumed.sci_state.ci_strs_b,
-            result_continuous.sci_state.ci_strs_b
+            result_resumed.sci_state.ci_strs_b, result_continuous.sci_state.ci_strs_b
         )
 
     def test_extract_carryover_strings(self):
@@ -441,27 +434,17 @@ class TestFermion(unittest.TestCase):
         # Amplitudes are chosen so we can easily calculate marginal weights:
         # Alpha weights (sum of squares across rows): [0.65, 0.36, 0.04]
         # Beta weights (sum of squares across cols):  [0.37, 0.64, 0.00]
-        amplitudes = np.array([
-            [0.1, 0.8, 0.0],
-            [0.6, 0.0, 0.0],
-            [0.0, 0.0, 0.2]
-        ])
+        amplitudes = np.array([[0.1, 0.8, 0.0], [0.6, 0.0, 0.0], [0.0, 0.0, 0.2]])
 
         sci_state = SCIState(
-            amplitudes=amplitudes,
-            ci_strs_a=ci_strs_a,
-            ci_strs_b=ci_strs_b,
-            norb=3,
-            nelec=(1, 1)
+            amplitudes=amplitudes, ci_strs_a=ci_strs_a, ci_strs_b=ci_strs_b, norb=3, nelec=(1, 1)
         )
 
         # Test without spin symmetrization
         # A threshold of 0.5 should only retain amplitudes 0.8 (0, 1)
         # and 0.6 (1, 0).
         str_a, str_b = _extract_carryover_strings(
-            sci_state,
-            carryover_threshold=0.5,
-            symmetrize_spin=False
+            sci_state, carryover_threshold=0.5, symmetrize_spin=False
         )
 
         # Alpha keeps row indices 0 and 1 (strings 10 and 20).
@@ -474,9 +457,7 @@ class TestFermion(unittest.TestCase):
 
         # Test with spin symmetrization
         str_a_sym, str_b_sym = _extract_carryover_strings(
-            sci_state,
-            carryover_threshold=0.5,
-            symmetrize_spin=True
+            sci_state, carryover_threshold=0.5, symmetrize_spin=True
         )
 
         # Symmetrization merges the kept strings into: [10, 20, 1, 2]
