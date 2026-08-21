@@ -341,6 +341,152 @@ class TestFermion(unittest.TestCase):
         np.testing.assert_array_equal(result1.sci_state.ci_strs_a, result2.sci_state.ci_strs_a)
         np.testing.assert_allclose(result1.sci_state.ci_strs_b, result2.sci_state.ci_strs_b)
 
+    def test_diagonalize_fermionic_hamiltonian_resume(self):
+        """Test diagonalize_fermionic_hamiltonian restart capability via initial_state."""
+        # Build N2 molecule
+        mol = pyscf.gto.Mole()
+        mol.build(
+            atom=[["N", (0, 0, 0)], ["N", (1.0, 0, 0)]],
+            basis="sto-6g",
+            symmetry="Dooh",
+        )
+
+        # Define active space
+        n_frozen = 2
+        active_space = range(n_frozen, mol.nao_nr())
+
+        # Get molecular integrals
+        scf = pyscf.scf.RHF(mol).run()
+        norb = len(active_space)
+        n_electrons = int(sum(scf.mo_occ[active_space]))
+        n_alpha = (n_electrons + mol.spin) // 2
+        n_beta = (n_electrons - mol.spin) // 2
+        nelec = (n_alpha, n_beta)
+        cas = pyscf.mcscf.CASCI(scf, norb, nelec)
+        mo = cas.sort_mo(active_space, base=0)
+        hcore, _ = cas.get_h1cas(mo)
+        eri = pyscf.ao2mo.restore(1, cas.get_h2cas(mo), norb)
+
+        # Generate random bitstrings
+        bit_array = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=self.rng)
+
+        # Define shared keyword arguments
+        kwargs = dict(
+            one_body_tensor=hcore,
+            two_body_tensor=eri,
+            bit_array=bit_array,
+            samples_per_batch=10,
+            norb=norb,
+            nelec=nelec,
+            symmetrize_spin=True,
+            energy_tol=1e-12,
+            occupancies_tol=1e-12,
+            # Note: initial_occupancies is left as default None so the code
+            # extracts it from the initial_state argument on the resumed run
+        )
+
+        # Create two independent but identical Random Number Generators
+        rng_continuous = np.random.default_rng(12345)
+        rng_interrupted = np.random.default_rng(12345)
+
+        # Execute the continuous reference (2 iterations) using the first RNG
+        result_continuous = diagonalize_fermionic_hamiltonian(
+            max_iterations=2,
+            seed=rng_continuous,
+            **kwargs
+        )
+
+        # Execute the interrupted run (1 iteration) using the second RNG
+        result_interrupted = diagonalize_fermionic_hamiltonian(
+            max_iterations=1,
+            seed=rng_interrupted,
+            **kwargs
+        )
+
+        # Resume the interrupted run for 1 more iteration using the same RNG.
+        # Its internal state was stored during the interrupted run, so it
+        # can be resumed and its final state should match the continuous run.
+        result_resumed = diagonalize_fermionic_hamiltonian(
+            max_iterations=1,
+            initial_state=result_interrupted.sci_state,
+            seed=rng_interrupted,
+            **kwargs
+        )
+
+        # Check that the resumed run's results exactly match the continuous
+        # run's results
+        np.testing.assert_allclose(result_resumed.energy, result_continuous.energy)
+        np.testing.assert_allclose(
+            result_resumed.sci_state.amplitudes,
+            result_continuous.sci_state.amplitudes
+        )
+        np.testing.assert_array_equal(
+            result_resumed.sci_state.ci_strs_a,
+            result_continuous.sci_state.ci_strs_a
+        )
+        np.testing.assert_array_equal(
+            result_resumed.sci_state.ci_strs_b,
+            result_continuous.sci_state.ci_strs_b
+        )
+
+    def test_extract_carryover_strings(self):
+        """Test the extraction and sorting logic of carryover strings."""
+        # Import the private helper directly for testing
+        from qiskit_addon_sqd.fermion import _extract_carryover_strings
+
+        # Construct a highly predictable 3x3 mock state
+        ci_strs_a = np.array([10, 20, 30])
+        ci_strs_b = np.array([1, 2, 3])
+
+        # Amplitudes are chosen so we can easily calculate marginal weights:
+        # Alpha weights (sum of squares across rows): [0.65, 0.36, 0.04]
+        # Beta weights (sum of squares across cols):  [0.37, 0.64, 0.00]
+        amplitudes = np.array([
+            [0.1, 0.8, 0.0],
+            [0.6, 0.0, 0.0],
+            [0.0, 0.0, 0.2]
+        ])
+
+        sci_state = SCIState(
+            amplitudes=amplitudes,
+            ci_strs_a=ci_strs_a,
+            ci_strs_b=ci_strs_b,
+            norb=3,
+            nelec=(1, 1)
+        )
+
+        # Test without spin symmetrization
+        # A threshold of 0.5 should only retain amplitudes 0.8 (0, 1)
+        # and 0.6 (1, 0).
+        str_a, str_b = _extract_carryover_strings(
+            sci_state,
+            carryover_threshold=0.5,
+            symmetrize_spin=False
+        )
+
+        # Alpha keeps row indices 0 and 1 (strings 10 and 20).
+        # Their weights are 0.65 and 0.36, so they should be sorted as [10, 20].
+        np.testing.assert_array_equal(str_a, [10, 20])
+
+        # Beta keeps column indices 1 and 0 (strings 2 and 1).
+        # Their weights are 0.64 and 0.37, so they should be sorted as [2, 1].
+        np.testing.assert_array_equal(str_b, [2, 1])
+
+        # Test with spin symmetrization
+        str_a_sym, str_b_sym = _extract_carryover_strings(
+            sci_state,
+            carryover_threshold=0.5,
+            symmetrize_spin=True
+        )
+
+        # Symmetrization merges the kept strings into: [10, 20, 1, 2]
+        # Their respective weights are: [0.65, 0.36, 0.37, 0.64]
+        # Sorted by weight descending: 0.65 (10), 0.64 (2), 0.37 (1), 0.36 (20)
+        expected_sym = [10, 2, 1, 20]
+
+        np.testing.assert_array_equal(str_a_sym, expected_sym)
+        np.testing.assert_array_equal(str_b_sym, expected_sym)
+
     def test_bitstring_matrix_to_ci_strs(self):
         norb = 57
         bitstring = "001111101111111110110001011101100001010000100101100001010"
