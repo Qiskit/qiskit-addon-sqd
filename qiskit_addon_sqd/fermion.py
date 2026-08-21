@@ -617,8 +617,10 @@ def _extract_carryover_strings(
     carryover_strings_b = sci_state.ci_strs_b[beta_indices]
 
     # Sort carryover bitstrings in descending order by marginal weight
-    weights_a = np.sum(np.abs(sci_state.amplitudes[alpha_indices]) ** 2, axis=1)
-    weights_b = np.sum(np.abs(sci_state.amplitudes[:, beta_indices]) ** 2, axis=0)
+    amplitudes_a = sci_state.amplitudes[alpha_indices]
+    weights_a = np.sum(np.square(amplitudes_a.real) + np.square(amplitudes_a.imag), axis=1)
+    amplitudes_b = sci_state.amplitudes[:, beta_indices]
+    weights_b = np.sum(np.square(amplitudes_b.real) + np.square(amplitudes_b.imag), axis=0)
 
     if symmetrize_spin:
         carryover_strings = np.concatenate((carryover_strings_a, carryover_strings_b))
