@@ -13,6 +13,7 @@
 """Tests for the fermion module."""
 
 import math
+import pickle
 import unittest
 
 import numpy as np
@@ -23,9 +24,16 @@ from pyscf.fci import cistring, spin_square
 from qiskit.primitives import BitArray
 from qiskit_addon_sqd.counts import generate_bit_array_uniform
 from qiskit_addon_sqd.fermion import (
+    SCIResult,
     SCIState,
+    StandardPolicy,
+    SubspacePolicy,
+    SubspaceRequest,
+    batch_to_ci_strings,
     bitstring_matrix_to_ci_strs,
     diagonalize_fermionic_hamiltonian,
+    solve_sci,
+    solve_sci_batch,
 )
 
 
@@ -360,6 +368,218 @@ class TestFermion(unittest.TestCase):
         assert result_string == bitstring
 
 
+def _hubbard_integrals(norb: int, u: float = 2.0):
+    """One- and two-body tensors of a 1-D Hubbard chain, as a cheap test Hamiltonian."""
+    one_body = np.zeros((norb, norb))
+    for p in range(norb - 1):
+        one_body[p, p + 1] = one_body[p + 1, p] = -1.0
+    two_body = np.zeros((norb,) * 4)
+    for p in range(norb):
+        two_body[p, p, p, p] = u
+    return one_body, two_body
+
+
+def _trim_solver(record, *, trim_to=4, return_sci_state=True):
+    """An sci_solver that selects its own carryover, as a distributed solver would.
+
+    It diagonalizes with the default solver, then keeps only the ``trim_to``
+    highest-weight strings per spin sector, reporting them via
+    ``SCIResult.carryover``. ``record`` collects the carryover it returned on
+    each call, so a test can check what the loop did with it.
+    """
+
+    def solver(ci_strings, one_body_tensor, two_body_tensor, norb, nelec):
+        results = []
+        for strs_a, strs_b in ci_strings:
+            result = solve_sci(
+                (strs_a, strs_b), one_body_tensor, two_body_tensor, norb=norb, nelec=nelec
+            )
+            state = result.sci_state
+            weights_a = np.sum(np.abs(state.amplitudes) ** 2, axis=1)
+            weights_b = np.sum(np.abs(state.amplitudes) ** 2, axis=0)
+            keep_a = state.ci_strs_a[np.argsort(weights_a)[::-1][:trim_to]]
+            keep_b = state.ci_strs_b[np.argsort(weights_b)[::-1][:trim_to]]
+            record.append((keep_a, keep_b))
+            results.append(
+                SCIResult(
+                    energy=result.energy,
+                    # A solver that never materializes the eigenvector leaves this None.
+                    sci_state=state if return_sci_state else None,
+                    orbital_occupancies=result.orbital_occupancies,
+                    carryover=(keep_a, keep_b),
+                )
+            )
+        return results
+
+    return solver
+
+
+def test_sci_result_defaults_preserve_existing_behavior():
+    """The new fields are optional and default to None."""
+    state = SCIState(
+        amplitudes=np.array([[1.0]]),
+        ci_strs_a=np.array([0b011]),
+        ci_strs_b=np.array([0b011]),
+        norb=3,
+        nelec=(2, 2),
+    )
+    result = SCIResult(energy=-1.0, sci_state=state, orbital_occupancies=(np.zeros(3), np.zeros(3)))
+    assert result.carryover is None
+
+
+@pytest.mark.parametrize("return_sci_state", [True, False])
+def test_solver_supplied_carryover_is_used(return_sci_state):
+    """A solver's own carryover strings seed the next iteration's subspace.
+
+    Also covers ``sci_state=None``: a solver that does not materialize the
+    eigenvector must still drive the loop, provided it supplies the carryover.
+    """
+    norb = 6
+    nelec = (3, 3)
+    one_body, two_body = _hubbard_integrals(norb)
+    rng = np.random.default_rng(1234)
+    bit_array = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=rng)
+
+    record: list[tuple[np.ndarray, np.ndarray]] = []
+    trim_to = 4
+    subspaces: list[tuple[np.ndarray, np.ndarray]] = []
+
+    def solver(ci_strings, *args, **kwargs):
+        subspaces.extend(ci_strings)
+        return _trim_solver(record, trim_to=trim_to, return_sci_state=return_sci_state)(
+            ci_strings, *args, **kwargs
+        )
+
+    result = diagonalize_fermionic_hamiltonian(
+        one_body,
+        two_body,
+        bit_array,
+        samples_per_batch=20,
+        norb=norb,
+        nelec=nelec,
+        max_iterations=3,
+        sci_solver=solver,
+        carryover_threshold=1e-4,
+        seed=rng,
+    )
+
+    assert len(record) >= 2, "the loop should have run more than one iteration"
+    assert isinstance(result.energy, float)
+    if return_sci_state:
+        assert result.sci_state is not None
+    else:
+        assert result.sci_state is None
+
+    # Every string the solver asked to carry over must appear in the next subspace.
+    for iteration, (keep_a, keep_b) in enumerate(record[:-1]):
+        next_a, next_b = subspaces[iteration + 1]
+        assert set(int(s) for s in keep_a) <= set(int(s) for s in next_a)
+        assert set(int(s) for s in keep_b) <= set(int(s) for s in next_b)
+
+
+def test_solver_supplied_carryover_ignores_carryover_threshold():
+    """carryover_threshold does not apply when the solver chose the carryover itself."""
+    norb = 6
+    nelec = (3, 3)
+    one_body, two_body = _hubbard_integrals(norb)
+
+    energies = []
+    records = []
+    for threshold in (1e-8, 0.5):
+        rng = np.random.default_rng(99)
+        bit_array = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=rng)
+        record: list[tuple[np.ndarray, np.ndarray]] = []
+        records.append(record)
+        result = diagonalize_fermionic_hamiltonian(
+            one_body,
+            two_body,
+            bit_array,
+            samples_per_batch=20,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=3,
+            sci_solver=_trim_solver(record),
+            carryover_threshold=threshold,
+            seed=rng,
+        )
+        energies.append(result.energy)
+
+    # A threshold spanning eight orders of magnitude changes nothing, because the
+    # solver's carryover is used verbatim.
+    assert energies[0] == energies[1]
+    assert len(records[0]) == len(records[1])
+    for (a1, b1), (a2, b2) in zip(records[0], records[1]):
+        np.testing.assert_array_equal(a1, a2)
+        np.testing.assert_array_equal(b1, b2)
+
+
+def test_no_sci_state_and_no_carryover_raises():
+    """A result with neither an SCI state nor carryover strings cannot drive the loop."""
+    norb = 6
+    nelec = (3, 3)
+    one_body, two_body = _hubbard_integrals(norb)
+    rng = np.random.default_rng(7)
+    bit_array = generate_bit_array_uniform(500, 2 * norb, rand_seed=rng)
+
+    # The integrals are unused here, as they are in the Fulqrum and SBD solvers, which
+    # hold the Hamiltonian in their own format. See
+    # https://github.com/Qiskit/qiskit-addon-sqd/issues/312.
+    def solver(ci_strings, _one_body_tensor, _two_body_tensor, norb, _nelec):
+        return [
+            SCIResult(
+                energy=-1.0 - index,
+                sci_state=None,
+                orbital_occupancies=(np.zeros(norb), np.zeros(norb)),
+            )
+            for index, _ in enumerate(ci_strings)
+        ]
+
+    with pytest.raises(ValueError, match=r"SCIResult\.carryover"):
+        diagonalize_fermionic_hamiltonian(
+            one_body,
+            two_body,
+            bit_array,
+            samples_per_batch=20,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=3,
+            sci_solver=solver,
+            seed=rng,
+        )
+
+
+def test_solver_supplied_carryover_symmetrize_spin():
+    """With symmetrize_spin, the solver's carryover is merged into one list."""
+    norb = 6
+    nelec = (3, 3)
+    one_body, two_body = _hubbard_integrals(norb)
+    rng = np.random.default_rng(5150)
+    bit_array = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=rng)
+
+    subspaces: list[tuple[np.ndarray, np.ndarray]] = []
+
+    def solver(ci_strings, *args, **kwargs):
+        subspaces.extend(ci_strings)
+        return _trim_solver([])(ci_strings, *args, **kwargs)
+
+    diagonalize_fermionic_hamiltonian(
+        one_body,
+        two_body,
+        bit_array,
+        samples_per_batch=20,
+        norb=norb,
+        nelec=nelec,
+        max_iterations=3,
+        sci_solver=solver,
+        symmetrize_spin=True,
+        seed=rng,
+    )
+
+    # Spin symmetrization means both sectors span the same strings.
+    for strs_a, strs_b in subspaces:
+        np.testing.assert_array_equal(strs_a, strs_b)
+
+
 def test_sci_state_save_load(tmp_path):
     """Test saving and loading SCIState."""
     norb = 5
@@ -380,3 +600,244 @@ def test_sci_state_save_load(tmp_path):
     np.testing.assert_array_equal(loaded_state.ci_strs_b, sci_state.ci_strs_b)
     assert loaded_state.norb == sci_state.norb
     assert loaded_state.nelec == sci_state.nelec
+
+
+def test_batch_to_ci_strings_ranks_by_sample_count():
+    """Strings are returned by descending number of times sampled, carryover first."""
+    norb = 3
+    # Beta is the left half of a row, alpha the right half, and rows are MSB-first.
+    a1, a2 = [True, True, False], [True, False, True]  # 0b110, 0b101
+    b1, b2 = [False, True, True], [True, True, False]  # 0b011, 0b110
+    batch = np.array([b1 + a1, b1 + a1, b2 + a2])
+    # Alpha 0b110 sampled twice, 0b101 once. Beta 0b011 twice, 0b110 once.
+    strs_a, strs_b = batch_to_ci_strings(batch, norb)
+    assert list(strs_a) == [0b110, 0b101]
+    assert list(strs_b) == [0b011, 0b110]
+
+    # Carryover strings come first, in the order given, regardless of sample counts.
+    strs_a, _ = batch_to_ci_strings(batch, norb, np.array([0b101, 0b011]), np.array([]))
+    assert list(strs_a) == [0b101, 0b011, 0b110, 0b101]
+
+
+def test_batch_to_ci_strings_symmetrize_spin_ranks_across_sectors():
+    """With symmetrize_spin the ranking is over both sectors at once, not within each.
+
+    This is why the merge cannot be deferred until after ranking: merging first can
+    interleave the two sectors' strings differently than concatenating ranked lists
+    would, which changes what a later truncation keeps.
+    """
+    norb = 3
+    a1 = [True, True, False]  # 0b110
+    b1, b2 = [True, False, True], [False, True, True]  # 0b101, 0b011
+    batch = np.array([b1 + a1, b2 + a1])
+    # Alpha 0b110 sampled twice; each beta string once. So it ranks first overall.
+    strs_a, strs_b = batch_to_ci_strings(batch, norb, symmetrize_spin=True)
+    assert strs_a is strs_b
+    assert next(iter(strs_a)) == 0b110
+    assert set(strs_a) == {0b110, 0b101, 0b011}
+
+
+def test_default_policy_matches_omitting_it():
+    """Passing StandardPolicy explicitly is the same as passing no policy at all."""
+    norb, nelec = 6, (3, 3)
+    one_body, two_body = _hubbard_integrals(norb)
+
+    energies = []
+    for kwargs in ({}, {"policy": StandardPolicy()}):
+        rng = np.random.default_rng(4321)
+        bit_array = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=rng)
+        result = diagonalize_fermionic_hamiltonian(
+            one_body,
+            two_body,
+            bit_array,
+            samples_per_batch=20,
+            norb=norb,
+            nelec=nelec,
+            num_batches=3,
+            max_iterations=3,
+            seed=rng,
+            **kwargs,
+        )
+        energies.append(result.energy)
+
+    assert energies[0] == energies[1]
+
+
+def test_policy_refine_drives_a_second_round():
+    """A policy that refines gets a second solver call, then is asked again and stops."""
+    norb, nelec = 6, (3, 3)
+    one_body, two_body = _hubbard_integrals(norb)
+
+    class TwoRound(StandardPolicy):
+        """Merge the batches after the first round and diagonalize the union."""
+
+        def refine(self, results, round_index):
+            if round_index:
+                return None
+            states = [result.sci_state for result in results]
+            return [
+                (
+                    np.unique(np.concatenate([state.ci_strs_a for state in states])),
+                    np.unique(np.concatenate([state.ci_strs_b for state in states])),
+                )
+            ]
+
+        def select_result(self, results):
+            (result,) = results
+            return result
+
+    rounds: list[int] = []
+
+    class Recording(TwoRound):
+        def refine(self, results, round_index):
+            rounds.append(round_index)
+            return super().refine(results, round_index)
+
+    call_sizes: list[int] = []
+
+    def spy(ci_strings, *args, **kwargs):
+        call_sizes.append(len(ci_strings))
+        return solve_sci_batch(ci_strings, *args, **kwargs)
+
+    rng = np.random.default_rng(7)
+    bit_array = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=rng)
+    diagonalize_fermionic_hamiltonian(
+        one_body,
+        two_body,
+        bit_array,
+        samples_per_batch=20,
+        norb=norb,
+        nelec=nelec,
+        num_batches=4,
+        max_iterations=1,
+        sci_solver=spy,
+        policy=Recording(),
+        seed=rng,
+    )
+
+    # refine is asked about round 0, returns a subspace, then asked about round 1 and
+    # stops. The solver therefore sees the four batches, then the single merged subspace.
+    assert rounds == [0, 1]
+    assert call_sizes == [4, 1]
+
+
+def test_policy_that_never_stops_raises():
+    """A refine that always returns subspaces hits the round limit instead of hanging."""
+    norb, nelec = 6, (3, 3)
+    one_body, two_body = _hubbard_integrals(norb)
+
+    class NeverStops(StandardPolicy):
+        def refine(self, results, round_index):
+            state = results[0].sci_state
+            return [(state.ci_strs_a, state.ci_strs_b)]
+
+    rng = np.random.default_rng(3)
+    bit_array = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=rng)
+    with pytest.raises(ValueError, match="asked for another round"):
+        diagonalize_fermionic_hamiltonian(
+            one_body,
+            two_body,
+            bit_array,
+            samples_per_batch=20,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=1,
+            policy=NeverStops(),
+            seed=rng,
+        )
+
+
+def test_carryover_threshold_with_a_policy_raises():
+    """The threshold is a setting of the default policy, so pairing them is an error."""
+    norb, nelec = 6, (3, 3)
+    one_body, two_body = _hubbard_integrals(norb)
+    rng = np.random.default_rng(5)
+    bit_array = generate_bit_array_uniform(500, 2 * norb, rand_seed=rng)
+
+    with pytest.raises(ValueError, match=r"carryover_threshold=1e-06"):
+        diagonalize_fermionic_hamiltonian(
+            one_body,
+            two_body,
+            bit_array,
+            samples_per_batch=20,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=1,
+            policy=StandardPolicy(),
+            carryover_threshold=1e-6,
+            seed=rng,
+        )
+
+
+def test_policy_select_carryover_is_honored():
+    """The strings a policy carries over are the ones the next iteration builds from."""
+    norb, nelec = 6, (3, 3)
+    one_body, two_body = _hubbard_integrals(norb)
+
+    chosen: list[tuple[np.ndarray, np.ndarray]] = []
+
+    class FixedCarryover(StandardPolicy):
+        """Carry over only the two highest-weight strings of each sector."""
+
+        def select_carryover(self, result, *, symmetrize_spin=False):
+            strs_a, strs_b = super().select_carryover(result, symmetrize_spin=symmetrize_spin)
+            picked = (strs_a[:2], strs_b[:2])
+            chosen.append(picked)
+            return picked
+
+    seen: list[tuple[np.ndarray, np.ndarray]] = []
+
+    def spy(ci_strings, *args, **kwargs):
+        seen.extend(ci_strings)
+        return solve_sci_batch(ci_strings, *args, **kwargs)
+
+    rng = np.random.default_rng(13)
+    bit_array = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=rng)
+    diagonalize_fermionic_hamiltonian(
+        one_body,
+        two_body,
+        bit_array,
+        samples_per_batch=20,
+        norb=norb,
+        nelec=nelec,
+        num_batches=2,
+        max_iterations=2,
+        sci_solver=spy,
+        policy=FixedCarryover(),
+        seed=rng,
+    )
+
+    assert chosen, "the policy should have been asked for a carryover"
+    # The strings chosen after the first iteration appear in the subspaces built next.
+    first_a, _ = chosen[0]
+    later_a = {int(s) for strs_a, _ in seen[2:] for s in strs_a}
+    assert {int(s) for s in first_a} <= later_a
+
+
+def test_policies_are_picklable():
+    """A policy and a request must survive the broadcast to the other processes."""
+    request = SubspaceRequest(
+        bitstrings=np.array([[True, False]]),
+        probabilities=np.array([1.0]),
+        carryover_strings_a=np.array([1]),
+        carryover_strings_b=np.array([2]),
+        norb=1,
+        nelec=(1, 1),
+        samples_per_batch=3,
+        num_batches=4,
+        rng=np.random.default_rng(0),
+        iteration=0,
+        symmetrize_spin=False,
+    )
+    restored = pickle.loads(pickle.dumps(request))
+    assert restored.samples_per_batch == 3
+    assert restored.num_batches == 4
+    assert restored.iteration == 0
+
+    policy = pickle.loads(pickle.dumps(StandardPolicy(carryover_threshold=1e-3)))
+    assert policy.carryover_threshold == 1e-3
+
+
+def test_standard_policy_satisfies_the_protocol():
+    """The protocol is runtime-checkable, so a user can assert conformance."""
+    assert isinstance(StandardPolicy(), SubspacePolicy)

@@ -10,6 +10,13 @@ Fermion (:mod:`qiskit_addon_sqd.fermion`)
 .. currentmodule:: qiskit_addon_sqd.fermion
 
 .. autoclass:: SCIState
+.. autoclass:: SCIResult
+.. autoclass:: SubspacePolicy
+   :members:
+.. autoclass:: SubspaceRequest
+.. autoclass:: StandardPolicy
+   :members:
+.. autofunction:: batch_to_ci_strings
 .. autofunction:: bitstring_matrix_to_ci_strs
 .. autofunction:: diagonalize_fermionic_hamiltonian
 .. autofunction:: enlarge_batch_from_transitions
