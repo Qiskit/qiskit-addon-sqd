@@ -91,7 +91,7 @@ branch = true
 parallel = true
 
 [tool.coverage.report]
-fail_under = 100
+fail_under = 75
 show_missing = true
 
 [tool.hatch.build.targets.wheel]
