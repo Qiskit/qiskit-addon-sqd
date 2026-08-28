@@ -48,7 +48,7 @@ For more installation information refer to these [installation instructions](doc
 
 ### Getting started
 
-A simple guide to help you get started quickly with this package is available [here][docs/guides/quickstart.ipynb).
+A simple guide to help you get started quickly with this package is available [here](docs/guides/quickstart.ipynb).
 
 ----------------------------------------------------------------------------------------------------
 
