@@ -225,6 +225,7 @@ def diagonalize_fermionic_hamiltonian(
     carryover_threshold: float = 1e-4,
     callback: Callable[[list[SCIResult]], None] | None = None,
     seed: int | np.random.Generator | None = None,
+    initial_state: SCIState | None = None,
 ) -> SCIResult:
     """Run the sample-based quantum diagonalization (SQD) algorithm.
 
@@ -302,6 +303,12 @@ def diagonalize_fermionic_hamiltonian(
             function, which is a list of (energy, sci_state, occupancies) triplets,
             where each triplet contains the result of a diagonalization.
         seed: A seed for the pseudorandom number generator.
+        initial_state: An ``SCIState`` object from a previous execution used to warm-start
+            the configuration recovery loop. When provided, the algorithm will extract
+            high-weight configurations from this state to use as carryover strings for
+            the first iteration. If ``initial_occupancies`` is not explicitly provided,
+            the initial guess for the average orbital occupancies will also be derived
+            from this state.
 
     Returns:
         The estimate of the energy and the SCI state with that energy.
@@ -380,8 +387,19 @@ def diagonalize_fermionic_hamiltonian(
 
     include_a = np.unique(include_a)
     include_b = np.unique(include_b)
-    carryover_strings_a = np.array([], dtype=np.int64)
-    carryover_strings_b = np.array([], dtype=np.int64)
+
+    if initial_state is not None:
+        # Recover carry over bitstrings from initial_state
+        carryover_strings_a, carryover_strings_b = _extract_carryover_strings(
+            initial_state, carryover_threshold, symmetrize_spin
+        )
+        # Use initial_state orbital occupancies, if occupancies were not
+        # input by the user
+        if current_occupancies is None:
+            current_occupancies = initial_state.orbital_occupancies()
+    else:
+        carryover_strings_a = np.array([], dtype=np.int64)
+        carryover_strings_b = np.array([], dtype=np.int64)
 
     # Convert BitArray into bitstring and probability arrays
     raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
@@ -560,6 +578,64 @@ def _prepare_ci_strings(
     return ci_strings
 
 
+def _extract_carryover_strings(
+    sci_state: SCIState,
+    carryover_threshold: float,
+    symmetrize_spin: bool,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Extract high-weight CI strings from an SCIState for configuration carryover.
+
+    Args:
+        sci_state: The SCI state from which to extract the configurations.
+        carryover_threshold: Threshold for carrying over bitstrings with large CI
+            weight from one iteration of configuration recovery to the next.
+            All single-spin CI strings associated with configurations whose coefficient
+            has absolute value greater than this threshold will be extracted.
+        symmetrize_spin: Whether to always merge spin-alpha and spin-beta CI strings
+            into a single list, so that the extracted subspace is invariant with
+            respect to the exchange of spin alpha with spin beta.
+
+    Returns:
+        A tuple ``(carryover_strings_a, carryover_strings_b)`` containing 1D arrays
+        of the extracted spin-alpha and spin-beta CI strings, sorted in descending
+        order by marginal weight.
+    """
+    # Sorted amplitude indices based on absolute values
+    flattened = sci_state.amplitudes.reshape(-1)
+    absolute_vals = np.abs(flattened)
+
+    # Get indices of CI amplitudes greater than or equal to carryover_threshold
+    # np.nonzero is highly optimized in C to find indices matching a condition
+    carryover_indices = np.nonzero(absolute_vals >= carryover_threshold)[0]
+
+    # Extract unique alpha and beta CI bitstrings that participate in configurations
+    # with amplitudes greater than or equal to carryover_threshold
+    _, n_strings_b = sci_state.amplitudes.shape
+    alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
+    alpha_indices = np.unique(alpha_indices)
+    beta_indices = np.unique(beta_indices)
+    carryover_strings_a = sci_state.ci_strs_a[alpha_indices]
+    carryover_strings_b = sci_state.ci_strs_b[beta_indices]
+
+    # Sort carryover bitstrings in descending order by marginal weight
+    amplitudes_a = sci_state.amplitudes[alpha_indices]
+    weights_a = np.sum(np.square(amplitudes_a.real) + np.square(amplitudes_a.imag), axis=1)
+    amplitudes_b = sci_state.amplitudes[:, beta_indices]
+    weights_b = np.sum(np.square(amplitudes_b.real) + np.square(amplitudes_b.imag), axis=0)
+
+    if symmetrize_spin:
+        carryover_strings = np.concatenate((carryover_strings_a, carryover_strings_b))
+        weights = np.concatenate((weights_a, weights_b))
+        carryover_strings = carryover_strings[np.argsort(weights)[::-1]]
+        carryover_strings = _unique_with_order_preserved(carryover_strings)
+        carryover_strings_a = carryover_strings_b = carryover_strings
+    else:
+        carryover_strings_a = carryover_strings_a[np.argsort(weights_a)[::-1]]
+        carryover_strings_b = carryover_strings_b[np.argsort(weights_b)[::-1]]
+
+    return carryover_strings_a, carryover_strings_b
+
+
 def _process_sci_results(
     config: _LoopConfig,
     results: list[SCIResult],
@@ -606,29 +682,9 @@ def _process_sci_results(
 
     # Carry over bitstrings with large CI weight
     sci_state = current_result.sci_state
-    flattened = sci_state.amplitudes.reshape(-1)
-    absolute_vals = np.abs(flattened)
-    indices = np.argsort(absolute_vals)
-    carryover_index = np.searchsorted(absolute_vals, config.carryover_threshold, sorter=indices)
-    carryover_indices = indices[carryover_index:]
-    _, n_strings_b = sci_state.amplitudes.shape
-    alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
-    alpha_indices = np.unique(alpha_indices)
-    beta_indices = np.unique(beta_indices)
-    carryover_strings_a = sci_state.ci_strs_a[alpha_indices]
-    carryover_strings_b = sci_state.ci_strs_b[beta_indices]
-    # Sort carryover strings in descending order by marginal weight
-    weights_a = np.sum(np.abs(sci_state.amplitudes[alpha_indices]) ** 2, axis=1)
-    weights_b = np.sum(np.abs(sci_state.amplitudes[:, beta_indices]) ** 2, axis=0)
-    if config.symmetrize_spin:
-        carryover_strings = np.concatenate((carryover_strings_a, carryover_strings_b))
-        weights = np.concatenate((weights_a, weights_b))
-        carryover_strings = carryover_strings[np.argsort(weights)[::-1]]
-        carryover_strings = _unique_with_order_preserved(carryover_strings)
-        carryover_strings_a = carryover_strings_b = carryover_strings
-    else:
-        carryover_strings_a = carryover_strings_a[np.argsort(weights_a)[::-1]]
-        carryover_strings_b = carryover_strings_b[np.argsort(weights_b)[::-1]]
+    carryover_strings_a, carryover_strings_b = _extract_carryover_strings(
+        sci_state, config.carryover_threshold, config.symmetrize_spin
+    )
 
     return _IterationState(
         best_result=best_result,
