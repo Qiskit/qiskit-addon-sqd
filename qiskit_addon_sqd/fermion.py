@@ -1,6 +1,6 @@
 # This code is a Qiskit project.
 #
-# (C) Copyright IBM 2024.
+# (C) Copyright IBM 2024, 2026.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -204,7 +204,7 @@ class _IterationState:
 def diagonalize_fermionic_hamiltonian(
     one_body_tensor: np.ndarray,
     two_body_tensor: np.ndarray,
-    bit_array: BitArray,
+    bit_array: BitArray | np.ndarray,
     samples_per_batch: int,
     norb: int,
     nelec: tuple[int, int],
@@ -231,10 +231,11 @@ def diagonalize_fermionic_hamiltonian(
     Args:
         one_body_tensor: The one-body tensor of the Hamiltonian.
         two_body_tensor: The two-body tensor of the Hamiltonian.
-        bit_array: Array of sampled bitstrings. Each bitstring should have both the
-            alpha part and beta part concatenated together, with the alpha part
-            concatenated on the right-hand side, like this:
-            ``[b_N, ..., b_0, a_N, ..., a_0]``.
+        bit_array: Array of sampled bitstrings, provided as either a Qiskit
+            :class:`~qiskit.primitives.BitArray` or a two-dimensional NumPy boolean
+            array. Each bitstring should have both the alpha part and beta part
+            concatenated together, with the alpha part concatenated on the right-hand
+            side, like this: ``[b_N, ..., b_0, a_N, ..., a_0]``.
         samples_per_batch: The number of bitstrings to include in each subsampled batch
             of bitstrings.
         norb: The number of spatial orbitals.
@@ -383,7 +384,7 @@ def diagonalize_fermionic_hamiltonian(
     carryover_strings_a = np.array([], dtype=np.int64)
     carryover_strings_b = np.array([], dtype=np.int64)
 
-    # Convert BitArray into bitstring and probability arrays
+    # Convert the samples into bitstring and probability arrays
     raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
 
     # Bundle the loop-invariant configuration once, so the per-iteration helper

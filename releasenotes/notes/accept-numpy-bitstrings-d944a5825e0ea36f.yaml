@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    :func:`qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` now accepts
+    sampled bitstrings as a two-dimensional NumPy boolean array in addition to a
+    Qiskit :class:`~qiskit.primitives.BitArray`.

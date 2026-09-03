@@ -1,6 +1,6 @@
 # This code is a Qiskit project.
 #
-# (C) Copyright IBM 2024.
+# (C) Copyright IBM 2024, 2026.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -14,8 +14,11 @@
 
 import unittest
 
+import numpy as np
 import pytest
+from qiskit.primitives import BitArray
 from qiskit_addon_sqd.counts import (
+    bit_array_to_arrays,
     counts_to_arrays,
     generate_counts_bipartite_hamming,
     generate_counts_uniform,
@@ -42,6 +45,19 @@ class TestCounts(unittest.TestCase):
             bitstring_matrix, probs = counts_to_arrays(counts)
             self.assertEqual((0,), bitstring_matrix.shape)
             self.assertEqual((0,), probs.shape)
+
+    def test_bit_array_to_arrays(self):
+        samples = np.array(
+            [[False, True, False], [True, False, True], [False, True, False]], dtype=bool
+        )
+        expected_bitstrings = np.array([[False, True, False], [True, False, True]])
+        expected_probs = np.array([2 / 3, 1 / 3])
+
+        for source in (samples, BitArray.from_bool_array(samples)):
+            with self.subTest(source=type(source).__name__):
+                bitstrings, probs = bit_array_to_arrays(source)
+                np.testing.assert_array_equal(bitstrings, expected_bitstrings)
+                np.testing.assert_allclose(probs, expected_probs)
 
     def test_generate_counts_uniform(self):
         with self.subTest("Basic test"):
