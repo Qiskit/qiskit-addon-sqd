@@ -16,6 +16,8 @@ import importlib
 import math
 import sys
 import unittest
+import unittest.mock
+import warnings
 
 import numpy as np
 import pytest
@@ -440,3 +442,64 @@ def test_require_pyscf_is_a_noop_when_available():
     from qiskit_addon_sqd.fermion import _require_pyscf
 
     _require_pyscf()  # must not raise
+
+
+class TestPyscfGuardWiring(unittest.TestCase):
+    """Each pyscf-dependent public entry point must actually call ``_require_pyscf()``
+    before touching any pyscf-only name, not just have the helper exist and work in
+    isolation. Every case below is run with ``_HAS_PYSCF`` patched to ``False``
+    regardless of whether pyscf is really installed in this environment, so a
+    regression here (e.g. a future edit moving or removing the guard call) is
+    caught even in CI where pyscf *is* present -- garbage/minimal arguments are
+    used throughout, since the guard must fire before any of them are used.
+    """
+
+    def setUp(self):
+        import qiskit_addon_sqd.fermion as fermion_module
+
+        self.fermion_module = fermion_module
+        patcher = unittest.mock.patch.object(fermion_module, "_HAS_PYSCF", False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        self.sci_state = SCIState(
+            amplitudes=np.array([[0.5, 0.5], [0.5, 0.5]]),
+            ci_strs_a=np.array([0b0011, 0b0101]),
+            ci_strs_b=np.array([0b0011, 0b0101]),
+            norb=4,
+            nelec=(2, 2),
+        )
+
+    def test_sci_state_rdm_requires_pyscf(self):
+        with self.assertRaisesRegex(ImportError, "pyscf"):
+            self.sci_state.rdm()
+
+    def test_sci_state_spin_square_requires_pyscf(self):
+        with self.assertRaisesRegex(ImportError, "pyscf"):
+            self.sci_state.spin_square()
+
+    def test_solve_sci_requires_pyscf(self):
+        with self.assertRaisesRegex(ImportError, "pyscf"):
+            self.fermion_module.solve_sci(None, None, None, norb=None, nelec=None)
+
+    def test_solve_sci_batch_requires_pyscf(self):
+        # `solve_sci_batch` has no pyscf usage of its own; it must still fail
+        # (transitively, via `solve_sci`) rather than proceed into real pyscf calls.
+        with self.assertRaisesRegex(ImportError, "pyscf"):
+            self.fermion_module.solve_sci_batch(
+                [(np.array([0b0011]), np.array([0b0011]))], None, None, norb=None, nelec=None
+            )
+
+    def test_solve_fermion_requires_pyscf(self):
+        with self.assertRaisesRegex(ImportError, "pyscf"):
+            self.fermion_module.solve_fermion((np.array([0b0011]), np.array([0b0011])), None, None)
+
+    def test_optimize_orbitals_requires_pyscf(self):
+        # `optimize_orbitals` is `@deprecate_func`-decorated; suppress that unrelated
+        # warning so it doesn't fail the test under `-W error`.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with self.assertRaisesRegex(ImportError, "pyscf"):
+                self.fermion_module.optimize_orbitals(
+                    (np.array([0b0011]), np.array([0b0011])), None, None, np.array([])
+                )
