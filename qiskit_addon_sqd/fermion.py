@@ -271,6 +271,8 @@ def diagonalize_fermionic_hamiltonian(
         symmetrize_spin: Whether to always merge spin-alpha and spin-beta CI strings
             into a single list, so that the diagonalization subspace is invariant with
             respect to the exchange of spin alpha with spin beta.
+            This affects only which determinants span the diagonalization subspace.
+            It does not impose or improve the total spin of the returned state.
         max_dim: Limit on the dimension of the spin sectors of the SCI subspace.
             It can be either:
 
