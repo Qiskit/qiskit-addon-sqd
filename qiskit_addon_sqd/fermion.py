@@ -22,15 +22,6 @@ import numpy as np
 from jax import Array, config, grad, jit, vmap
 from jax import numpy as jnp
 from jax.scipy.linalg import expm
-from pyscf import fci
-from pyscf.fci.selected_ci import (
-    _as_SCIvector,
-    make_rdm1,
-    make_rdm1s,
-    make_rdm2,
-    make_rdm2s,
-    spin_square,
-)
 from qiskit.primitives import BitArray
 from qiskit.utils.deprecation import deprecate_func
 from scipy import linalg as LA
@@ -39,6 +30,41 @@ from .configuration_recovery import recover_configurations
 from .counts import bit_array_to_arrays, bitstring_matrix_to_integers
 from .processes import broadcast, is_control_process
 from .subsampling import postselect_by_hamming_right_and_left, subsample
+
+try:
+    from pyscf import fci
+    from pyscf.fci.selected_ci import (
+        _as_SCIvector,
+        make_rdm1,
+        make_rdm1s,
+        make_rdm2,
+        make_rdm2s,
+        spin_square,
+    )
+
+    _HAS_PYSCF = True
+except ImportError:
+    _HAS_PYSCF = False
+
+
+def _require_pyscf() -> None:
+    """Raise a clear error if pyscf, an optional dependency, is not available.
+
+    pyscf does not currently provide prebuilt wheels for Windows (see
+    https://github.com/Qiskit/qiskit-addon-sqd/issues/349), so this module must
+    remain importable without it; only the functions that actually need pyscf's
+    selected-CI solver should fail, and only once called.
+    """
+    if not _HAS_PYSCF:
+        raise ImportError(
+            "This functionality requires the 'pyscf' package, which could not be "
+            "imported (it is not installed, or not available on this platform -- "
+            "e.g. pyscf does not currently provide prebuilt wheels for Windows). "
+            "Install pyscf to use this function, or, if calling "
+            "`diagonalize_fermionic_hamiltonian`, pass a custom `sci_solver` that "
+            "does not depend on pyscf."
+        )
+
 
 config.update("jax_enable_x64", True)  # To deal with large integers
 
@@ -112,6 +138,7 @@ class SCIState:
 
     def rdm(self, rank: int = 1, spin_summed: bool = False) -> np.ndarray:
         """Compute reduced density matrix."""
+        _require_pyscf()
         # Reason for type: ignore: mypy can't tell the return type of the
         # PySCF functions
         sci_vector = _as_SCIvector(self.amplitudes, (self.ci_strs_a, self.ci_strs_b))
@@ -129,6 +156,7 @@ class SCIState:
 
     def spin_square(self) -> float:
         """Return spin squared."""
+        _require_pyscf()
         sci_vector = _as_SCIvector(self.amplitudes, (self.ci_strs_a, self.ci_strs_b))
         spin_squared, _ = spin_square(sci_vector, norb=self.norb, nelec=self.nelec)
         return cast(float, spin_squared)
@@ -708,6 +736,7 @@ def solve_sci(
     Returns:
         The diagonalization result.
     """
+    _require_pyscf()
     norb, _ = one_body_tensor.shape
 
     myci = fci.selected_ci.SelectedCI()
@@ -786,6 +815,7 @@ def solve_fermion(
         - Expectation value of spin-squared
 
     """
+    _require_pyscf()
     # Format inputs
     if isinstance(bitstring_matrix, tuple):
         ci_strs = bitstring_matrix
@@ -907,6 +937,7 @@ def optimize_orbitals(
         - Tuple containing orbital occupancies for spin-up and spin-down orbitals. Formatted as: ``(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``
 
     """
+    _require_pyscf()
     norb = hcore.shape[0]
     num_params = (norb**2 - norb) // 2
     if len(k_flat) != num_params:

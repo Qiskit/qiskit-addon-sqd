@@ -1,0 +1,16 @@
+---
+fixes:
+  - |
+    :mod:`qiskit_addon_sqd.fermion` no longer fails to import when ``pyscf`` is
+    unavailable (e.g. on Windows, where ``pyscf`` provides no prebuilt wheels).
+    Only the functions that actually require ``pyscf``'s selected-CI solver --
+    :func:`~qiskit_addon_sqd.fermion.solve_sci`,
+    :func:`~qiskit_addon_sqd.fermion.solve_fermion`,
+    :func:`~qiskit_addon_sqd.fermion.optimize_orbitals`, and the
+    :meth:`~qiskit_addon_sqd.fermion.SCIState.rdm` and
+    :meth:`~qiskit_addon_sqd.fermion.SCIState.spin_square` methods -- now raise
+    a clear ``ImportError`` if called without ``pyscf`` installed, instead of
+    the whole module failing to import. This also means
+    :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` can now
+    be used on such platforms when passed a custom ``sci_solver`` that does not
+    depend on ``pyscf``.
