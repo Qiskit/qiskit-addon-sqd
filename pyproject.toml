@@ -35,7 +35,7 @@ dependencies = [
 
 [project.optional-dependencies]
 fulqrum = [
-    "fulqrum", # XXX needs version bound before merging
+    "fulqrum>=0.4.2",
     "primme>=3.2.3",
 ]
 dev = [
