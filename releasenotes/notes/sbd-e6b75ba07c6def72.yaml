@@ -1,8 +1,8 @@
 ---
 features:
   - |
-    Adds a `guide <https://qiskit.github.io/qiskit-addon-sqd/guides/integrate_sbd.html>`_
-    showing how to use the `SBD eigensolver <https://github.com/Qiskit/sbd-eigensolver-python>`_
+    Adds a `guide <https://qiskit.github.io/qiskit-addon-sqd/guides/integrate_sbd.html>`__
+    showing how to use the `SBD eigensolver <https://github.com/Qiskit/sbd-eigensolver-python>`__
     as a subspace solver for fermionic systems.
     To install the optional dependency, use the ``sbd`` extra::
 
