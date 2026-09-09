@@ -31,17 +31,18 @@ jobs:
       - name: Upgrade pip
         run: |
           python -m pip install --upgrade pip
-      # BLAS/LAPACK and OpenMP needed to build fulqrum for notebook testing
-      - name: Install BLAS/LAPACK (Linux)
+      # BLAS/LAPACK and OpenMP are needed to build fulqrum, and MPI and BLAS to
+      # build sbd-eigensolver, for notebook testing
+      - name: Install BLAS/LAPACK and MPI (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libblas-dev liblapack-dev
+          sudo apt-get install -y libblas-dev liblapack-dev libopenblas-dev libopenmpi-dev openmpi-bin
       - name: Bootstrap OpenMP-capable compiler (macOS)
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          brew install llvm libomp
+          brew install llvm libomp open-mpi openblas
           LLVM_PREFIX="$(brew --prefix llvm)"
           OMP_PREFIX="$(brew --prefix libomp)"
           {
@@ -57,6 +58,12 @@ jobs:
         run: |
           git clone --recurse-submodules https://github.com/qiskit-community/fulqrum
           cd fulqrum
+          git rev-parse HEAD
+          python -m build --wheel
+      - name: Build sbd-eigensolver development wheel
+        run: |
+          git clone --recurse-submodules https://github.com/Qiskit/sbd-eigensolver-python
+          cd sbd-eigensolver-python
           git rev-parse HEAD
           python -m build --wheel
       - name: Build Qiskit SDK development wheel
@@ -82,6 +89,7 @@ jobs:
         run: >-
           extremal-python-dependencies pin-dependencies --inplace
           "fulqrum @ file:$(echo fulqrum/dist/*.whl)"
+          "sbd-eigensolver @ file:$(echo sbd-eigensolver-python/dist/*.whl)"
           "qiskit @ file:$(echo qiskit/dist/*.whl)"
           "qiskit-ibm-runtime @ file:$(echo qiskit-ibm-runtime/dist/*.whl)"
           "qiskit-addon-utils @ file:$(echo qiskit-addon-utils/dist/*.whl)"
