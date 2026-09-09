@@ -275,7 +275,11 @@ def diagonalize_fermionic_hamiltonian(
             ``max_dim`` shared by both spin sectors; otherwise, an error is raised.
             The invariance ensures that the returned state does not mix components of
             even and odd total spin, but it does *not* guarantee that the state is an
-            eigenvector of the total spin operator :math:`S^2`.
+            eigenvector of the total spin operator :math:`S^2`. Note that merging the
+            two lists increases the number of CI strings in each spin sector by up to a
+            factor of two, so the dimension of the diagonalization subspace can grow by
+            up to a factor of four (less when the lists overlap, which is typical). This
+            growth is still subject to the ``max_dim`` limit, if one is set.
         max_dim: Limit on the dimension of the spin sectors of the SCI subspace.
             It can be either:
 
