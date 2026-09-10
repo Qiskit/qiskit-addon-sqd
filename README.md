@@ -82,9 +82,11 @@ The [`qiskit_addon_sqd.fermion.solve_fermion()`](qiskit_addon_sqd/fermion.py) fu
 
 The choice of the subspace dimension affects the accuracy and runtime of the eigenstate solver. The larger the subspace the more accurate the calculation, at the cost of increasing the runtime and memory requirements. The optimal subspace size for a given system is not known, thus a convergence study with the subspace dimension may be performed as described in this [example](docs/guides/choose_subspace_dimension.ipynb).
 
-#### The subspace dimension is set indirectly
+#### Bounding the subspace dimension
 
-In this package, the user controls the number of bitstrings (see the `samples_per_batch` argument in [`qiskit_addon_sqd.subsampling.postselect_and_subsample()`](qiskit_addon_sqd/subsampling.py)) contained in each subspace. The value of this argument sets an upper bound to the subspace dimension in the case of quantum chemistry applications. See this [example](docs/guides/select_open_closed_shell.ipynb) for more details.
+The `samples_per_batch` argument of [`qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian()`](qiskit_addon_sqd/fermion.py) sets the number of bitstrings contained in each batch, and thereby controls the subspace dimension indirectly: in the case of quantum chemistry applications, its value sets an upper bound to the subspace dimension. The dimension that actually results depends on how many of the sampled bitstrings are distinct, and it grows over the course of the self-consistent configuration recovery iterations, so it is not known in advance. See this [example](docs/guides/select_open_closed_shell.ipynb) for more details.
+
+The `max_dim` argument of the same function bounds the dimension directly, by limiting the number of CI strings retained in each spin sector. Since the subspace is spanned by the Cartesian product of the two spin sectors, `max_dim=d` caps the subspace dimension at `d**2`, while a tuple `max_dim=(d_a, d_b)` limits the spin-alpha and spin-beta sectors separately, capping the subspace dimension at `d_a * d_b` (with `symmetrize_spin=True`, the two limits must be equal). When a batch yields more CI strings than the limit allows, the strings requested through `include_configurations` and those carried over from the previous iteration are retained preferentially, and the remaining slots are filled with the most frequently sampled strings. Because it caps the size of the largest diagonalization that the eigenstate solver will be asked to perform, `max_dim` is a convenient way to keep the solver within a runtime and memory budget. See this [example](docs/guides/choose_subspace_dimension.ipynb) for more details.
 
 #### Solvers
 
