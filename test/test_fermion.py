@@ -12,14 +12,15 @@
 
 """Tests for the fermion module."""
 
+import importlib
 import math
+import sys
 import unittest
+import unittest.mock
+import warnings
 
 import numpy as np
-import pyscf
-import pyscf.mcscf
 import pytest
-from pyscf.fci import cistring, spin_square
 from qiskit.primitives import BitArray
 from qiskit_addon_sqd.counts import generate_bit_array_uniform
 from qiskit_addon_sqd.fermion import (
@@ -27,6 +28,19 @@ from qiskit_addon_sqd.fermion import (
     bitstring_matrix_to_ci_strs,
     diagonalize_fermionic_hamiltonian,
 )
+
+try:
+    import pyscf
+    import pyscf.mcscf
+    from pyscf.fci import cistring, spin_square
+
+    _HAS_PYSCF = True
+except ImportError:
+    # pyscf provides no prebuilt wheels for some platforms (e.g. Windows), where
+    # it is not installed as a dependency at all -- see #349. The tests below
+    # that actually need it are skipped in that case (see `TestFermion`); the
+    # tests for the import guard itself must still be collectible and runnable.
+    _HAS_PYSCF = False
 
 
 def _sci_vec_to_fci_vec(
@@ -47,6 +61,7 @@ def _sci_vec_to_fci_vec(
     return fci_vec.reshape(-1)
 
 
+@unittest.skipUnless(_HAS_PYSCF, "requires pyscf")
 class TestFermion(unittest.TestCase):
     def setUp(self):
         self.rng = np.random.default_rng(190560294508743238113331500595174898458)
@@ -380,3 +395,111 @@ def test_sci_state_save_load(tmp_path):
     np.testing.assert_array_equal(loaded_state.ci_strs_b, sci_state.ci_strs_b)
     assert loaded_state.norb == sci_state.norb
     assert loaded_state.nelec == sci_state.nelec
+
+
+def test_fermion_importable_without_pyscf(monkeypatch):
+    """``qiskit_addon_sqd.fermion`` must remain importable without pyscf installed.
+
+    pyscf provides no prebuilt wheels for some platforms (e.g. Windows), so an
+    unguarded top-level ``from pyscf import ...`` prevents the whole module -- not
+    just its pyscf-dependent functions -- from being imported there. See #349.
+    """
+    import qiskit_addon_sqd.fermion as fermion_module
+
+    for name in list(sys.modules):
+        if name == "pyscf" or name.startswith("pyscf."):
+            monkeypatch.delitem(sys.modules, name, raising=False)
+    # Setting a module to `None` in `sys.modules` makes `import` raise
+    # `ImportError` for it, simulating pyscf being genuinely unavailable.
+    monkeypatch.setitem(sys.modules, "pyscf", None)
+
+    try:
+        reloaded = importlib.reload(fermion_module)
+        assert reloaded._HAS_PYSCF is False
+        with pytest.raises(ImportError, match="pyscf"):
+            reloaded._require_pyscf()
+    finally:
+        # Restore the module to its normal state before any other test relies
+        # on `qiskit_addon_sqd.fermion` working normally -- `monkeypatch` will
+        # restore `sys.modules` itself, but only *after* this test returns.
+        monkeypatch.undo()
+        importlib.reload(fermion_module)
+    assert fermion_module._HAS_PYSCF is _HAS_PYSCF
+
+
+def test_require_pyscf_raises_a_clear_error(monkeypatch):
+    """``_require_pyscf`` raises a clear, actionable error when pyscf is unavailable."""
+    import qiskit_addon_sqd.fermion as fermion_module
+
+    monkeypatch.setattr(fermion_module, "_HAS_PYSCF", False)
+    with pytest.raises(ImportError, match="pyscf"):
+        fermion_module._require_pyscf()
+
+
+@unittest.skipUnless(_HAS_PYSCF, "requires pyscf")
+def test_require_pyscf_is_a_noop_when_available():
+    """``_require_pyscf`` does nothing when pyscf is actually available."""
+    from qiskit_addon_sqd.fermion import _require_pyscf
+
+    _require_pyscf()  # must not raise
+
+
+class TestPyscfGuardWiring(unittest.TestCase):
+    """Each pyscf-dependent public entry point must actually call ``_require_pyscf()``
+    before touching any pyscf-only name, not just have the helper exist and work in
+    isolation. Every case below is run with ``_HAS_PYSCF`` patched to ``False``
+    regardless of whether pyscf is really installed in this environment, so a
+    regression here (e.g. a future edit moving or removing the guard call) is
+    caught even in CI where pyscf *is* present -- garbage/minimal arguments are
+    used throughout, since the guard must fire before any of them are used.
+    """
+
+    def setUp(self):
+        import qiskit_addon_sqd.fermion as fermion_module
+
+        self.fermion_module = fermion_module
+        patcher = unittest.mock.patch.object(fermion_module, "_HAS_PYSCF", False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        self.sci_state = SCIState(
+            amplitudes=np.array([[0.5, 0.5], [0.5, 0.5]]),
+            ci_strs_a=np.array([0b0011, 0b0101]),
+            ci_strs_b=np.array([0b0011, 0b0101]),
+            norb=4,
+            nelec=(2, 2),
+        )
+
+    def test_sci_state_rdm_requires_pyscf(self):
+        with self.assertRaisesRegex(ImportError, "pyscf"):
+            self.sci_state.rdm()
+
+    def test_sci_state_spin_square_requires_pyscf(self):
+        with self.assertRaisesRegex(ImportError, "pyscf"):
+            self.sci_state.spin_square()
+
+    def test_solve_sci_requires_pyscf(self):
+        with self.assertRaisesRegex(ImportError, "pyscf"):
+            self.fermion_module.solve_sci(None, None, None, norb=None, nelec=None)
+
+    def test_solve_sci_batch_requires_pyscf(self):
+        # `solve_sci_batch` has no pyscf usage of its own; it must still fail
+        # (transitively, via `solve_sci`) rather than proceed into real pyscf calls.
+        with self.assertRaisesRegex(ImportError, "pyscf"):
+            self.fermion_module.solve_sci_batch(
+                [(np.array([0b0011]), np.array([0b0011]))], None, None, norb=None, nelec=None
+            )
+
+    def test_solve_fermion_requires_pyscf(self):
+        with self.assertRaisesRegex(ImportError, "pyscf"):
+            self.fermion_module.solve_fermion((np.array([0b0011]), np.array([0b0011])), None, None)
+
+    def test_optimize_orbitals_requires_pyscf(self):
+        # `optimize_orbitals` is `@deprecate_func`-decorated; suppress that unrelated
+        # warning so it doesn't fail the test under `-W error`.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with self.assertRaisesRegex(ImportError, "pyscf"):
+                self.fermion_module.optimize_orbitals(
+                    (np.array([0b0011]), np.array([0b0011])), None, None, np.array([])
+                )
