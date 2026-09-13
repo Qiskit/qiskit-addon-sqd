@@ -385,7 +385,11 @@ def diagonalize_fermionic_hamiltonian(
     carryover_strings_b = np.array([], dtype=np.int64)
 
     # Convert the samples into bitstring and probability arrays
-    raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
+    if isinstance(bit_array, BitArray):
+        raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
+    else:
+        raw_bitstrings, counts = np.unique(bit_array, axis=0, return_counts=True)
+        raw_probs = counts / len(bit_array)
 
     # Bundle the loop-invariant configuration once, so the per-iteration helper
     # calls only need to pass the values that change between iterations.
