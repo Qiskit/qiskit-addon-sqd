@@ -111,7 +111,7 @@ def recover_configurations(
 
     corrected_dict: defaultdict[str, float] = defaultdict(float)
     occs_array = np.flip(avg_occupancies).flatten()
-    for bitstring, freq in zip(bitstring_matrix, probabilities):
+    for bitstring, freq in zip(bitstring_matrix, probabilities, strict=True):
         bs_corrected = _bipartite_bitstring_correcting(
             bitstring,
             occs_array,

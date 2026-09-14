@@ -294,7 +294,7 @@ def _int_conversion_from_bts_array(bit_array: np.ndarray) -> Any:
     for i in range(n_qubits):
         bitarray_asint = bitarray_asint + bit_array[i] * 2 ** (n_qubits - 1 - i)
 
-    return bitarray_asint.astype("longlong")  # type: ignore
+    return bitarray_asint.astype("longlong")
 
 
 _int_conversion_from_bts_matrix_vmap = jit(vmap(_int_conversion_from_bts_array, 0, 0))
