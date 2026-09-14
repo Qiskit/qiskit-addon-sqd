@@ -17,6 +17,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
+      # One failing cell should not hide the state of the rest, which matters
+      # most when a break is specific to one OS.
+      fail-fast: false
       max-parallel: 4
       matrix:
         os: [ubuntu-latest]
