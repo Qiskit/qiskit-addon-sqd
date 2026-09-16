@@ -15,7 +15,7 @@ on:
 jobs:
   tests:
     name: development version tests (${{ matrix.os }}, ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     # Building five development wheels before the test run leaves this job
     # sensitive to runner speed: the same content has taken anywhere from
     # 24 to over 30 minutes, so 30 was not a reliable ceiling. At 30 the job
@@ -28,6 +28,9 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.10", "3.14"]
+        include:
+          - os: macos-latest
+            python-version: "3.14"
     steps:
       - uses: actions/checkout@v7
       - name: Set up Python ${{ matrix.python-version }}
