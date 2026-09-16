@@ -16,7 +16,11 @@ jobs:
   tests:
     name: development version tests (${{ matrix.os }}, ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Building five development wheels before the test run leaves this job
+    # sensitive to runner speed: the same content has taken anywhere from
+    # 24 to over 30 minutes, so 30 was not a reliable ceiling. At 30 the job
+    # was cancelled mid-notebook-run, after the unit tests had already passed.
+    timeout-minutes: 60
     strategy:
       # One failing cell should not hide the state of the rest.
       fail-fast: false
