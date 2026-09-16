@@ -71,7 +71,11 @@ jobs:
           python -m build --wheel
       - name: Build sbd-eigensolver development wheel
         run: |
-          git clone --recurse-submodules https://github.com/Qiskit/sbd-eigensolver-python
+          # TEMPORARY: track the darwin-single-libomp branch rather than main, to
+          # test the fix for the macOS "OMP: Error #15" abort
+          # (Qiskit/sbd-eigensolver-python#27). Revert to main once that lands.
+          git clone --recurse-submodules --branch darwin-single-libomp \
+            https://github.com/Qiskit/sbd-eigensolver-python
           cd sbd-eigensolver-python
           git rev-parse HEAD
           python -m build --wheel
