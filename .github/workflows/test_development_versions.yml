@@ -53,12 +53,18 @@ jobs:
         run: |
           brew install llvm libomp open-mpi openblas
           LLVM_PREFIX="$(brew --prefix llvm)"
-          OMP_PREFIX="$(brew --prefix libomp)"
+          # Take OpenMP from the compiler's own keg. Homebrew's llvm builds
+          # openmp as a runtime, so it ships a libomp.dylib of its own; adding
+          # the standalone libomp formula's lib directory as well put two
+          # same-named copies in one process, which aborts at the first
+          # parallel region with "OMP: Error #15". The libomp formula stays
+          # installed because sbd-eigensolver's setup.py looks for omp.h under
+          # $(brew --prefix)/opt/libomp/include, but it is no longer linked.
           {
             echo "CC=${LLVM_PREFIX}/bin/clang"
             echo "CXX=${LLVM_PREFIX}/bin/clang++"
-            echo "LDFLAGS=-L${LLVM_PREFIX}/lib -L${OMP_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
-            echo "CPPFLAGS=-I${LLVM_PREFIX}/include -I${OMP_PREFIX}/include"
+            echo "LDFLAGS=-L${LLVM_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
+            echo "CPPFLAGS=-I${LLVM_PREFIX}/include"
           } >> "$GITHUB_ENV"
       - name: Install tools from pypi
         run: |
