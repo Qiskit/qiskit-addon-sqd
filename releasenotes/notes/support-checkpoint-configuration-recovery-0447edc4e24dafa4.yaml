@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    Added the ability to checkpoint configuration recovery in
+    ``diagonalize_fermionic_hamiltonian`` by providing an ``initial_state`` 
+    (an ``SCIState`` object).
