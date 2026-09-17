@@ -110,3 +110,28 @@ jobs:
         shell: bash
         run: |
           tox -e py,notebook
+      # TEMPORARY diagnostic for Qiskit/sbd-eigensolver-python#27. Runs even when
+      # the tests fail, which is the case worth inspecting: it names every
+      # OpenMP runtime each compiled extension in the notebook env links, so the
+      # second libomp in the process can be attributed to a package rather than
+      # guessed at.
+      - name: Report OpenMP linkage of compiled extensions (macOS)
+        if: always() && runner.os == 'macOS'
+        shell: bash
+        run: |
+          site=$(.tox/notebook/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
+          echo "site-packages: $site"
+          for pkg in sbd pyscf qiskit_aer fulqrum scipy numpy; do
+            echo "=== $pkg"
+            find "$site/$pkg" -name '*.so' -o -name '*.dylib' 2>/dev/null | while read -r f; do
+              omp=$(otool -L "$f" 2>/dev/null | grep -iE 'libomp|libiomp|libgomp' || true)
+              if [ -n "$omp" ]; then
+                echo "  $f"
+                echo "$omp" | sed 's/^/    /'
+              fi
+            done
+          done
+          echo "=== resolved at run time (import order: pyscf then sbd)"
+          DYLD_PRINT_LIBRARIES=1 .tox/notebook/bin/python -c "
+          import pyscf, sbd
+          " 2>&1 | grep -iE 'libomp|libiomp|libgomp' | sort -u || true
