@@ -140,7 +140,13 @@ class TestConfigurationRecovery(unittest.TestCase):
 def recovery_backend(request, monkeypatch):
     """Parametrize tests over the pure-Python and compiled backends.
 
-    The ``accel`` case is skipped if the compiled extension is not available.
+    The fixture selects the backend by **monkeypatching module-level state**
+    rather than through its return value: for the ``python`` case it sets
+    ``configuration_recovery._accel`` to ``None`` so that
+    ``recover_configurations`` takes its pure-Python branch (``monkeypatch``
+    restores the attribute afterward). This is why a test only needs to *request*
+    the fixture -- the effect is the patch, not the returned value. The ``accel``
+    case is skipped if the compiled extension is not available.
     """
     if request.param == "python":
         monkeypatch.setattr(configuration_recovery, "_accel", None)
@@ -156,6 +162,11 @@ class TestRecoverConfigurationsBackends:
     ``std::mt19937_64``), so exact per-seed equality is not expected.  These
     tests assert the invariants that must hold for either backend.
     """
+
+    # The ``recovery_backend`` argument is a pytest fixture that selects the
+    # backend by monkeypatching module-level state; it does its work as a side
+    # effect of injection, so the body never references it.
+    # pylint: disable=unused-argument
 
     def test_deterministic_cases_match(self, recovery_backend):
         # All-flip cases are RNG-independent, so both backends agree exactly.
