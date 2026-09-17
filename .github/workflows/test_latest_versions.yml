@@ -53,7 +53,13 @@ jobs:
             echo "LDFLAGS=-L${LLVM_PREFIX}/lib -L${OMP_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
             echo "CPPFLAGS=-I${LLVM_PREFIX}/include -I${OMP_PREFIX}/include"
           } >> "$GITHUB_ENV"
+      # Run the environments serially. In parallel mode, tox buffers each
+      # environment's output and replays it once the run finishes, and a
+      # failing environment's stderr does not survive that replay -- which
+      # hides the compiler error when building fulqrum from its sdist fails.
       - name: Test using tox environment
         shell: bash
+        env:
+          PYTHONUNBUFFERED: "1"
         run: |
-          tox -e py,notebook --parallel --parallel-no-spinner
+          tox -e py,notebook

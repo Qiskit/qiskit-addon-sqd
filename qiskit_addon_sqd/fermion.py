@@ -1,6 +1,6 @@
 # This code is a Qiskit project.
 #
-# (C) Copyright IBM 2024.
+# (C) Copyright IBM 2024, 2026.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -204,7 +204,7 @@ class _IterationState:
 def diagonalize_fermionic_hamiltonian(
     one_body_tensor: np.ndarray,
     two_body_tensor: np.ndarray,
-    bit_array: BitArray,
+    bit_array: BitArray | np.ndarray,
     samples_per_batch: int,
     norb: int,
     nelec: tuple[int, int],
@@ -232,10 +232,11 @@ def diagonalize_fermionic_hamiltonian(
     Args:
         one_body_tensor: The one-body tensor of the Hamiltonian.
         two_body_tensor: The two-body tensor of the Hamiltonian.
-        bit_array: Array of sampled bitstrings. Each bitstring should have both the
-            alpha part and beta part concatenated together, with the alpha part
-            concatenated on the right-hand side, like this:
-            ``[b_N, ..., b_0, a_N, ..., a_0]``.
+        bit_array: Array of sampled bitstrings, provided as either a Qiskit
+            :class:`~qiskit.primitives.BitArray` or a two-dimensional NumPy boolean
+            array. Each bitstring should have both the alpha part and beta part
+            concatenated together, with the alpha part concatenated on the right-hand
+            side, like this: ``[b_N, ..., b_0, a_N, ..., a_0]``.
         samples_per_batch: The number of bitstrings to include in each subsampled batch
             of bitstrings.
         norb: The number of spatial orbitals.
@@ -271,7 +272,16 @@ def diagonalize_fermionic_hamiltonian(
             contains the result of the corresponding diagonalization.
         symmetrize_spin: Whether to always merge spin-alpha and spin-beta CI strings
             into a single list, so that the diagonalization subspace is invariant with
-            respect to the exchange of spin alpha with spin beta.
+            respect to the exchange of spin alpha with spin beta. This requires the
+            numbers of alpha and beta electrons to be equal, as well as a single
+            ``max_dim`` shared by both spin sectors; otherwise, an error is raised.
+            The invariance ensures that the returned state does not mix components of
+            even and odd total spin, but it does *not* guarantee that the state is an
+            eigenvector of the total spin operator :math:`S^2`. Note that merging the
+            two lists increases the number of CI strings in each spin sector by up to a
+            factor of two, so the dimension of the diagonalization subspace can grow by
+            up to a factor of four (less when the lists overlap, which is typical). This
+            growth is still subject to the ``max_dim`` limit, if one is set.
         max_dim: Limit on the dimension of the spin sectors of the SCI subspace.
             It can be either:
 
@@ -401,8 +411,12 @@ def diagonalize_fermionic_hamiltonian(
         carryover_strings_a = np.array([], dtype=np.int64)
         carryover_strings_b = np.array([], dtype=np.int64)
 
-    # Convert BitArray into bitstring and probability arrays
-    raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
+    # Convert the samples into bitstring and probability arrays
+    if isinstance(bit_array, BitArray):
+        raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
+    else:
+        raw_bitstrings, counts = np.unique(bit_array, axis=0, return_counts=True)
+        raw_probs = counts / len(bit_array)
 
     # Bundle the loop-invariant configuration once, so the per-iteration helper
     # calls only need to pass the values that change between iterations.
