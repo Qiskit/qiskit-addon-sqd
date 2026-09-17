@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: recursive
       - name: Build distribution
         run: |
           pipx run build --sdist
@@ -25,19 +27,44 @@ jobs:
           name: pkg-sdist
           path: dist/*.tar.gz
 
-  build_wheels:
-    name: Build universal wheel
+  build_universal_wheel:
+    name: Build universal (pure-Python) wheel
     runs-on: ubuntu-latest
     steps:
+      # No submodules needed: this wheel disables the compiled extension and
+      # relies on the pure-Python fallback in recover_configurations.
       - uses: actions/checkout@v7
-      - name: Build wheel
+      - name: Build py3-none-any wheel
         run: |
-          pipx run build --wheel
+          pipx run build --wheel -C wheel.cmake=false
       - name: Store the wheel
         uses: actions/upload-artifact@v7
         with:
-          name: pkg-wheel
+          name: pkg-wheel-universal
           path: dist/*.whl
+
+  build_binary_wheels:
+    name: Build binary wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest    # manylinux + musllinux x86_64
+          - os: ubuntu-24.04-arm # manylinux + musllinux aarch64
+          - os: macos-14         # arm64
+          - os: macos-13         # x86_64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3
+      - name: Store the wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: pkg-wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
 
   github:
     name: Publish to GitHub
@@ -45,7 +72,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build_sdist
-      - build_wheels
+      - build_universal_wheel
+      - build_binary_wheels
     steps:
       - name: Checkout tag
         uses: actions/checkout@v7
@@ -69,7 +97,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build_sdist
-      - build_wheels
+      - build_universal_wheel
+      - build_binary_wheels
       - github
     environment:
       name: pypi
