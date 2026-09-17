@@ -118,35 +118,51 @@ jobs:
       - name: Report OpenMP linkage of compiled extensions (macOS)
         if: always() && runner.os == 'macOS'
         shell: bash
+        # Scan in Python, not shell: this step runs under `bash -e -o pipefail`,
+        # where a find|grep|awk pipeline exits nonzero as soon as one inner grep
+        # matches nothing, which aborts the step before it prints anything.
         run: |
-          site=$(.tox/notebook/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
-          echo "site-packages: $site"
-          # Scan the WHOLE environment rather than a guessed list of packages:
-          # naming the wrong one is the failure mode here. Group by the OpenMP
-          # each extension links, so bundled copies stand out from shared ones.
-          echo "=== every extension that links an OpenMP, grouped by which one"
-          find "$site" \( -name '*.so' -o -name '*.dylib' \) 2>/dev/null | while read -r f; do
-            otool -L "$f" 2>/dev/null \
-              | grep -iE 'libomp|libiomp|libgomp' \
-              | sed -E 's/^[[:space:]]*//; s/ \(compatibility.*//' \
-              | while read -r lib; do
-                  printf '%s\t%s\n' "$lib" "${f#"$site"/}"
-                done
-          done | sort | awk -F'\t' '
-            $1 != prev { printf "\n  %s\n", $1; prev = $1 }
-            { printf "      %s\n", $2 }
-          '
-          echo
-          echo "=== libomp copies actually present under site-packages"
-          find "$site" -name 'libomp*.dylib' -o -name 'libiomp*.dylib' 2>/dev/null || true
+          .tox/notebook/bin/python - <<'PY'
+          import pathlib, subprocess, sysconfig
+          from collections import defaultdict
+
+          site = pathlib.Path(sysconfig.get_paths()["purelib"])
+          print("site-packages:", site)
+
+          by_runtime = defaultdict(list)
+          for f in sorted(site.rglob("*")):
+              if f.suffix not in (".so", ".dylib"):
+                  continue
+              try:
+                  out = subprocess.run(["otool", "-L", str(f)], capture_output=True,
+                                       text=True).stdout
+              except Exception:
+                  continue
+              for line in out.splitlines()[1:]:
+                  lib = line.strip().split(" (compatibility")[0].strip()
+                  if any(k in lib.lower() for k in ("libomp", "libiomp", "libgomp")):
+                      by_runtime[lib].append(str(f.relative_to(site)))
+
+          print("\n=== every extension that links an OpenMP, grouped by which one")
+          for lib in sorted(by_runtime):
+              print(f"\n  {lib}")
+              for who in by_runtime[lib]:
+                  print(f"      {who}")
+
+          print("\n=== OpenMP copies shipped inside site-packages")
+          found = [str(p.relative_to(site)) for p in sorted(site.rglob("*"))
+                   if p.name.startswith(("libomp", "libiomp", "libgomp"))
+                   and p.suffix in (".so", ".dylib")]
+          print("\n".join(f"  {p}" for p in found) if found else "  (none)")
+          PY
           echo
           echo "=== loaded at run time, in the notebook's own import order"
           # The notebook imports pyscf, then qiskit_addon_sqd.fermion (which pulls
-          # in jax), then sbd. Reproduce that exact order -- the conflict depends
-          # on which runtime initialises first.
+          # in jax), then sbd. Reproduce that exact order -- which runtime
+          # initialises first is the whole question.
           DYLD_PRINT_LIBRARIES=1 .tox/notebook/bin/python -c "
           import pyscf
           from qiskit_addon_sqd.fermion import diagonalize_fermionic_hamiltonian
           from sbd.sbd_solver import solve_sci_batch
           print('imports OK')
-          " 2>&1 | grep -iE 'libomp|libiomp|libgomp|imports OK' | sort -u || true
+          " 2>&1 | grep -iE 'libomp|libiomp|libgomp|imports OK|Error' | sort -u || true
