@@ -90,4 +90,4 @@ jobs:
       - name: Test using tox environment
         shell: bash
         run: |
-          tox -e py,notebook
+          tox -e py,py-engine,notebook
