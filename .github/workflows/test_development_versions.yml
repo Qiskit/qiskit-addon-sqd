@@ -164,25 +164,47 @@ jobs:
           # without anyone naming it. Report the mapped images after each stage
           # to see exactly when a second libomp appears.
           .tox/notebook/bin/python - <<'PY' || true
-          import ctypes, ctypes.util, os, subprocess, sys
+          import ctypes, sys
 
-          def mapped_omp(tag):
-              out = subprocess.run(["vmmap", str(os.getpid())], capture_output=True,
-                                   text=True).stdout
-              libs = sorted({ln.split()[-1] for ln in out.splitlines()
-                             if "libomp" in ln or "libiomp" in ln})
-              print(f"  [{tag}] {len(libs)} libomp image(s)")
+          # Ask dyld directly rather than shelling out to vmmap: vmmap needs
+          # privileges the runner may not grant, and a previous version of this
+          # step could not tell "vmmap failed" from "nothing mapped" -- it
+          # reported zero images even after importing sbd, whose extension
+          # demonstrably links libomp.
+          libc = ctypes.CDLL(None)
+          try:
+              libc._dyld_image_count.restype = ctypes.c_uint32
+              libc._dyld_get_image_name.restype = ctypes.c_char_p
+              libc._dyld_get_image_name.argtypes = [ctypes.c_uint32]
+          except AttributeError as exc:
+              # Fail loudly. Reporting "0 images" when the probe itself is broken
+              # is what made the previous attempt misleading.
+              sys.exit(f"dyld introspection unavailable: {exc}")
+
+          def omp_images():
+              out = []
+              for i in range(libc._dyld_image_count()):
+                  name = libc._dyld_get_image_name(i)
+                  if not name:
+                      continue
+                  name = name.decode("utf-8", "replace")
+                  if any(k in name.lower() for k in ("libomp", "libiomp", "libgomp")):
+                      out.append(name)
+              return sorted(set(out))
+
+          def report(tag):
+              libs = omp_images()
+              print(f"  [{tag}] {len(libs)} OpenMP image(s)")
               for l in libs:
                   print(f"      {l}")
-              return libs
 
-          mapped_omp("baseline")
-          import pyscf; mapped_omp("after pyscf")
+          report("baseline")
+          import pyscf; report("after pyscf")
           from qiskit_addon_sqd.fermion import diagonalize_fermionic_hamiltonian
-          mapped_omp("after qiskit_addon_sqd.fermion (pulls jax)")
+          report("after qiskit_addon_sqd.fermion (pulls jax)")
           import qiskit
           from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-          mapped_omp("after qiskit + preset passmanager")
-          from sbd.sbd_solver import solve_sci_batch; mapped_omp("after sbd")
+          report("after qiskit + preset passmanager")
+          from sbd.sbd_solver import solve_sci_batch; report("after sbd")
           print("  sys.modules has qiskit_aer:", "qiskit_aer" in sys.modules)
           PY
