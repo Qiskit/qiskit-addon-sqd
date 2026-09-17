@@ -48,7 +48,7 @@ fulqrum = [
 ]
 dev = [
     "qiskit-addon-sqd[test,nbtest,lint,docs]",
-    "tox>=4.4.3",
+    "tox>=4.11.4",
 ]
 basetest = [
     "pytest>=8.0",
