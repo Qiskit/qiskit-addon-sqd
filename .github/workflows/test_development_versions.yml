@@ -156,13 +156,33 @@ jobs:
           print("\n".join(f"  {p}" for p in found) if found else "  (none)")
           PY
           echo
-          echo "=== loaded at run time, in the notebook's own import order"
-          # The notebook imports pyscf, then qiskit_addon_sqd.fermion (which pulls
-          # in jax), then sbd. Reproduce that exact order -- which runtime
-          # initialises first is the whole question.
-          DYLD_PRINT_LIBRARIES=1 .tox/notebook/bin/python -c "
-          import pyscf
+          echo "=== which libomp files are mapped after each stage"
+          # Importing alone did NOT abort, so the second runtime arrives later.
+          # qiskit-aer is the only bundled copy, and it is never imported by the
+          # SBD notebook -- but qiskit discovers backend plugins through
+          # entry points (it depends on stevedore), so aer's dylib can be loaded
+          # without anyone naming it. Report the mapped images after each stage
+          # to see exactly when a second libomp appears.
+          .tox/notebook/bin/python - <<'PY' || true
+          import ctypes, ctypes.util, os, subprocess, sys
+
+          def mapped_omp(tag):
+              out = subprocess.run(["vmmap", str(os.getpid())], capture_output=True,
+                                   text=True).stdout
+              libs = sorted({ln.split()[-1] for ln in out.splitlines()
+                             if "libomp" in ln or "libiomp" in ln})
+              print(f"  [{tag}] {len(libs)} libomp image(s)")
+              for l in libs:
+                  print(f"      {l}")
+              return libs
+
+          mapped_omp("baseline")
+          import pyscf; mapped_omp("after pyscf")
           from qiskit_addon_sqd.fermion import diagonalize_fermionic_hamiltonian
-          from sbd.sbd_solver import solve_sci_batch
-          print('imports OK')
-          " 2>&1 | grep -iE 'libomp|libiomp|libgomp|imports OK|Error' | sort -u || true
+          mapped_omp("after qiskit_addon_sqd.fermion (pulls jax)")
+          import qiskit
+          from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+          mapped_omp("after qiskit + preset passmanager")
+          from sbd.sbd_solver import solve_sci_batch; mapped_omp("after sbd")
+          print("  sys.modules has qiskit_aer:", "qiskit_aer" in sys.modules)
+          PY
