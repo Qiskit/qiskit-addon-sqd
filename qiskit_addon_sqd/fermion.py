@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, cast
+from typing import Callable, Protocol, cast, runtime_checkable
 
 import numpy as np
 from jax import Array, config, grad, jit, vmap
@@ -146,8 +146,13 @@ class SCIResult:
     energy: float
     """The SCI energy."""
 
-    sci_state: SCIState
-    """The SCI state."""
+    sci_state: SCIState | None
+    """The SCI state.
+
+    This may be ``None`` when the solver does not materialize the eigenvector. In that
+    case, the solver must supply :attr:`carryover`, since the configuration recovery
+    loop would otherwise derive it from the amplitudes.
+    """
 
     orbital_occupancies: tuple[np.ndarray, np.ndarray]
     """The average orbital occupancies."""
@@ -157,6 +162,26 @@ class SCIResult:
 
     rdm2: np.ndarray | None = None
     """Spin-summed 2-particle reduced density matrix."""
+
+    carryover: tuple[np.ndarray, np.ndarray] | None = None
+    """The CI strings to carry over into the next iteration, chosen by the solver.
+
+    A pair ``(strings_a, strings_b)`` of arrays of spin-alpha and spin-beta CI strings,
+    each ordered by descending marginal weight. This is the same shape as a subspace,
+    because that is what the strings are used to build.
+
+    Set this when the solver ranks and selects determinants itself, which an eigensolver
+    that trims its own subspace is well placed to do. When it is ``None``,
+    :func:`diagonalize_fermionic_hamiltonian` selects the carryover from
+    :attr:`sci_state` using its ``carryover_threshold`` argument, as it always has.
+
+    Note that the next subspace is spanned by the *Cartesian product* of the two arrays,
+    so it is generally larger than the set of configurations that were ranked. Selecting
+    the 150 highest-weight configurations of a subspace typically involves close to 150
+    distinct spin-alpha strings and 150 distinct spin-beta ones, whose product spans
+    roughly 22,500 configurations. Use the ``max_dim`` argument of
+    :func:`diagonalize_fermionic_hamiltonian` to bound the result.
+    """
 
 
 @dataclass(frozen=True)
@@ -185,7 +210,6 @@ class _LoopConfig:
     max_dim_b: int | None
     energy_tol: float
     occupancies_tol: float
-    carryover_threshold: float
     rng: np.random.Generator
 
 
@@ -199,6 +223,224 @@ class _IterationState:
     carryover_strings_a: np.ndarray
     carryover_strings_b: np.ndarray
     converged: bool
+
+
+# Bound on the diagonalization rounds a policy may request within one iteration. This
+# exists only to turn a policy that never stops into an error rather than a hang, so it
+# is set well above what any real schedule needs.
+_MAX_ROUNDS = 16
+
+
+@dataclass(frozen=True)
+class SubspaceRequest:
+    """The inputs a :class:`SubspacePolicy` builds an iteration's subspaces from."""
+
+    bitstrings: np.ndarray
+    """The postselected or recovered bitstrings, as a 2D array of ``bool`` with one
+    bitstring per row and the alpha part concatenated on the right-hand side, like this:
+    ``[b_N, ..., b_0, a_N, ..., a_0]``."""
+
+    probabilities: np.ndarray
+    """A probability for each of the bitstrings."""
+
+    carryover_strings_a: np.ndarray
+    """The spin-alpha CI strings carried over from the previous iteration, in descending
+    order of weight. Empty on the first iteration."""
+
+    carryover_strings_b: np.ndarray
+    """The spin-beta CI strings carried over from the previous iteration. Equal to
+    :attr:`carryover_strings_a` when spin symmetrization was requested."""
+
+    norb: int
+    """The number of spatial orbitals."""
+
+    nelec: tuple[int, int]
+    """The numbers of alpha and beta electrons."""
+
+    samples_per_batch: int
+    """The number of bitstrings each batch should hold."""
+
+    num_batches: int
+    """The number of batches to build."""
+
+    rng: np.random.Generator
+    """The loop's random number generator.
+
+    Draw from this rather than constructing another, and do not reseed it: the ``seed``
+    argument of :func:`diagonalize_fermionic_hamiltonian` is what makes a run
+    reproducible, and it controls this generator alone.
+    """
+
+    iteration: int
+    """The index of the current configuration recovery iteration, counting from zero."""
+
+    symmetrize_spin: bool
+    """Whether the two spin sectors share a single list of CI strings.
+
+    This is a constraint on the shape of a subspace, which the loop enforces on whatever
+    a policy returns. It appears here because merging the sectors is not something that
+    can be applied afterwards: the merge happens *before* the strings are ranked, so that
+    the ranking is over both sectors at once, and concatenating two separately ranked
+    lists would order them differently. A policy that ranks strings must therefore know
+    about it. :func:`batch_to_ci_strings` takes it for the same reason.
+    """
+
+
+@runtime_checkable
+class SubspacePolicy(Protocol):
+    """The schedule of one configuration recovery iteration.
+
+    A policy decides how an iteration spends the diagonalizations it is given: how the
+    sampled configurations become subspaces, whether the results of one round of
+    diagonalizations are refined into a further round, which result the iteration
+    reports, and which CI strings seed the next iteration.
+
+    Pass an implementation as the ``policy`` argument of
+    :func:`diagonalize_fermionic_hamiltonian`. The default,
+    :class:`StandardPolicy`, diagonalizes the subsampled batches and keeps the best
+    result. :class:`~qiskit_addon_sqd.trim.TrimPolicy` screens the batches and
+    diagonalizes their merged survivors.
+
+    A policy chooses *which strings* a subspace holds. The constraints on the *shape* of
+    a subspace belong to the caller, so the loop applies them to whatever a policy
+    returns: the configurations requested through ``include_configurations`` go into
+    every subspace, spin symmetrization is enforced when it was asked for, and each spin
+    sector is truncated to ``max_dim``. A policy neither receives nor can override them.
+
+    Note:
+        A policy produces only data. It is never given an ``sci_solver`` and never
+        performs a diagonalization itself: :meth:`refine` returns the subspaces to
+        diagonalize and the loop calls the solver with them.
+
+        This matters under multi-process execution. Unlike an ``sci_solver``, which every
+        process enters together, **a policy runs on the control process alone** and its
+        return values are broadcast to the others, so those return values must be
+        picklable. A policy must therefore not call
+        :func:`qiskit_addon_sqd.processes.broadcast`,
+        :func:`~qiskit_addon_sqd.processes.barrier`, or any other collective operation:
+        the other processes are not executing it, and the call would hang.
+    """
+
+    def prepare_subspaces(self, request: SubspaceRequest) -> list[tuple[np.ndarray, np.ndarray]]:
+        """Build the subspaces to diagonalize first.
+
+        Args:
+            request: The bitstrings, carryover strings, and batch sizes to build from.
+
+        Returns:
+            One ``(strings_a, strings_b)`` pair per subspace, each spanning the Cartesian
+            product of the two arrays.
+        """
+        ...
+
+    def refine(
+        self, results: list[SCIResult], round_index: int
+    ) -> list[tuple[np.ndarray, np.ndarray]] | None:
+        """Decide whether the results of a round lead to a further round.
+
+        Args:
+            results: The results of the round just completed, one per subspace.
+            round_index: The index of that round, counting from zero.
+
+        Returns:
+            The subspaces for a further round, or ``None`` to stop and report this
+            round's results. Returning subspaces on every call raises ``ValueError``
+            once the round limit is reached.
+        """
+        ...
+
+    def select_result(self, results: list[SCIResult]) -> SCIResult:
+        """Choose the result an iteration reports, from those of its final round.
+
+        The chosen result is what convergence is judged on, what becomes the returned
+        result if its energy is the lowest seen, and what :meth:`select_carryover`
+        receives.
+        """
+        ...
+
+    def select_carryover(
+        self, result: SCIResult, *, symmetrize_spin: bool = False
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Choose the CI strings that seed the next iteration.
+
+        Args:
+            result: The result chosen by :meth:`select_result`.
+            symmetrize_spin: Whether the two spin sectors share one list of strings. As
+                with :attr:`SubspaceRequest.symmetrize_spin`, this is passed in because
+                the sectors are merged before being ranked, so it cannot be applied
+                afterwards.
+
+        Returns:
+            The spin-alpha and spin-beta strings, in descending order of weight, since
+            that is the order a truncation to ``max_dim`` keeps.
+        """
+        ...
+
+
+class StandardPolicy:
+    """The default :class:`SubspacePolicy`: diagonalize the batches, keep the best.
+
+    Each iteration subsamples ``num_batches`` batches of ``samples_per_batch``
+    bitstrings, diagonalizes each, and reports the lowest energy among them. The strings
+    of that result whose amplitudes exceed ``carryover_threshold`` seed the next
+    iteration.
+
+    This is the behavior of :func:`diagonalize_fermionic_hamiltonian` when no ``policy``
+    is given, and passing an instance explicitly is equivalent to omitting it.
+    """
+
+    def __init__(self, *, carryover_threshold: float = 1e-4) -> None:
+        """Initialize the policy.
+
+        Args:
+            carryover_threshold: Threshold for carrying over bitstrings with large CI
+                weight. The CI strings with amplitude above this value are carried over.
+        """
+        self.carryover_threshold = carryover_threshold
+
+    def prepare_subspaces(self, request: SubspaceRequest) -> list[tuple[np.ndarray, np.ndarray]]:
+        """Subsample the batches independently and build a subspace from each."""
+        batches = subsample(
+            request.bitstrings,
+            request.probabilities,
+            samples_per_batch=request.samples_per_batch,
+            num_batches=request.num_batches,
+            rand_seed=request.rng,
+        )
+        return [
+            batch_to_ci_strings(
+                batch,
+                request.norb,
+                request.carryover_strings_a,
+                request.carryover_strings_b,
+                symmetrize_spin=request.symmetrize_spin,
+            )
+            for batch in batches
+        ]
+
+    def refine(
+        self,
+        results: list[SCIResult],  # pylint: disable=unused-argument
+        round_index: int,  # pylint: disable=unused-argument
+    ) -> list[tuple[np.ndarray, np.ndarray]] | None:
+        """Stop after the first round, which diagonalized every batch.
+
+        The arguments are unused because this schedule never asks for a second round; they
+        are part of the :class:`SubspacePolicy` interface.
+        """
+        return None
+
+    def select_result(self, results: list[SCIResult]) -> SCIResult:
+        """Report the batch that reached the lowest energy."""
+        return min(results, key=lambda result: result.energy)
+
+    def select_carryover(
+        self, result: SCIResult, *, symmetrize_spin: bool = False
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Carry over the strings whose amplitudes exceed the threshold."""
+        return _select_carryover_by_threshold(
+            result, self.carryover_threshold, symmetrize_spin=symmetrize_spin
+        )
 
 
 def diagonalize_fermionic_hamiltonian(
@@ -218,11 +460,12 @@ def diagonalize_fermionic_hamiltonian(
         list[SCIResult],
     ]
     | None = None,
+    policy: SubspacePolicy | None = None,
     symmetrize_spin: bool = False,
     max_dim: int | tuple[int, int] | None = None,
     include_configurations: list[int] | tuple[list[int], list[int]] | np.ndarray | None = None,
     initial_occupancies: tuple[np.ndarray, np.ndarray] | None = None,
-    carryover_threshold: float = 1e-4,
+    carryover_threshold: float | None = None,
     callback: Callable[[list[SCIResult]], None] | None = None,
     seed: int | np.random.Generator | None = None,
 ) -> SCIResult:
@@ -259,16 +502,43 @@ def diagonalize_fermionic_hamiltonian(
 
             - List of pairs (strings_a, strings_b) of arrays of spin-alpha CI strings
               and spin-beta CI strings whose Cartesian product give the basis of the
-              subspace in which to perform a diagonalization. A list is passed to allow
-              the solver function to perform the diagonalizations in parallel.
+              subspace in which to perform a diagonalization. Every subspace of an
+              iteration is passed in a single call, so that a solver may diagonalize
+              them concurrently rather than one after another.
             - One-body tensor of the Hamiltonian.
             - Two-body tensor of the Hamiltonian.
             - The number of spatial orbitals.
             - A pair (n_alpha, n_beta) indicating the numbers of alpha and beta
               electrons.
 
-            Output: List of (energy, sci_state, occupancies) triplets, where each triplet
-            contains the result of the corresponding diagonalization.
+            Output: List of :class:`SCIResult`, one per subspace passed in.
+
+            A solver that selects its own carryover CI strings can return them in
+            :attr:`SCIResult.carryover`, in which case they are used in place of the
+            ones this function would select using ``carryover_threshold``. Such a solver
+            may leave :attr:`SCIResult.sci_state` as ``None``, so that it never has to
+            return the eigenvector. :class:`~qiskit_addon_sqd.trim.TrimPolicy` does
+            both.
+
+            A solver may also return fewer results than it was given subspaces, which is
+            how a solver that merges its subspaces reports the single diagonalization it
+            performed over them.
+
+            See the note below for the semantics that apply when this function is
+            invoked collectively from multiple processes.
+        policy: The schedule of each iteration: how the sampled configurations become
+            subspaces, whether one round of diagonalizations leads to another, which
+            result the iteration reports, and which CI strings seed the next one. See
+            :class:`SubspacePolicy`.
+
+            Defaults to :class:`StandardPolicy`, which diagonalizes the subsampled
+            batches and keeps the best result.
+            :class:`~qiskit_addon_sqd.trim.TrimPolicy` screens the batches instead and
+            diagonalizes their merged survivors.
+
+            A policy returns the
+            subspaces and this function calls ``sci_solver`` with them. The two are
+            independent, so any policy works with any solver.
         symmetrize_spin: Whether to always merge spin-alpha and spin-beta CI strings
             into a single list, so that the diagonalization subspace is invariant with
             respect to the exchange of spin alpha with spin beta. This requires the
@@ -306,7 +576,12 @@ def diagonalize_fermionic_hamiltonian(
             has absolute value greater than this threshold will be included in the
             diagonalization subspace for the next iteration. A smaller threshold will
             retain more configurations, leading to a larger subspace and hence a more
-            costly diagonalization.
+            costly diagonalization. Defaults to ``1e-4``.
+
+            This is a setting of the default policy, which chooses the carryover by
+            thresholding amplitudes. Another policy chooses it in its own way, so passing
+            both this and ``policy`` raises ``ValueError``; pass the threshold to
+            :class:`StandardPolicy` instead if you are constructing one explicitly.
         callback: A callback function to be called after each configuration recovery
             iteration. The function will be passed the output of the sci_solver
             function, which is a list of (energy, sci_state, occupancies) triplets,
@@ -332,6 +607,13 @@ def diagonalize_fermionic_hamiltonian(
         - The ``callback``, if provided, is invoked on the control process only.
         - The return value is the same on every process: the final result is
           broadcast from the control process to all ranks.
+        - Only the results that a collective ``sci_solver`` returns on the control
+          process are consumed; what it returns on the other processes is ignored
+          entirely and need not be meaningful. This lets a solver leave each
+          diagonalization's energy, state and occupancies on whichever process
+          computed them, rather than gathering them onto every rank. A solver that
+          does so must still ensure the *control* process receives a result for
+          every subspace, gathering across process groups if it distributed them.
 
         Whether the calling program should be launched under MPI depends on the
         ``sci_solver`` in use. A collective ``sci_solver``, as described above,
@@ -348,6 +630,30 @@ def diagonalize_fermionic_hamiltonian(
         aborting all processes collectively. (This describes what such an
         implementation is permitted to do, not the behavior of the default
         ``sci_solver``.)
+
+        Because every subspace of an iteration arrives in one ``sci_solver`` call,
+        a collective implementation may divide the processes into groups and
+        diagonalize several subspaces at once, one group per subspace, rather than
+        giving every subspace all of the processes in turn. How to do so is the
+        implementation's own concern: this package does not divide the processes,
+        and nothing in its interface describes them. An implementation that does
+        divide them is responsible for confining its collective operations to the
+        group that is performing a given diagonalization, and must not use
+        :func:`qiskit_addon_sqd.processes.broadcast` or
+        :func:`qiskit_addon_sqd.processes.barrier` for that purpose, as those
+        operate over every process rather than over a group.
+
+        How many times per iteration the solver is called, and with how many
+        subspaces, is determined by ``policy``. With
+        :class:`~qiskit_addon_sqd.trim.TrimPolicy`, for instance, it is called twice:
+        once with every batch, and once with the single merged subspace. A solver that
+        divides the processes therefore needs only one such division, which it can build
+        on the first call and reuse, rather than rebuilding it every time. Note also that
+        the number of subspaces is the same on every process, since they are broadcast
+        before the solver is called. That matters because dividing the processes is
+        itself a collective operation: every process must take part and agree on how the
+        division is made. A solver may safely base that decision on the number of
+        subspaces it received, but not on anything that could differ between processes.
     """
     if max_iterations < 1:
         raise ValueError("Maximum number of iterations must be at least 1.")
@@ -387,6 +693,17 @@ def diagonalize_fermionic_hamiltonian(
     current_result = None
     if sci_solver is None:
         sci_solver = solve_sci_batch
+    if policy is None:
+        policy = StandardPolicy(
+            carryover_threshold=1e-4 if carryover_threshold is None else carryover_threshold
+        )
+    elif carryover_threshold is not None:
+        raise ValueError(
+            "carryover_threshold applies only to the default policy, which chooses the "
+            "carryover by thresholding amplitudes. A policy chooses it in its own way, so "
+            "pass the threshold to the policy instead. Got "
+            f"carryover_threshold={carryover_threshold}."
+        )
 
     include_a = np.unique(include_a)
     include_b = np.unique(include_b)
@@ -417,7 +734,6 @@ def diagonalize_fermionic_hamiltonian(
         max_dim_b=max_dim_b,
         energy_tol=energy_tol,
         occupancies_tol=occupancies_tol,
-        carryover_threshold=carryover_threshold,
         rng=rng,
     )
 
@@ -426,24 +742,61 @@ def diagonalize_fermionic_hamiltonian(
     # In distributed (SPMD) mode, the control process orchestrates the loop and
     # performs procedures that do not have a distributed implementation, while
     # all ranks participate in sci_solver calls for collective operations.
-    for _ in range(max_iterations):
-        # Convert bitstrings to CI strings, including requested and carryover
-        # strings. This has no distributed implementation, so only the control
-        # process performs it; the result is then broadcast to all ranks for the
-        # MPI collective operations in sci_solver.
+    for iteration in range(max_iterations):
+        # Ask the policy for the subspaces to diagonalize, and enforce the caller's
+        # constraints on their shape. The policy has no distributed implementation, so
+        # only the control process runs it; the result is then broadcast to all ranks for
+        # the MPI collective operations in sci_solver.
         if is_control_process():
-            ci_strings = _prepare_ci_strings(
-                config,
-                current_occupancies,
-                carryover_strings_a,
-                carryover_strings_b,
+            bitstrings, probs = _recover_or_postselect(config, current_occupancies)
+            request = SubspaceRequest(
+                bitstrings=bitstrings,
+                probabilities=probs,
+                carryover_strings_a=carryover_strings_a,
+                carryover_strings_b=carryover_strings_b,
+                norb=norb,
+                nelec=nelec,
+                samples_per_batch=samples_per_batch,
+                num_batches=num_batches,
+                rng=rng,
+                iteration=iteration,
+                symmetrize_spin=symmetrize_spin,
             )
+            ci_strings = [
+                _apply_shape_constraints(config, strs_a, strs_b)
+                for strs_a, strs_b in policy.prepare_subspaces(request)
+            ]
         else:
             ci_strings = None
         ci_strings = broadcast(ci_strings, root=0)
 
-        # Run diagonalization
-        results = sci_solver(ci_strings, one_body_tensor, two_body_tensor, norb, nelec)
+        # Run the diagonalizations, one round at a time. Every process enters this loop
+        # and must agree on how many times, because sci_solver is collective. Only the
+        # control process knows whether the policy asked for another round, so that
+        # decision is broadcast and every rank breaks on the same value; deciding it
+        # locally would let one rank enter a collective the others had left.
+        for round_index in range(_MAX_ROUNDS):
+            results = sci_solver(ci_strings, one_body_tensor, two_body_tensor, norb, nelec)
+            if is_control_process():
+                refined = policy.refine(results, round_index)
+                if refined is not None:
+                    refined = [
+                        _apply_shape_constraints(config, strs_a, strs_b)
+                        for strs_a, strs_b in refined
+                    ]
+            else:
+                refined = None
+            refined = broadcast(refined, root=0)
+            if refined is None:
+                break
+            ci_strings = refined
+        else:
+            raise ValueError(
+                "The policy asked for another round of diagonalizations after "
+                f"{_MAX_ROUNDS} of them, which is more than any schedule should need. "
+                "Its refine method must eventually return None. Got "
+                f"policy={policy!r}."
+            )
 
         # Call callback function if provided (only on the control process)
         if callback is not None and is_control_process():
@@ -455,6 +808,7 @@ def diagonalize_fermionic_hamiltonian(
         if is_control_process():
             state = _process_sci_results(
                 config,
+                policy,
                 results,
                 best_result,
                 current_result,
@@ -483,17 +837,14 @@ def _unique_with_order_preserved(vals: np.ndarray) -> np.ndarray:
     return vals[indices]
 
 
-def _prepare_ci_strings(
+def _recover_or_postselect(
     config: _LoopConfig,
     current_occupancies: tuple[np.ndarray, np.ndarray] | None,
-    carryover_strings_a: np.ndarray,
-    carryover_strings_b: np.ndarray,
-) -> list[tuple[np.ndarray, np.ndarray]]:
-    """Perform configuration recovery and subsampling to build the CI strings.
+) -> tuple[np.ndarray, np.ndarray]:
+    """Postselect or recover the configurations an iteration draws its subspaces from.
 
-    This is the first half of one configuration recovery iteration: it postselects
-    or recovers configurations, subsamples them into batches, and builds the CI
-    strings for each batch.
+    This step is the same whatever schedule builds the subspaces, so it stays outside
+    the subspace policy.
     """
     if current_occupancies is None:
         # If we don't have average orbital occupancy information, simply postselect
@@ -521,61 +872,104 @@ def _prepare_ci_strings(
             config.n_beta,
             rand_seed=config.rng,
         )
+    return bitstrings, probs
 
-    # Subsample batches of bitstrings
-    subsamples = subsample(
-        bitstrings,
-        probs,
-        samples_per_batch=config.samples_per_batch,
-        num_batches=config.num_batches,
-        rand_seed=config.rng,
+
+def batch_to_ci_strings(
+    batch: np.ndarray,
+    norb: int,
+    carryover_strings_a: np.ndarray | None = None,
+    carryover_strings_b: np.ndarray | None = None,
+    *,
+    symmetrize_spin: bool = False,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Convert a batch of bitstrings into a pair of per-spin CI string arrays.
+
+    The strings of each spin sector are returned in descending order of the number of
+    times they were sampled, with any carryover strings ahead of them. That order is
+    what a later truncation to a maximum dimension keeps, so it matters.
+
+    This is the step a subspace policy needs in order to turn subsampled bitstrings into
+    a subspace, and it is exposed so that a policy does not have to reimplement it.
+
+    Args:
+        batch: A 2D array of ``bool`` bitstrings, one per row, with the alpha part
+            concatenated on the right-hand side, like this:
+            ``[b_N, ..., b_0, a_N, ..., a_0]``.
+        norb: The number of spatial orbitals.
+        carryover_strings_a: Spin-alpha CI strings to place ahead of the sampled ones,
+            in the order they should be kept. Defaults to none.
+        carryover_strings_b: The same for spin beta. When ``symmetrize_spin`` is set,
+            this is ignored, since the two sectors hold the same strings.
+        symmetrize_spin: Whether to merge the two spin sectors into a single list of
+            strings, used for both. The merge happens before the strings are ranked, so
+            that the ranking is over both sectors at once rather than within each.
+
+    Returns:
+        The spin-alpha and spin-beta CI string arrays. When ``symmetrize_spin`` is set,
+        the two are the same array.
+    """
+    # Get the single-spin bitstrings and counts.
+    samples_a, counts_a = np.unique(
+        bitstring_matrix_to_integers(batch[:, norb:]), return_counts=True
     )
+    samples_b, counts_b = np.unique(
+        bitstring_matrix_to_integers(batch[:, :norb]), return_counts=True
+    )
+    empty = np.array([], dtype=np.int64)
+    if carryover_strings_a is None:
+        carryover_strings_a = empty
+    if carryover_strings_b is None:
+        carryover_strings_b = empty
 
-    # Convert bitstrings to CI strings and include requested and carryover strings
-    ci_strings = []
-    for samples in subsamples:
-        # Get the single-spin bitstrings and counts.
-        samples_a, counts_a = np.unique(
-            bitstring_matrix_to_integers(samples[:, config.norb :]), return_counts=True
-        )
-        samples_b, counts_b = np.unique(
-            bitstring_matrix_to_integers(samples[:, : config.norb]), return_counts=True
-        )
-        if config.symmetrize_spin:
-            # Merge the bitstrings for spin alpha and spin beta.
-            samples = np.concatenate((samples_a, samples_b))
-            counts = np.concatenate((counts_a, counts_b))
-            # Sort the single-spin bitstrings in descending order by marginal probability.
-            samples = samples[np.argsort(counts)[::-1]]
-            # Prioritize explicitly requested bitstrings, then carryover strings, and
-            # finally sampled bitstrings.
-            # Note that in this case, carryover_strings_a and carryover_strings_b are equal.
-            strs = np.concatenate(
-                (config.include_a, config.include_b, carryover_strings_a, samples)
-            )
-            # Truncate bitstrings to the maximum dimension.
-            # In this case, max_dim_a and max_dim_b are equal.
-            strs_a = strs_b = _unique_with_order_preserved(strs)[: config.max_dim_a]
-        else:
-            # Sort the single-spin bitstrings in descending order by marginal probability.
-            samples_a = samples_a[np.argsort(counts_a)[::-1]]
-            samples_b = samples_b[np.argsort(counts_b)[::-1]]
-            # Prioritize explicitly requested bitstrings, then carryover strings, and
-            # finally sampled bitstrings
-            strs_a = np.concatenate((config.include_a, carryover_strings_a, samples_a))
-            strs_b = np.concatenate((config.include_b, carryover_strings_b, samples_b))
-            # Truncate bitstrings to the maximum dimension.
-            strs_a = _unique_with_order_preserved(strs_a)[: config.max_dim_a]
-            strs_b = _unique_with_order_preserved(strs_b)[: config.max_dim_b]
-        strs_a.sort()
-        strs_b.sort()
-        ci_strings.append((strs_a, strs_b))
+    if symmetrize_spin:
+        # Merge the bitstrings for spin alpha and spin beta.
+        samples = np.concatenate((samples_a, samples_b))
+        counts = np.concatenate((counts_a, counts_b))
+        # Sort the single-spin bitstrings in descending order by marginal probability.
+        samples = samples[np.argsort(counts)[::-1]]
+        # Note that in this case, carryover_strings_a and carryover_strings_b are equal.
+        strs_a = strs_b = np.concatenate((carryover_strings_a, samples))
+    else:
+        # Sort the single-spin bitstrings in descending order by marginal probability.
+        samples_a = samples_a[np.argsort(counts_a)[::-1]]
+        samples_b = samples_b[np.argsort(counts_b)[::-1]]
+        strs_a = np.concatenate((carryover_strings_a, samples_a))
+        strs_b = np.concatenate((carryover_strings_b, samples_b))
+    return strs_a, strs_b
 
-    return ci_strings
+
+def _apply_shape_constraints(
+    config: _LoopConfig,
+    strings_a: np.ndarray,
+    strings_b: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Enforce the caller's constraints on the shape of a subspace.
+
+    A subspace policy chooses which strings a subspace holds; these constraints are the
+    caller's, so the loop applies them to whatever the policy returns. They are the
+    explicitly requested configurations, which go into every subspace, and the maximum
+    dimension of each spin sector.
+    """
+    if config.symmetrize_spin:
+        # Prioritize explicitly requested bitstrings, then everything the policy chose.
+        # In this case, max_dim_a and max_dim_b are equal.
+        strs = np.concatenate((config.include_a, config.include_b, strings_a))
+        strs_a = strs_b = _unique_with_order_preserved(strs)[: config.max_dim_a]
+    else:
+        strs_a = np.concatenate((config.include_a, strings_a))
+        strs_b = np.concatenate((config.include_b, strings_b))
+        # Truncate bitstrings to the maximum dimension.
+        strs_a = _unique_with_order_preserved(strs_a)[: config.max_dim_a]
+        strs_b = _unique_with_order_preserved(strs_b)[: config.max_dim_b]
+    strs_a = np.sort(strs_a)
+    strs_b = np.sort(strs_b)
+    return strs_a, strs_b
 
 
 def _process_sci_results(
     config: _LoopConfig,
+    policy: SubspacePolicy,
     results: list[SCIResult],
     best_result: SCIResult | None,
     current_result: SCIResult | None,
@@ -587,8 +981,8 @@ def _process_sci_results(
     best result seen so far, checks for convergence, and (when not converged) computes
     the carryover strings for the next iteration.
     """
-    # Get best result from batch
-    best_result_in_batch = min(results, key=lambda result: result.energy)
+    # Let the policy choose which of the final round's results the iteration reports.
+    best_result_in_batch = policy.select_result(results)
 
     # Check if the energy is the lowest seen so far
     if best_result is None or best_result_in_batch.energy < best_result.energy:
@@ -618,12 +1012,78 @@ def _process_sci_results(
     current_result = best_result_in_batch
     current_occupancies = current_result.orbital_occupancies
 
-    # Carry over bitstrings with large CI weight
-    sci_state = current_result.sci_state
+    # Let the policy choose the strings that seed the next iteration. A solver that chose
+    # them itself reports them in the result; whether to defer to that is the policy's
+    # decision, and the ones built into this package do. Either way the strings still have
+    # to be merged across spin sectors, which is a constraint on the shape of the next
+    # subspace rather than part of the choosing.
+    carryover_strings_a, carryover_strings_b = policy.select_carryover(
+        current_result, symmetrize_spin=config.symmetrize_spin
+    )
+    if config.symmetrize_spin:
+        # Idempotent, so a policy that already merged the sectors is unaffected.
+        carryover_strings_a, carryover_strings_b = _symmetrize_carryover(
+            carryover_strings_a, carryover_strings_b
+        )
+
+    return _IterationState(
+        best_result=best_result,
+        current_result=current_result,
+        current_occupancies=current_occupancies,
+        carryover_strings_a=carryover_strings_a,
+        carryover_strings_b=carryover_strings_b,
+        converged=False,
+    )
+
+
+def _symmetrize_carryover(
+    carryover_strings_a: np.ndarray,
+    carryover_strings_b: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Merge the two spin sectors' carryover strings into one list used for both.
+
+    The order of the input is preserved, so a caller that has already ranked its strings
+    keeps that ranking.
+    """
+    merged = _unique_with_order_preserved(
+        np.concatenate((carryover_strings_a, carryover_strings_b))
+    )
+    return merged, merged
+
+
+def _select_carryover_by_threshold(
+    result: SCIResult,
+    threshold: float,
+    *,
+    symmetrize_spin: bool = False,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Choose the carryover strings by thresholding the eigenvector amplitudes.
+
+    A solver that selected the carryover itself has already done this work, so its choice
+    is taken as-is. Note that ``threshold`` does not apply in that case: the solver, not
+    this function, decided how many determinants survive.
+
+    The strings are returned in descending order of marginal weight, which is the order a
+    later truncation keeps. When ``symmetrize_spin`` is set, the two sectors are ranked
+    together rather than separately, so that the ranking is over both at once.
+
+    Raises:
+        ValueError: The result has neither an SCI state nor a carryover.
+    """
+    if result.carryover is not None:
+        return result.carryover
+
+    sci_state = result.sci_state
+    if sci_state is None:
+        raise ValueError(
+            "The solver returned a result with neither an SCI state nor a carryover, so "
+            "there is nothing to build the next iteration's subspace from. A solver "
+            "that does not return an SCI state must set SCIResult.carryover."
+        )
     flattened = sci_state.amplitudes.reshape(-1)
     absolute_vals = np.abs(flattened)
     indices = np.argsort(absolute_vals)
-    carryover_index = np.searchsorted(absolute_vals, config.carryover_threshold, sorter=indices)
+    carryover_index = np.searchsorted(absolute_vals, threshold, sorter=indices)
     carryover_indices = indices[carryover_index:]
     _, n_strings_b = sci_state.amplitudes.shape
     alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
@@ -634,23 +1094,17 @@ def _process_sci_results(
     # Sort carryover strings in descending order by marginal weight
     weights_a = np.sum(np.abs(sci_state.amplitudes[alpha_indices]) ** 2, axis=1)
     weights_b = np.sum(np.abs(sci_state.amplitudes[:, beta_indices]) ** 2, axis=0)
-    if config.symmetrize_spin:
+    if symmetrize_spin:
+        # Rank the two sectors together rather than separately, then merge. Ranking
+        # before merging is what makes this one operation: concatenating two separately
+        # ranked lists would interleave them differently.
         carryover_strings = np.concatenate((carryover_strings_a, carryover_strings_b))
         weights = np.concatenate((weights_a, weights_b))
         carryover_strings = carryover_strings[np.argsort(weights)[::-1]]
-        carryover_strings = _unique_with_order_preserved(carryover_strings)
-        carryover_strings_a = carryover_strings_b = carryover_strings
-    else:
-        carryover_strings_a = carryover_strings_a[np.argsort(weights_a)[::-1]]
-        carryover_strings_b = carryover_strings_b[np.argsort(weights_b)[::-1]]
-
-    return _IterationState(
-        best_result=best_result,
-        current_result=current_result,
-        current_occupancies=current_occupancies,
-        carryover_strings_a=carryover_strings_a,
-        carryover_strings_b=carryover_strings_b,
-        converged=False,
+        return _symmetrize_carryover(carryover_strings, np.array([], dtype=np.int64))
+    return (
+        carryover_strings_a[np.argsort(weights_a)[::-1]],
+        carryover_strings_b[np.argsort(weights_b)[::-1]],
     )
 
 

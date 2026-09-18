@@ -144,6 +144,95 @@ def postselect_by_hamming_right_and_left(
     return bitstrings_post, probs_post
 
 
+def partition_subsample(
+    bitstring_matrix: np.ndarray,
+    probabilities: np.ndarray,
+    samples_per_batch: int,
+    num_batches: int,
+    rand_seed: np.random.Generator | int | None = None,
+) -> list[np.ndarray]:
+    """Partition a subsampled pool of bit arrays into disjoint batches.
+
+    Unlike :func:`subsample`, which draws each batch independently, this function draws a
+    single pool of ``samples_per_batch * num_batches`` bitstrings without replacement and
+    divides it among the batches, so that **no bitstring appears in more than one batch**.
+
+    This is intended for use with a solver that screens the batches against one another
+    and merges what they retain, such as
+    :class:`~qiskit_addon_sqd.trim.TrimPolicy`. Independently drawn batches overlap
+    heavily, because the high-probability bitstrings are likely to be drawn into every
+    batch. That both shrinks the pool of distinct candidates below
+    ``samples_per_batch * num_batches`` and biases the screening, since a bitstring
+    appearing in several batches gets several chances to survive. Disjoint batches give
+    every candidate exactly one chance, and make the pool of distinct candidates as large
+    as the batches can hold.
+
+    The pool is filled by weighted draw without replacement, then shuffled and dealt
+    round-robin among the batches, so a batch is a uniformly random subset of the pool
+    rather than a slice of it by probability.
+
+    If the input holds fewer than ``samples_per_batch * num_batches`` bitstrings, the
+    whole input is used as the pool and the batches come out correspondingly smaller.
+
+    Note:
+        What this makes disjoint is the *bitstrings*, and hence the configurations. The CI
+        string arrays derived from them, one per spin sector, may still share strings
+        between batches, since two different configurations can agree on one of their
+        halves. Partitioning the per-spin arrays instead is a different scheme, with
+        different consequences for how the requested and carryover strings are
+        distributed, and is not what this function does.
+
+    Args:
+        bitstring_matrix: A 2D array of ``bool`` representations of bit
+            values such that each row represents a single bitstring.
+        probabilities: A 1D array specifying a probability distribution over the bitstrings
+        samples_per_batch: The number of samples in each batch
+        num_batches: The number of batches to generate
+        rand_seed: A seed to control random behavior
+
+    Returns:
+        A list of bitstring matrices, pairwise disjoint, subsampled from the input
+        bitstring matrix.
+
+    Raises:
+        ValueError: The number of elements in ``probabilities`` must equal the number of rows in ``bitstring_matrix``.
+        ValueError: Samples per batch and number of batches must be positive integers.
+    """
+    if bitstring_matrix.shape[0] < 1:
+        return [np.array([])] * num_batches
+    if len(probabilities) != bitstring_matrix.shape[0]:
+        raise ValueError(
+            "The number of elements in the probabilities array must match the number of rows in the bitstring matrix."
+        )
+    if samples_per_batch < 1:
+        raise ValueError("Samples per batch must be specified with a positive integer.")
+    if num_batches < 1:
+        raise ValueError("The number of batches must be specified with a positive integer.")
+
+    rng = np.random.default_rng(rand_seed)
+
+    num_bitstrings = bitstring_matrix.shape[0]
+    pool_size = min(samples_per_batch * num_batches, num_bitstrings)
+
+    # Draw the pool of candidates. If the pool would be the whole input, take it as-is
+    # rather than drawing, which spares the generator and keeps every candidate.
+    if pool_size == num_bitstrings:
+        pool = np.arange(num_bitstrings)
+    else:
+        pool = rng.choice(
+            np.arange(num_bitstrings),
+            pool_size,
+            replace=False,
+            p=probabilities,
+        )
+
+    # Shuffle the pool and deal it round-robin, so that the batches are disjoint and each
+    # is a uniformly random subset of the pool. Round-robin keeps the batch sizes within
+    # one of each other when the pool does not divide evenly.
+    rng.shuffle(pool)
+    return [bitstring_matrix[pool[offset::num_batches]] for offset in range(num_batches)]
+
+
 def subsample(
     bitstring_matrix: np.ndarray,
     probabilities: np.ndarray,

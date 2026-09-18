@@ -63,6 +63,11 @@ Solvers
 
 The projection and diagonalization steps are performed by a classical solver. We provide here two generic solvers, one for Fermionic systems and another for qubit systems. Other solvers that might be more efficient for specific systems can be interfaced by the users.
 
+Trim SQD
+""""""""
+
+Standard SQD diagonalizes each subsampled batch independently and keeps the best result, so the number of configurations it can consider is limited to what one affordable subspace can hold. **Trim SQD** instead partitions the bitstrings into batches, performs an intermediate diagonalization of each batch, then performs a larger diagonalization using the highest-weight determinants from each partition. This method is based on joint research from the Cleveland Clinic Foundation, RIKEN, and IBM `[7] <references_>`__, and can be enabled by passing a :class:`~qiskit_addon_sqd.trim.TrimPolicy` object to the :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` function.
+
 Contributing
 ------------
 
@@ -77,7 +82,19 @@ We use `GitHub issues <https://github.com/Qiskit/qiskit-addon-sqd/issues/new/cho
 Citing this package
 -------------------
 
-If you use this package in your research, use the `CITATION.bib <https://github.com/Qiskit/qiskit-addon-sqd/blob/main/CITATION.bib>`_ file in this project's repository to cite the appropriate reference(s).
+If you use this package in your research, use the `CITATION.bib <https://github.com/Qiskit/qiskit-addon-sqd/blob/main/CITATION.bib>`__ file in this project's repository to cite the appropriate reference(s).
+
+Acknowledgements
+----------------
+
+This package includes an optional sampling strategy within the self-consistent
+configuration recovery loop that trims determinants based on intermediate
+diagonalization results. The implementation is based on joint research from
+the Cleveland Clinic Foundation, RIKEN, and IBM. If you use this feature in
+your research, please also use the citation for the paper, which can be found
+in the `CITATION.bib <https://github.com/Qiskit/qiskit-addon-sqd/blob/main/CITATION.bib>`__
+file with citation key ``merz2026crossing``. An implementation of the full workflow
+from that paper is expected to be available on GitHub soon.
 
 License
 -------
@@ -120,6 +137,10 @@ References
 .. _ref6:
 
 6. Samuele Piccinelli, et al., `Quantum chemistry with provable convergence via randomized sample-based Krylov quantum diagonalization <https://arxiv.org/abs/2508.02578>`_, arXiv:2508.02578 [quant-ph].
+
+.. _ref7:
+
+7. Kenneth M. Merz Jr., et al., `Crossing the 12,000-atom barrier with heterogeneous quantum-classical supercomputing: quantum chemistry of protein-ligand complexes <https://arxiv.org/abs/2605.01138>`_, arXiv:2605.01138 [quant-ph].
 
 .. toctree::
    :hidden:
