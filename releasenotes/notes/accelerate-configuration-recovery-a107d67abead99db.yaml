@@ -1,13 +1,18 @@
 ---
 features:
   - |
+    This package is now a `coheriq <https://github.com/Qiskit/coheriq>`__
+    *domain*:
     :func:`~qiskit_addon_sqd.configuration_recovery.recover_configurations` is
-    now accelerated by a compiled extension backed by the C++ implementation in
+    marked as a candidate for acceleration, and the package ships a compiled
+    ``sqd-hpc`` *engine* that reimplements it using the C++ code in
     `qiskit-addon-sqd-hpc <https://github.com/Qiskit/qiskit-addon-sqd-hpc>`__.
-    The extension is used automatically when available; when it is not (for
-    example, on a platform without a binary wheel), the function transparently
-    falls back to the existing pure-Python implementation, so results and the
-    public API are unchanged.
+    The engine is opt-in: activate it with
+    ``coheriq.enable_engine("qiskit_addon_sqd", "sqd-hpc")`` or by setting the
+    ``QISKIT_ADDON_SQD_ENGINE=sqd-hpc`` environment variable, after which every
+    call to ``recover_configurations`` transparently uses the compiled
+    implementation.  Without activation, the pure-Python default is used, so the
+    public API is unchanged.
 upgrade:
   - |
     Binary wheels are now published for Linux (x86_64 and aarch64, both

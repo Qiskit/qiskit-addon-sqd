@@ -22,10 +22,7 @@ from collections.abc import Sequence
 import numpy as np
 from qiskit.utils.deprecation import deprecate_func
 
-try:
-    from . import _accel  # type: ignore[attr-defined]
-except ImportError:  # pragma: no cover
-    _accel = None  # type: ignore[assignment]
+from . import _acceleration_candidate
 
 
 @deprecate_func(
@@ -61,6 +58,7 @@ def post_select_by_hamming_weight(
     return correct_bs_mask
 
 
+@_acceleration_candidate
 def recover_configurations(
     bitstring_matrix: np.ndarray,
     probabilities: Sequence[float] | np.ndarray,
@@ -114,15 +112,6 @@ def recover_configurations(
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
 
-    # Use the compiled extension (backed by qiskit-addon-sqd-hpc) when it is
-    # available; otherwise fall back to the pure-Python implementation below.
-    if _accel is not None:
-        result = _recover_configurations_accel(
-            bitstring_matrix, probabilities, avg_occupancies, num_elec_a, num_elec_b, rng
-        )
-        if result is not None:
-            return result
-
     corrected_dict: defaultdict[str, float] = defaultdict(float)
     occs_array = np.flip(avg_occupancies).flatten()
     for bitstring, freq in zip(bitstring_matrix, probabilities):
@@ -140,63 +129,6 @@ def recover_configurations(
     freqs_out = np.abs(freqs_out) / np.sum(np.abs(freqs_out))
 
     return bs_mat_out, freqs_out
-
-
-def _recover_configurations_accel(
-    bitstring_matrix: np.ndarray,
-    probabilities: Sequence[float] | np.ndarray,
-    avg_occupancies: tuple[np.ndarray, np.ndarray],
-    num_elec_a: int,
-    num_elec_b: int,
-    rng: np.random.Generator,
-) -> tuple[np.ndarray, np.ndarray] | None:
-    """Run configuration recovery via the compiled C++ extension.
-
-    Returns ``None`` (so the caller falls back to pure Python) if the inputs are
-    empty, since the extension is only worth its marshalling overhead for
-    non-trivial workloads.
-
-    The extension operates in the C++ bit convention of
-    ``Qiskit::addon::sqd::recover_configurations``: within each row the first
-    ``norb`` columns are the alpha (spin-up) orbitals ``0..norb-1`` and the next
-    ``norb`` columns are the beta (spin-down) orbitals ``0..norb-1``.  The public
-    numpy layout differs, so we permute columns on the way in and back out.
-    """
-    bitstring_matrix = np.asarray(bitstring_matrix)
-    if bitstring_matrix.size == 0:
-        return None
-
-    num_bits = bitstring_matrix.shape[1]
-    norb = num_bits // 2
-
-    occ_alpha = np.ascontiguousarray(avg_occupancies[0], dtype=np.float64)
-    occ_beta = np.ascontiguousarray(avg_occupancies[1], dtype=np.float64)
-
-    # Column permutation from the public numpy layout to the C++ convention.
-    # Numpy left half (cols 0..norb-1) is beta with orbital index reversed;
-    # numpy right half (cols norb..2*norb-1) is alpha with orbital index
-    # reversed (see the pure-Python reference for the occupancy flattening).
-    #   C++ alpha orbital j (C++ col j)        <- numpy col (2*norb - 1 - j)
-    #   C++ beta  orbital j (C++ col norb + j) <- numpy col (norb - 1 - j)
-    to_cpp = np.empty(num_bits, dtype=np.intp)
-    j = np.arange(norb)
-    to_cpp[j] = 2 * norb - 1 - j
-    to_cpp[norb + j] = norb - 1 - j
-
-    mat_cpp = np.ascontiguousarray(bitstring_matrix[:, to_cpp], dtype=np.uint8)
-    probs = np.ascontiguousarray(probabilities, dtype=np.float64)
-    seed = int(rng.integers(np.iinfo(np.uint64).max, dtype=np.uint64))
-
-    out_cpp, out_probs = _accel.recover_configurations(
-        mat_cpp, probs, occ_alpha, occ_beta, int(num_elec_a), int(num_elec_b), seed
-    )
-
-    # Invert the permutation to restore the public numpy layout.
-    from_cpp = np.empty(num_bits, dtype=np.intp)
-    from_cpp[to_cpp] = np.arange(num_bits)
-    bs_mat_out = out_cpp[:, from_cpp].astype(bool)
-
-    return bs_mat_out, out_probs
 
 
 def _p_flip_0_to_1(ratio_exp: float, occ: float, eps: float = 0.01) -> float:  # pragma: no cover

@@ -12,21 +12,23 @@
 
 """Standalone smoke test run inside each cibuildwheel-built wheel.
 
-Confirms that the compiled ``_accel`` extension is present in a binary wheel and
-that accelerated configuration recovery produces valid output.  Kept free of the
-heavy test dependencies (pyscf, jax) so it runs on every wheel target.
+Confirms that a binary wheel ships the compiled ``sqd-hpc`` engine and that,
+once activated through coheriq, accelerated configuration recovery produces
+valid output.  Kept free of the heavy test dependencies (pyscf, jax) so it runs
+on every wheel target.
 """
 
-import sys
-
+import coheriq
 import numpy as np
-import qiskit_addon_sqd.configuration_recovery as cr
+
+# Importing the package registers (and materializes) the coheriq domain.
+import qiskit_addon_sqd  # noqa: F401
 from qiskit_addon_sqd.configuration_recovery import recover_configurations
 
-# A binary wheel must ship the compiled extension.
-if cr._accel is None:
-    print("FAIL: compiled _accel extension is not importable in this wheel", file=sys.stderr)
-    raise SystemExit(1)
+# A binary wheel must ship the compiled extension.  enable_engine imports the
+# engine's entry-point module, which imports qiskit_addon_sqd._accel; this
+# raises loudly if the extension is missing (as intended).
+coheriq.enable_engine("qiskit_addon_sqd", "sqd-hpc")
 
 # Deterministic all-flip case: zeros with full occupancy and half-filling
 # targets must become all ones, regardless of the RNG stream.

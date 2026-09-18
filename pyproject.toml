@@ -31,7 +31,15 @@ dependencies = [
     "jaxlib>=0.4.30",
     "jax>=0.4.30",
     "scipy>=1.14.1",
+    "coheriq>=0.0.0, <0.1",
 ]
+
+# The ``sqd-hpc`` acceleration engine lives in this same package.  It is only
+# imported (and its compiled extension loaded) when a user selects it via
+# coheriq -- ``coheriq.enable_engine("qiskit_addon_sqd", "sqd-hpc")`` or the
+# ``QISKIT_ADDON_SQD_ENGINE=sqd-hpc`` environment variable.
+[project.entry-points."coheriq.engines.qiskit_addon_sqd"]
+sqd-hpc = "qiskit_addon_sqd._sqd_hpc_engine"
 
 [project.optional-dependencies]
 fulqrum = [
@@ -121,7 +129,7 @@ build-frontend = "build"
 # Smoke-test each built wheel: confirm the compiled extension is present and
 # that accelerated recovery runs.  Kept dependency-light (no pyscf/jax) so it
 # works on every wheel target.
-test-requires = ["numpy>=2.0", "qiskit>=1.3,<3"]
+test-requires = ["numpy>=2.0", "qiskit>=1.3,<3", "coheriq>=0.0.0,<0.1"]
 test-command = "python {project}/test/smoke_test_accel.py"
 
 [tool.cibuildwheel.linux]

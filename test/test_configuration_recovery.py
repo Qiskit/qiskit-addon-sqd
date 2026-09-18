@@ -16,7 +16,6 @@ import unittest
 
 import numpy as np
 import pytest
-import qiskit_addon_sqd.configuration_recovery as configuration_recovery
 from qiskit_addon_sqd.configuration_recovery import (
     post_select_by_hamming_weight,
     recover_configurations,
@@ -136,41 +135,20 @@ class TestConfigurationRecovery(unittest.TestCase):
             )
 
 
-@pytest.fixture(params=["python", "accel"])
-def recovery_backend(request, monkeypatch):
-    """Parametrize tests over the pure-Python and compiled backends.
+class TestRecoverConfigurationsInvariants:
+    """Behavior-level invariants of ``recover_configurations``.
 
-    The fixture selects the backend by **monkeypatching module-level state**
-    rather than through its return value: for the ``python`` case it sets
-    ``configuration_recovery._accel`` to ``None`` so that
-    ``recover_configurations`` takes its pure-Python branch (``monkeypatch``
-    restores the attribute afterward). This is why a test only needs to *request*
-    the fixture -- the effect is the patch, not the returned value. The ``accel``
-    case is skipped if the compiled extension is not available.
-    """
-    if request.param == "python":
-        monkeypatch.setattr(configuration_recovery, "_accel", None)
-    elif configuration_recovery._accel is None:
-        pytest.skip("compiled _accel extension is not available")
-    return request.param
-
-
-class TestRecoverConfigurationsBackends:
-    """Behavior-level parity between the pure-Python and compiled backends.
-
-    The two backends draw from different random streams (numpy vs. C++
-    ``std::mt19937_64``), so exact per-seed equality is not expected.  These
-    tests assert the invariants that must hold for either backend.
+    These run against whichever implementation coheriq has active: the
+    pure-Python default, or the ``sqd-hpc`` engine selected via the
+    ``QISKIT_ADDON_SQD_ENGINE`` environment variable.  Different backends draw
+    from different random streams (numpy vs. C++ ``std::mt19937_64``), so the
+    assertions are written as invariants true of any correct implementation
+    rather than exact per-seed comparisons.
     """
 
-    # The ``recovery_backend`` argument is a pytest fixture that selects the
-    # backend by monkeypatching module-level state; it does its work as a side
-    # effect of injection, so the body never references it.
-    # pylint: disable=unused-argument
-
-    def test_deterministic_cases_match(self, recovery_backend):
-        # All-flip cases are RNG-independent, so both backends agree exactly.
-        with_ones = recover_configurations(
+    def test_deterministic_case(self):
+        # All-flip cases are RNG-independent, so any backend agrees exactly.
+        mat, probs = recover_configurations(
             np.array([[False, False, False, False]]),
             np.array([1.0]),
             (np.array([1.0, 1.0]), np.array([1.0, 1.0])),
@@ -178,10 +156,10 @@ class TestRecoverConfigurationsBackends:
             2,
             rand_seed=4224,
         )
-        assert (with_ones[0] == np.array([[True, True, True, True]])).all()
-        assert (with_ones[1] == np.array([1.0])).all()
+        assert (mat == np.array([[True, True, True, True]])).all()
+        assert (probs == np.array([1.0])).all()
 
-    def test_invariants(self, recovery_backend):
+    def test_invariants(self):
         rng = np.random.default_rng(7)
         norb = 5
         n_samples = 200
@@ -205,8 +183,8 @@ class TestRecoverConfigurationsBackends:
         # Output rows are unique (the dedup step ran).
         assert len({tuple(row) for row in mat_rec.tolist()}) == mat_rec.shape[0]
 
-    def test_more_than_64_bits(self, recovery_backend):
-        # Exercises multi-word storage in the dynamic bitset.
+    def test_more_than_64_bits(self):
+        # Exercises multi-word storage in the compiled dynamic bitset.
         n_bits = 74
         rng = np.random.default_rng(554)
         bs_mat = rng.integers(2, size=(5, n_bits), dtype=bool)
