@@ -1,0 +1,17 @@
+---
+features:
+  - |
+    :func:`~qiskit_addon_sqd.configuration_recovery.recover_configurations` is
+    now accelerated by a compiled extension backed by the C++ implementation in
+    `qiskit-addon-sqd-hpc <https://github.com/Qiskit/qiskit-addon-sqd-hpc>`__.
+    The extension is used automatically when available; when it is not (for
+    example, on a platform without a binary wheel), the function transparently
+    falls back to the existing pure-Python implementation, so results and the
+    public API are unchanged.
+upgrade:
+  - |
+    Binary wheels are now published for Linux (x86_64 and aarch64, both
+    ``manylinux`` and ``musllinux``) and macOS (arm64 and x86_64), in addition
+    to a universal pure-Python ``py3-none-any`` wheel. ``pip`` automatically
+    selects the most specific wheel for your platform, falling back to the
+    universal wheel or a source build where no binary wheel is available.
