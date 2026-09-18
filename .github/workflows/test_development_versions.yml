@@ -47,24 +47,37 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libblas-dev liblapack-dev libopenblas-dev libopenmpi-dev openmpi-bin
-      - name: Bootstrap OpenMP-capable compiler (macOS)
+      - name: Install OpenMP and BLAS (macOS)
         if: runner.os == 'macOS'
         shell: bash
+        # No CC/CXX exported here on purpose. Only fulqrum needs a non-Apple
+        # compiler, and it gets one in its own build step below; pinning Homebrew
+        # LLVM for the whole job breaks sbd-eigensolver, which links OpenBLAS.
+        # Homebrew's openblas depends on the standalone libomp formula and loads
+        # that copy at run time, so building sbd against a compiler carrying its
+        # own libomp puts two same-named runtimes in one process and aborts at the
+        # first parallel region -- Qiskit/sbd-eigensolver-python#27. Apple clang
+        # takes its OpenMP from the same libomp formula OpenBLAS uses, so left
+        # alone the two agree.
         run: |
           brew install llvm libomp open-mpi openblas
-          LLVM_PREFIX="$(brew --prefix llvm)"
-          OMP_PREFIX="$(brew --prefix libomp)"
-          {
-            echo "CC=${LLVM_PREFIX}/bin/clang"
-            echo "CXX=${LLVM_PREFIX}/bin/clang++"
-            echo "LDFLAGS=-L${LLVM_PREFIX}/lib -L${OMP_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
-            echo "CPPFLAGS=-I${LLVM_PREFIX}/include -I${OMP_PREFIX}/include"
-          } >> "$GITHUB_ENV"
       - name: Install tools from pypi
         run: |
           python -m pip install tox build 'extremal-python-dependencies<2'
       - name: Build fulqrum development wheel
+        shell: bash
+        # fulqrum passes a bare `-fopenmp`, which Apple clang rejects, so this
+        # build -- and only this build -- uses Homebrew LLVM. Scoped to the step
+        # rather than written to GITHUB_ENV so it does not follow the other builds.
         run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            LLVM_PREFIX="$(brew --prefix llvm)"
+            OMP_PREFIX="$(brew --prefix libomp)"
+            export CC="${LLVM_PREFIX}/bin/clang"
+            export CXX="${LLVM_PREFIX}/bin/clang++"
+            export LDFLAGS="-L${LLVM_PREFIX}/lib -L${OMP_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
+            export CPPFLAGS="-I${LLVM_PREFIX}/include -I${OMP_PREFIX}/include"
+          fi
           git clone --recurse-submodules https://github.com/qiskit-community/fulqrum
           cd fulqrum
           git rev-parse HEAD
@@ -214,4 +227,16 @@ jobs:
           print("  compiled backends:", sbd.available_backends())
           sbd.get_backend(); report("after sbd.get_backend() -- loads _core_cpu")
           print("  sys.modules has qiskit_aer:", "qiskit_aer" in sys.modules)
+
+          # The combination that matters even though no notebook does it today:
+          # fulqrum and sbd in one process. Building them with different compilers
+          # fixes each alone but can give them different libomp copies, so measure
+          # it rather than assume. A count of 1 here means they agree; 2 means a
+          # user importing both would hit the same abort.
+          try:
+              import fulqrum.core.spmv  # noqa: F401
+          except Exception as exc:
+              print(f"  fulqrum import failed: {exc!r}")
+          else:
+              report("after fulqrum too (sbd + fulqrum in one process)")
           PY
