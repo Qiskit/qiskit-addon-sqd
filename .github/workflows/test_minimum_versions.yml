@@ -54,6 +54,11 @@ jobs:
             echo "LDFLAGS=-L${LLVM_PREFIX}/lib -L${OMP_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
             echo "CPPFLAGS=-I${LLVM_PREFIX}/include -I${OMP_PREFIX}/include"
           } >> "$GITHUB_ENV"
+      # Cap the SQD subspace dimension in the Fulqrum guide for CI execution only.
+      # The committed notebook (and the docs site) stay unbounded; this edits the
+      # working-tree copy so tox -e notebook fits in the runner's memory.
+      - name: Cap notebook memory for CI
+        run: python tools/ci_cap_notebook_memory.py
       # Run the environments serially. In parallel mode, tox buffers each
       # environment's output and replays it once the run finishes, and a
       # failing environment's stderr does not survive that replay -- which

@@ -1,6 +1,6 @@
 # This code is a Qiskit project.
 #
-# (C) Copyright IBM 2024.
+# (C) Copyright IBM 2024, 2026.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -123,6 +123,39 @@ class TestFermion(unittest.TestCase):
         self.assertLess(sci_dim, 0.5 * fci_dim)
         self.assertAlmostEqual(result.energy + nuclear_repulsion_energy, exact_energy, places=2)
         self.assertAlmostEqual(result.sci_state.spin_square(), expected_spin_square)
+
+    def test_diagonalize_fermionic_hamiltonian_numpy_bitstrings(self):
+        """Test diagonalization with bitstrings stored in a NumPy array."""
+        mol = pyscf.gto.Mole()
+        mol.build(
+            atom=[["H", (0, 0, 0)], ["H", (0, 0, 0.735)]],
+            basis="sto-3g",
+        )
+
+        scf = pyscf.scf.RHF(mol).run()
+        norb = mol.nao_nr()
+        nelec = (1, 1)
+        cas = pyscf.mcscf.CASCI(scf, norb, nelec)
+        hcore, nuclear_repulsion_energy = cas.get_h1cas()
+        eri = pyscf.ao2mo.restore(1, cas.get_h2cas(), norb)
+        cas.kernel()
+
+        bitstrings = BitArray.from_samples(
+            ["0101", "0110", "1001", "1010"], num_bits=2 * norb
+        ).to_bool_array()
+
+        result = diagonalize_fermionic_hamiltonian(
+            hcore,
+            eri,
+            bitstrings,
+            samples_per_batch=4,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=1,
+            seed=self.rng,
+        )
+
+        self.assertAlmostEqual(result.energy + nuclear_repulsion_energy, cas.e_tot)
 
     def test_diagonalize_fermionic_hamiltonian_max_dim(self):
         """Test diagonalize_fermionic_hamiltonian with maximum dimension."""
