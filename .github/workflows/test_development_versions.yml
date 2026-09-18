@@ -55,6 +55,12 @@ jobs:
       - name: Install tools from pypi
         run: |
           python -m pip install tox build 'extremal-python-dependencies<2'
+      - name: Build coheriq development wheel
+        run: |
+          git clone https://github.com/Qiskit/coheriq
+          cd coheriq
+          git rev-parse HEAD
+          python -m build --wheel
       - name: Build fulqrum development wheel
         run: |
           git clone --recurse-submodules https://github.com/qiskit-community/fulqrum
