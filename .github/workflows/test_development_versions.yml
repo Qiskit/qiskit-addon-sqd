@@ -85,6 +85,11 @@ jobs:
           "qiskit @ file:$(echo qiskit/dist/*.whl)"
           "qiskit-ibm-runtime @ file:$(echo qiskit-ibm-runtime/dist/*.whl)"
           "qiskit-addon-utils @ file:$(echo qiskit-addon-utils/dist/*.whl)"
+      # Cap the SQD subspace dimension in the Fulqrum guide for CI execution only.
+      # The committed notebook (and the docs site) stay unbounded; this edits the
+      # working-tree copy so tox -e notebook fits in the runner's memory.
+      - name: Cap notebook memory for CI
+        run: python tools/ci_cap_notebook_memory.py
       - name: Test using tox environment
         shell: bash
         run: |
