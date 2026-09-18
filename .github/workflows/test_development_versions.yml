@@ -205,6 +205,13 @@ jobs:
           import qiskit
           from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
           report("after qiskit + preset passmanager")
-          from sbd.sbd_solver import solve_sci_batch; report("after sbd")
+          from sbd.sbd_solver import solve_sci_batch; report("after importing sbd")
+
+          # Importing sbd maps nothing: since sbd-eigensolver#23 the backends load
+          # lazily, one per process, on first use -- so _core_cpu.so (and its
+          # libomp) only arrives here.
+          import sbd
+          print("  compiled backends:", sbd.available_backends())
+          sbd.get_backend(); report("after sbd.get_backend() -- loads _core_cpu")
           print("  sys.modules has qiskit_aer:", "qiskit_aer" in sys.modules)
           PY
