@@ -17,6 +17,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
+      # One failing cell should not hide the state of the rest, which matters
+      # most when a break is specific to one OS.
+      fail-fast: false
       max-parallel: 4
       matrix:
         os: [ubuntu-latest]
@@ -33,26 +36,66 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install tox
-      # BLAS/LAPACK and OpenMP needed to build fulqrum for notebook testing
-      - name: Install BLAS/LAPACK (Linux)
+          pip install tox 'extremal-python-dependencies<2'
+      # BLAS/LAPACK and OpenMP are needed to build fulqrum, and MPI and BLAS to
+      # build sbd-eigensolver, for notebook testing
+      - name: Install BLAS/LAPACK and MPI (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libblas-dev liblapack-dev
-      - name: Bootstrap OpenMP-capable compiler (macOS)
+          sudo apt-get install -y libblas-dev liblapack-dev libopenblas-dev libopenmpi-dev openmpi-bin
+      - name: Install OpenMP and BLAS (macOS)
         if: runner.os == 'macOS'
         shell: bash
+        # No CC/CXX exported job-wide. The two extensions that need compiling
+        # here want different compilers, and tox cannot express that -- it
+        # installs them together into one isolated venv. They are built as wheels
+        # in the next step instead, each with its own toolchain.
         run: |
-          brew install llvm libomp
+          brew install llvm libomp open-mpi openblas
+      - name: Build the compiled dependencies as wheels (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        # Only these two packages compile on macOS; both publish an sdist and no
+        # macOS wheel, so pip would otherwise build them inside tox's venv under
+        # one shared compiler. They cannot share one:
+        #
+        #   fulqrum passes a bare `-fopenmp`, which Apple clang rejects, so it
+        #   needs Homebrew LLVM.
+        #
+        #   sbd-eigensolver links OpenBLAS, and Homebrew's openblas depends on the
+        #   standalone libomp formula and loads that copy at run time. Built under
+        #   Homebrew LLVM it would also link that compiler's own libomp, putting
+        #   two same-named runtimes in one process -- an abort at the first
+        #   parallel region (Qiskit/sbd-eigensolver-python#27). Under Apple clang
+        #   it takes OpenMP from the same libomp formula OpenBLAS uses, so the two
+        #   agree.
+        #
+        # Building each wheel here, outside tox, is what lets them differ. Linux
+        # is untouched: there both build fine under the system compiler.
+        run: |
+          mkdir -p macos-wheels
           LLVM_PREFIX="$(brew --prefix llvm)"
           OMP_PREFIX="$(brew --prefix libomp)"
-          {
-            echo "CC=${LLVM_PREFIX}/bin/clang"
-            echo "CXX=${LLVM_PREFIX}/bin/clang++"
-            echo "LDFLAGS=-L${LLVM_PREFIX}/lib -L${OMP_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
-            echo "CPPFLAGS=-I${LLVM_PREFIX}/include -I${OMP_PREFIX}/include"
-          } >> "$GITHUB_ENV"
+          (
+            export CC="${LLVM_PREFIX}/bin/clang"
+            export CXX="${LLVM_PREFIX}/bin/clang++"
+            export LDFLAGS="-L${LLVM_PREFIX}/lib -L${OMP_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
+            export CPPFLAGS="-I${LLVM_PREFIX}/include -I${OMP_PREFIX}/include"
+            python -m pip wheel --no-deps --no-binary fulqrum -w macos-wheels fulqrum
+          )
+          # Apple clang, deliberately unpinned.
+          python -m pip wheel --no-deps --no-binary sbd-eigensolver -w macos-wheels sbd-eigensolver
+          ls -1 macos-wheels
+      - name: Pin the locally built wheels (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        # tox then installs these prebuilt artifacts rather than compiling either
+        # package itself, which is what makes the split above stick.
+        run: >-
+          extremal-python-dependencies pin-dependencies --inplace
+          "fulqrum @ file:$(echo macos-wheels/fulqrum-*.whl)"
+          "sbd-eigensolver @ file:$(echo macos-wheels/sbd_eigensolver-*.whl)"
       # Cap the SQD subspace dimension in the Fulqrum guide for CI execution only.
       # The committed notebook (and the docs site) stay unbounded; this edits the
       # working-tree copy so tox -e notebook fits in the runner's memory.
