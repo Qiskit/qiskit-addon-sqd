@@ -106,8 +106,8 @@ show_missing = true
 # The compiled extension (qiskit_addon_sqd._accel) accelerates configuration
 # recovery via the C++ implementation from qiskit-addon-sqd-hpc.  It is an
 # optional fast path: recover_configurations falls back to pure Python when the
-# extension is unavailable, so a purelib wheel (built with -C cmake=false) and
-# source installs without a compiler both work.
+# extension is unavailable, so a purelib wheel (built with -C wheel.cmake=false)
+# and source installs without a compiler both work.
 minimum-version = "build-system.requires"
 build-dir = "build/{wheel_tag}"
 wheel.packages = ["qiskit_addon_sqd"]
