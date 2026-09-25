@@ -23,10 +23,13 @@ no side effect -- only loading this entry-point module registers the engine, and
 only when coheriq loads it via ``coheriq.enable_engine("qiskit_addon_sqd",
 "sqd-hpc")`` (or the ``QISKIT_ADDON_SQD_ENGINE=sqd-hpc`` environment variable).
 
-The import of :mod:`qiskit_addon_sqd._accel` below fails loudly if the compiled
-extension is not present (for example, on a platform for which only the
-universal wheel was installed).  Selecting this engine on such a platform is a
-misconfiguration, and coheriq surfaces the resulting ``ImportError``.
+This engine is only advertised by distributions that ship the compiled
+:mod:`qiskit_addon_sqd._accel` extension.  The universal (``py3-none-any``) wheel
+does not, so it declares no entry point for ``sqd-hpc`` and
+``coheriq.enable_engine("qiskit_addon_sqd", "sqd-hpc")`` raises
+:class:`~coheriq.CoheriqEngineNotFoundError` there -- the engine genuinely is not
+available in that installation.  ``recover_configurations`` keeps working via the
+pure-Python default.
 """
 
 from __future__ import annotations
@@ -41,7 +44,9 @@ from coheriq import AccelerationEngine
 # before we construct the engine below (the engine looks the domain up by name).
 import qiskit_addon_sqd  # noqa: F401  pylint: disable=unused-import
 
-from . import _accel
+# Reason for type: ignore: _accel is a compiled extension module, so it is
+# absent from a source checkout and mypy cannot see it.
+from . import _accel  # type: ignore[attr-defined]
 
 _engine = AccelerationEngine("qiskit_addon_sqd", "sqd-hpc")
 

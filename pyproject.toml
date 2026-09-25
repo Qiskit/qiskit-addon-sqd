@@ -1,6 +1,16 @@
 [build-system]
-requires = ["scikit-build-core>=0.11", "nanobind>=2.0"]
-build-backend = "scikit_build_core.build"
+requires = [
+  "scikit-build-core>=0.11",
+  "nanobind>=2.0",
+  # For the wrapper backend below to read [tool.qiskit-addon-sqd]; tomllib is
+  # stdlib from 3.11, so this drops out when the Python floor rises.
+  'tomli; python_version < "3.11"',
+]
+# A thin in-tree wrapper around scikit-build-core (tools/_sqd_build.py).  It adds
+# the coheriq engine entry points declared in [tool.qiskit-addon-sqd] below, but
+# only to distributions that actually ship the compiled extension an engine needs.
+build-backend = "_sqd_build"
+backend-path = ["tools"]
 
 [project]
 name = "qiskit-addon-sqd"
@@ -33,13 +43,6 @@ dependencies = [
     "scipy>=1.14.1",
     "coheriq>=0.0.0, <0.10",
 ]
-
-# The ``sqd-hpc`` acceleration engine lives in this same package.  It is only
-# imported (and its compiled extension loaded) when a user selects it via
-# coheriq -- ``coheriq.enable_engine("qiskit_addon_sqd", "sqd-hpc")`` or the
-# ``QISKIT_ADDON_SQD_ENGINE=sqd-hpc`` environment variable.
-[project.entry-points."coheriq.engines.qiskit_addon_sqd"]
-sqd-hpc = "qiskit_addon_sqd._sqd_hpc_engine"
 
 [project.optional-dependencies]
 fulqrum = [
@@ -102,12 +105,38 @@ parallel = true
 fail_under = 75
 show_missing = true
 
+# The coheriq acceleration engines this package can provide.  The build backend
+# (tools/_sqd_build.py) turns each one into a ``coheriq.engines.<domain>`` entry
+# point, but only in distributions that ship the compiled extension named by
+# ``requires-extension``.  The universal py3-none-any wheel therefore advertises
+# no engine, and enable_engine reports it as not found rather than failing on a
+# missing extension at import time.
+#
+# ``domain`` is the name passed to ``AccelerationDomain(...)``, in
+# qiskit_addon_sqd/__init__.py.  It is declared here rather than derived from the
+# source: the domain object is constructed at runtime under a private name, and
+# in general an engine may target a domain owned by a different distribution.
+#
+# This table is named after this distribution rather than after coheriq, because
+# the schema below is ours: coheriq neither defines nor reads it, and only
+# tools/_sqd_build.py does.  Naming it [tool.coheriq] would suggest otherwise and
+# would squat a name coheriq should keep for a schema of its own, should this ever
+# be generalized upstream.
+[tool.qiskit-addon-sqd]
+domain = "qiskit_addon_sqd"
+
+[tool.qiskit-addon-sqd.engines.sqd-hpc]
+target = "qiskit_addon_sqd._sqd_hpc_engine"
+requires-extension = "_accel"
+description = "Compiled C++ acceleration for recover_configurations"
+
 [tool.scikit-build]
 # The compiled extension (qiskit_addon_sqd._accel) accelerates configuration
 # recovery via the C++ implementation from qiskit-addon-sqd-hpc.  It is an
 # optional fast path: recover_configurations falls back to pure Python when the
 # extension is unavailable, so a purelib wheel (built with -C wheel.cmake=false)
-# and source installs without a compiler both work.
+# and source installs without a compiler both work.  The sqd-hpc engine entry
+# point follows the extension: see [tool.qiskit-addon-sqd] above.
 minimum-version = "build-system.requires"
 build-dir = "build/{wheel_tag}"
 wheel.packages = ["qiskit_addon_sqd"]

@@ -25,9 +25,11 @@ import numpy as np
 import qiskit_addon_sqd  # noqa: F401
 from qiskit_addon_sqd.configuration_recovery import recover_configurations
 
-# A binary wheel must ship the compiled extension.  enable_engine imports the
-# engine's entry-point module, which imports qiskit_addon_sqd._accel; this
-# raises loudly if the extension is missing (as intended).
+# A binary wheel must ship the compiled extension and so must advertise the
+# engine.  If the extension is missing, the build backend declares no entry point
+# for it and this raises CoheriqEngineNotFoundError; if the entry point is there
+# but the extension is not, the module import raises ImportError.  Either way the
+# smoke test fails, which is the point.
 coheriq.enable_engine("qiskit_addon_sqd", "sqd-hpc")
 
 # Deterministic all-flip case: zeros with full occupancy and half-filling

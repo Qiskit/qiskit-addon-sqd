@@ -20,3 +20,15 @@ upgrade:
     to a universal pure-Python ``py3-none-any`` wheel. ``pip`` automatically
     selects the most specific wheel for your platform, falling back to the
     universal wheel or a source build where no binary wheel is available.
+  - |
+    The ``sqd-hpc`` engine requires the compiled extension, so it is available
+    from the binary wheels and from source builds that compile it.  The universal
+    ``py3-none-any`` wheel ships no compiled extension and does not advertise the
+    engine: ``coheriq.enable_engine("qiskit_addon_sqd", "sqd-hpc")`` raises
+    ``CoheriqEngineNotFoundError`` there, and
+    :func:`~qiskit_addon_sqd.configuration_recovery.recover_configurations` uses
+    the pure-Python implementation.  To see which engines an installation
+    provides::
+
+      python -c "from importlib.metadata import distribution; \
+                 print(distribution('qiskit-addon-sqd').read_text('sqd_engine_build_info.json'))"
