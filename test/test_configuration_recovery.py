@@ -16,6 +16,7 @@ import unittest
 
 import numpy as np
 import pytest
+import qiskit_addon_sqd.configuration_recovery as configuration_recovery
 from qiskit_addon_sqd.configuration_recovery import (
     post_select_by_hamming_weight,
     recover_configurations,
@@ -133,3 +134,86 @@ class TestConfigurationRecovery(unittest.TestCase):
                 e_info.value.args[0]
                 == "The numbers of electrons must be specified as non-negative integers."
             )
+
+
+@pytest.fixture(params=["python", "accel"])
+def recovery_backend(request, monkeypatch):
+    """Parametrize tests over the pure-Python and compiled backends.
+
+    The fixture selects the backend by **monkeypatching module-level state**
+    rather than through its return value: for the ``python`` case it sets
+    ``configuration_recovery._accel`` to ``None`` so that
+    ``recover_configurations`` takes its pure-Python branch (``monkeypatch``
+    restores the attribute afterward). This is why a test only needs to *request*
+    the fixture -- the effect is the patch, not the returned value. The ``accel``
+    case is skipped if the compiled extension is not available.
+    """
+    if request.param == "python":
+        monkeypatch.setattr(configuration_recovery, "_accel", None)
+    elif configuration_recovery._accel is None:
+        pytest.skip("compiled _accel extension is not available")
+    return request.param
+
+
+class TestRecoverConfigurationsBackends:
+    """Behavior-level parity between the pure-Python and compiled backends.
+
+    The two backends draw from different random streams (numpy vs. C++
+    ``std::mt19937_64``), so exact per-seed equality is not expected.  These
+    tests assert the invariants that must hold for either backend.
+    """
+
+    # The ``recovery_backend`` argument is a pytest fixture that selects the
+    # backend by monkeypatching module-level state; it does its work as a side
+    # effect of injection, so the body never references it.
+    # pylint: disable=unused-argument
+
+    def test_deterministic_cases_match(self, recovery_backend):
+        # All-flip cases are RNG-independent, so both backends agree exactly.
+        with_ones = recover_configurations(
+            np.array([[False, False, False, False]]),
+            np.array([1.0]),
+            (np.array([1.0, 1.0]), np.array([1.0, 1.0])),
+            2,
+            2,
+            rand_seed=4224,
+        )
+        assert (with_ones[0] == np.array([[True, True, True, True]])).all()
+        assert (with_ones[1] == np.array([1.0])).all()
+
+    def test_invariants(self, recovery_backend):
+        rng = np.random.default_rng(7)
+        norb = 5
+        n_samples = 200
+        bs_mat = rng.integers(2, size=(n_samples, 2 * norb)).astype(bool)
+        probs = rng.random(n_samples)
+        probs /= probs.sum()
+        occs = (rng.random(norb), rng.random(norb))
+        num_a, num_b = 2, 3
+
+        mat_rec, probs_rec = recover_configurations(
+            bs_mat, probs, occs, num_a, num_b, rand_seed=12345
+        )
+
+        # Every corrected bitstring has the target Hamming weights.  In the
+        # public layout the right half is alpha (num_a) and the left half beta.
+        assert np.all(mat_rec[:, norb:].sum(axis=1) == num_a)
+        assert np.all(mat_rec[:, :norb].sum(axis=1) == num_b)
+        # Probabilities are a normalized, non-negative distribution.
+        assert np.all(probs_rec >= 0)
+        assert probs_rec.sum() == pytest.approx(1.0)
+        # Output rows are unique (the dedup step ran).
+        assert len({tuple(row) for row in mat_rec.tolist()}) == mat_rec.shape[0]
+
+    def test_more_than_64_bits(self, recovery_backend):
+        # Exercises multi-word storage in the dynamic bitset.
+        n_bits = 74
+        rng = np.random.default_rng(554)
+        bs_mat = rng.integers(2, size=(5, n_bits), dtype=bool)
+        probs = np.full(5, 0.2)
+        occs = np.zeros(n_bits)
+        with pytest.warns(DeprecationWarning):
+            mat_rec, probs_rec = recover_configurations(bs_mat, probs, occs, 0, 0, rand_seed=4224)
+        # All occupancies zero and zero target electrons -> all bits cleared.
+        assert not mat_rec.any()
+        assert probs_rec.sum() == pytest.approx(1.0)

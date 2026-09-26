@@ -26,6 +26,8 @@ jobs:
             python-version: "3.14"
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
