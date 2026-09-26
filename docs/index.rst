@@ -135,6 +135,7 @@ References
 
    Sample-based quantum diagonalization of a chemistry Hamiltonian <https://quantum.cloud.ibm.com/docs/tutorials/sample-based-quantum-diagonalization>
    Sample-based Krylov quantum diagonalization of a Fermionic lattice model <https://quantum.cloud.ibm.com/docs/tutorials/sample-based-krylov-quantum-diagonalization>
+   Implicit solvent calculations using Qiskit Serverless <https://quantum.cloud.ibm.com/docs/en/tutorials/implicit-solvent-calculations>
 
 .. toctree::
    :hidden:
