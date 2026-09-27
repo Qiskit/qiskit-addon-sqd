@@ -24,7 +24,7 @@ SQD-based workflows involve first preparing one or more quantum states on a quan
 
   2. A set of Krylov basis states prepared over increasing time intervals. Assuming a good initial state and sparsity of the ground state, this approach is proven to converge efficiently. As one needs to prepare Trotterized time evolution circuits on a quantum device, this approach is best for applications to lattice models [[2]](#references) instead of complex many-body Hamiltonians like those for quantum chemistry. For an example of this approach applied to Fermionic lattice Hamiltonians, see the [tutorial for approximating the ground state energy of a simplified single-impurity Anderson model](https://quantum.cloud.ibm.com/docs/tutorials/sample-based-krylov-quantum-diagonalization).
   
-  3. A set of Kyrlov basis states implemented with qDRIFT randomized compilation of the time evolution operator. This approach yields shorter-depth circuits compared to Trotter-based decompositions of the time evolution and so can be used for quantum chemistry Hamiltonians. This technique has been applied to the ground state energy of polycyclic aromatic hydrocarbons [[6]](#references).
+  3. A set of Krylov basis states implemented with qDRIFT randomized compilation of the time evolution operator. This approach yields shorter-depth circuits compared to Trotter-based decompositions of the time evolution and so can be used for quantum chemistry Hamiltonians. This technique has been applied to the ground state energy of polycyclic aromatic hydrocarbons [[6]](#references).
 
 ----------------------------------------------------------------------------------------------------
 
