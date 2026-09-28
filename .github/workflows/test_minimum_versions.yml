@@ -72,4 +72,4 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
         run: |
-          tox -e py,py-engine,notebook
+          tox -e py,engine,purelib,notebook

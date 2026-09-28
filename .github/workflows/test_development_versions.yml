@@ -105,4 +105,4 @@ jobs:
       - name: Test using tox environment
         shell: bash
         run: |
-          tox -e py,py-engine,notebook
+          tox -e py,engine,purelib,notebook
