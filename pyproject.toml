@@ -101,6 +101,17 @@ docs = [
 branch = true
 parallel = true
 
+# The coverage environment measures the *installed* package, so map the
+# site-packages location it records back onto the source tree.  Without this the
+# report lists absolute site-packages paths -- which on a split lib/lib64 layout
+# are not even the directory `importlib` reports -- and Coveralls cannot match
+# them to files in the repository.
+[tool.coverage.paths]
+qiskit_addon_sqd = [
+  "qiskit_addon_sqd/",
+  "*/site-packages/qiskit_addon_sqd/",
+]
+
 [tool.coverage.report]
 fail_under = 75
 show_missing = true
