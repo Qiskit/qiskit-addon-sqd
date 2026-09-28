@@ -22,7 +22,7 @@ from collections.abc import Sequence
 import numpy as np
 from qiskit.utils.deprecation import deprecate_func
 
-from . import _acceleration_candidate
+from ._coheriq_domain import _acceleration_candidate
 
 
 @deprecate_func(

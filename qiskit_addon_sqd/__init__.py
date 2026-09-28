@@ -15,19 +15,15 @@
 # we should set up its RST file.
 """Primary SQD functionality."""
 
-from coheriq import AccelerationDomain
+# Importing a module that has ``@_acceleration_candidate`` decorators is what
+# registers its candidates with the domain, so ``configuration_recovery`` is
+# imported for that side effect and not for a name.  Such a module must not
+# eagerly pull in heavyweight dependencies.  (The domain itself lives in
+# ``_coheriq_domain`` so that these modules can reach it without importing the
+# package back, which would make the import graph cyclic.)
+from . import configuration_recovery  # noqa: F401
+from ._coheriq_domain import _domain
 
-# This package is a coheriq *domain*: it marks certain functions as candidates
-# for acceleration and ships a pure-Python default implementation.  An engine
-# (the ``sqd-hpc`` engine defined in this same package) can replace them with a
-# compiled implementation, selected via ``coheriq.enable_engine`` or the
-# ``QISKIT_ADDON_SQD_ENGINE`` environment variable.
-_domain = AccelerationDomain("qiskit_addon_sqd", env_prefix="QISKIT_ADDON_SQD")
-_acceleration_candidate = _domain.acceleration_candidate
-
-# Import every module that has an ``@_acceleration_candidate`` decorator so that
-# its candidates are registered before we materialize the domain.  These imports
-# must not eagerly pull in heavyweight dependencies.
-from . import configuration_recovery  # noqa: E402,F401  pylint: disable=wrong-import-position
-
+# Registration is only possible while the domain is under construction, so this
+# has to come after every import above.
 _domain.materialize()

@@ -113,9 +113,10 @@ show_missing = true
 # missing extension at import time.
 #
 # ``domain`` is the name passed to ``AccelerationDomain(...)``, in
-# qiskit_addon_sqd/__init__.py.  It is declared here rather than derived from the
-# source: the domain object is constructed at runtime under a private name, and
-# in general an engine may target a domain owned by a different distribution.
+# qiskit_addon_sqd/_coheriq_domain.py.  It is declared here rather than derived
+# from the source: the domain object is constructed at runtime under a private
+# name, and in general an engine may target a domain owned by a different
+# distribution.
 #
 # This table is named after this distribution rather than after coheriq, because
 # the schema below is ours: coheriq neither defines nor reads it, and only
