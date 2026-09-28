@@ -117,8 +117,12 @@ class TrimPolicy:
                 survive screening and enter the merged subspace. Ranked by summed squared
                 amplitude over the other spin sector.
             carryover_ratio: The fraction of the merged subspace's CI strings that seed the
-                next iteration. Defaults to ``trim_ratio``, which keeps the subspace size
-                roughly stationary from one iteration to the next.
+                next iteration. Defaults to ``trim_ratio``, for no stronger reason than that
+                one ratio is one fewer thing to choose; the two apply to different things,
+                so equal values carry no particular meaning. Note that the merged subspace
+                grows from one iteration to the next unless ``num_batches *
+                trim_ratio * carryover_ratio`` is less than one, and that a ceiling is the
+                only hard bound on it.
             max_strings_per_trim: Ceiling on the number of CI strings, per spin sector, that
                 any one screening trim retains. Where it binds it lowers the effective
                 ratio, so a trim keeps
