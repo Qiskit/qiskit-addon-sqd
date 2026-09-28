@@ -32,11 +32,15 @@ caller passes.
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 
-from .fermion import SCIResult, SubspaceRequest, batch_to_ci_strings
+from .fermion import (
+    SCIResult,
+    SubspaceRequest,
+    _select_carryover_by_quota,
+    _unique_with_order_preserved,
+    batch_to_ci_strings,
+)
 from .subsampling import partition_subsample
 
 
@@ -175,15 +179,12 @@ class TrimPolicy:
             return None
         kept_a, kept_b = [], []
         for result in results:
-            strings_a, strings_b = _trim(result, self.trim_ratio, self.max_strings_per_trim)
+            strings_a, strings_b = _select_carryover_by_quota(
+                result, self.trim_ratio, self.max_strings_per_trim
+            )
             kept_a.append(strings_a)
             kept_b.append(strings_b)
-        return [
-            (
-                np.unique(np.concatenate(kept_a)),
-                np.unique(np.concatenate(kept_b)),
-            )
-        ]
+        return [(_merge_preserving_order(kept_a), _merge_preserving_order(kept_b))]
 
     def select_result(self, results: list[SCIResult]) -> SCIResult:
         """Report the merged diagonalization, which is the only result of the last round."""
@@ -191,17 +192,21 @@ class TrimPolicy:
         return result
 
     def select_carryover(
-        self,
-        result: SCIResult,
-        *,
-        symmetrize_spin: bool = False,  # pylint: disable=unused-argument
+        self, result: SCIResult, *, symmetrize_spin: bool = False
     ) -> tuple[np.ndarray, np.ndarray]:
         """Carry over the highest-weight CI strings of the merged diagonalization.
 
-        ``symmetrize_spin`` is unused: the strings are ranked within each spin sector, and
-        merging the sectors afterwards preserves that ranking, so the loop can apply it.
+        This differs from :class:`~qiskit_addon_sqd.fermion.StandardPolicy` only in how the
+        strings are chosen -- a fixed fraction of the ranking rather than an amplitude
+        cutoff. The ranking itself is the same, and so is the treatment of
+        ``symmetrize_spin``, which ranks the two sectors together before merging them.
         """
-        return _trim(result, self.carryover_ratio, self.max_carryover)
+        return _select_carryover_by_quota(
+            result,
+            self.carryover_ratio,
+            self.max_carryover,
+            symmetrize_spin=symmetrize_spin,
+        )
 
     def prepare_subspaces(self, request: SubspaceRequest) -> list[tuple[np.ndarray, np.ndarray]]:
         """Divide one pool of bitstrings among the batches, so that they are disjoint."""
@@ -224,45 +229,13 @@ class TrimPolicy:
         ]
 
 
-def _trim(
-    result: SCIResult,
-    ratio: float,
-    max_strings: int | None,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Return the highest-weight CI strings of a diagonalization, per spin sector.
+def _merge_preserving_order(arrays: list[np.ndarray]) -> np.ndarray:
+    """Concatenate weight-ranked arrays and drop duplicates, keeping the first occurrence.
 
-    A solver that trimmed the subspace itself reports its selection in
-    ``SCIResult.carryover``, which is taken as given. Otherwise the strings are ranked
-    by summed squared amplitude over the other spin sector.
+    The batches are ranked individually, so the merge interleaves several rankings rather
+    than producing one. What it does preserve is that a string ranked highly by its own
+    batch appears early, which is what a later truncation to ``max_dim`` keeps. Sorting
+    here instead would order the merged subspace by integer value and so discard the
+    ranking entirely.
     """
-    if result.carryover is not None:
-        return result.carryover
-
-    sci_state = result.sci_state
-    if sci_state is None:
-        raise ValueError(
-            "TrimPolicy needs either an SCI state or a carryover from each "
-            "diagonalization in order to rank the CI strings, but the solver returned "
-            "neither."
-        )
-    amplitudes = sci_state.amplitudes
-    weights_a = np.sum(np.abs(amplitudes) ** 2, axis=1)
-    weights_b = np.sum(np.abs(amplitudes) ** 2, axis=0)
-    return (
-        _top_strings(sci_state.ci_strs_a, weights_a, ratio, max_strings),
-        _top_strings(sci_state.ci_strs_b, weights_b, ratio, max_strings),
-    )
-
-
-def _top_strings(
-    strings: np.ndarray,
-    weights: np.ndarray,
-    ratio: float,
-    max_strings: int | None,
-) -> np.ndarray:
-    """Return the strings of largest weight, in descending order of weight."""
-    num = max(1, math.ceil(ratio * len(strings)))
-    if max_strings is not None:
-        num = min(num, max_strings)
-    order = np.argsort(-weights, kind="stable")[:num]
-    return strings[order]
+    return _unique_with_order_preserved(np.concatenate(arrays))

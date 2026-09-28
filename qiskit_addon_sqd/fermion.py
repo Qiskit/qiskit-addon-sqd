@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Callable, Protocol, cast, runtime_checkable
 
@@ -1037,6 +1038,62 @@ def _symmetrize_carryover(
     return merged, merged
 
 
+def _require_sci_state(result: SCIResult, requester: str) -> SCIState:
+    """Return the result's SCI state, which the caller needs in order to rank the strings.
+
+    Call this only once ``result.carryover`` has been found absent: the error it raises
+    reports that the solver supplied neither, which is only accurate then.
+    """
+    sci_state = result.sci_state
+    if sci_state is None:
+        raise ValueError(
+            f"The solver returned a result with neither an SCI state nor a carryover, so "
+            f"{requester} has nothing to rank the CI strings by. A solver that does not "
+            f"return an SCI state must set SCIResult.carryover."
+        )
+    return sci_state
+
+
+def _marginal_weights(amplitudes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return each CI string's summed squared amplitude over the other spin sector."""
+    probabilities = np.abs(amplitudes) ** 2
+    return np.sum(probabilities, axis=1), np.sum(probabilities, axis=0)
+
+
+def _rank_carryover(
+    sci_state: SCIState,
+    alpha_indices: np.ndarray,
+    beta_indices: np.ndarray,
+    *,
+    symmetrize_spin: bool = False,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Order a chosen set of CI strings by marginal weight, descending.
+
+    The indices say *which* strings are carried over; this decides the order they are
+    carried over in, which is the order a later truncation to ``max_dim`` keeps. Every
+    policy ranks by the same quantity -- summed squared amplitude over the other spin
+    sector -- so only the choice of indices distinguishes them.
+
+    When ``symmetrize_spin`` is set, the two sectors are ranked together rather than
+    separately. That has to happen here, before the merge: concatenating two separately
+    ranked lists would interleave them differently.
+    """
+    weights_a, weights_b = _marginal_weights(sci_state.amplitudes)
+    strings_a = sci_state.ci_strs_a[alpha_indices]
+    strings_b = sci_state.ci_strs_b[beta_indices]
+    weights_a = weights_a[alpha_indices]
+    weights_b = weights_b[beta_indices]
+    if symmetrize_spin:
+        strings = np.concatenate((strings_a, strings_b))
+        weights = np.concatenate((weights_a, weights_b))
+        strings = strings[np.argsort(-weights, kind="stable")]
+        return _symmetrize_carryover(strings, np.array([], dtype=np.int64))
+    return (
+        strings_a[np.argsort(-weights_a, kind="stable")],
+        strings_b[np.argsort(-weights_b, kind="stable")],
+    )
+
+
 def _select_carryover_by_threshold(
     result: SCIResult,
     threshold: float,
@@ -1045,13 +1102,13 @@ def _select_carryover_by_threshold(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Choose the carryover strings by thresholding the eigenvector amplitudes.
 
+    A configuration survives when its own amplitude exceeds ``threshold``; a CI string is
+    carried over when it appears in any surviving configuration. The number that survive
+    is therefore whatever the amplitudes give, with no bound.
+
     A solver that selected the carryover itself has already done this work, so its choice
     is taken as-is. Note that ``threshold`` does not apply in that case: the solver, not
     this function, decided how many determinants survive.
-
-    The strings are returned in descending order of marginal weight, which is the order a
-    later truncation keeps. When ``symmetrize_spin`` is set, the two sectors are ranked
-    together rather than separately, so that the ranking is over both at once.
 
     Raises:
         ValueError: The result has neither an SCI state nor a carryover.
@@ -1059,13 +1116,7 @@ def _select_carryover_by_threshold(
     if result.carryover is not None:
         return result.carryover
 
-    sci_state = result.sci_state
-    if sci_state is None:
-        raise ValueError(
-            "The solver returned a result with neither an SCI state nor a carryover, so "
-            "there is nothing to build the next iteration's subspace from. A solver "
-            "that does not return an SCI state must set SCIResult.carryover."
-        )
+    sci_state = _require_sci_state(result, "thresholding the amplitudes")
     flattened = sci_state.amplitudes.reshape(-1)
     absolute_vals = np.abs(flattened)
     indices = np.argsort(absolute_vals)
@@ -1073,25 +1124,53 @@ def _select_carryover_by_threshold(
     carryover_indices = indices[carryover_index:]
     _, n_strings_b = sci_state.amplitudes.shape
     alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
-    alpha_indices = np.unique(alpha_indices)
-    beta_indices = np.unique(beta_indices)
-    carryover_strings_a = sci_state.ci_strs_a[alpha_indices]
-    carryover_strings_b = sci_state.ci_strs_b[beta_indices]
-    # Sort carryover strings in descending order by marginal weight
-    weights_a = np.sum(np.abs(sci_state.amplitudes[alpha_indices]) ** 2, axis=1)
-    weights_b = np.sum(np.abs(sci_state.amplitudes[:, beta_indices]) ** 2, axis=0)
-    if symmetrize_spin:
-        # Rank the two sectors together rather than separately, then merge. Ranking
-        # before merging is what makes this one operation: concatenating two separately
-        # ranked lists would interleave them differently.
-        carryover_strings = np.concatenate((carryover_strings_a, carryover_strings_b))
-        weights = np.concatenate((weights_a, weights_b))
-        carryover_strings = carryover_strings[np.argsort(weights)[::-1]]
-        return _symmetrize_carryover(carryover_strings, np.array([], dtype=np.int64))
-    return (
-        carryover_strings_a[np.argsort(weights_a)[::-1]],
-        carryover_strings_b[np.argsort(weights_b)[::-1]],
+    return _rank_carryover(
+        sci_state,
+        np.unique(alpha_indices),
+        np.unique(beta_indices),
+        symmetrize_spin=symmetrize_spin,
     )
+
+
+def _select_carryover_by_quota(
+    result: SCIResult,
+    ratio: float,
+    max_strings: int | None,
+    *,
+    symmetrize_spin: bool = False,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Choose the carryover strings by keeping a fixed fraction of the marginal ranking.
+
+    Where :func:`_select_carryover_by_threshold` sets an absolute cutoff and accepts
+    however many strings clear it, this sets the count and accepts whatever weight that
+    buys. It is the bounded counterpart: the result never exceeds ``max_strings`` per
+    spin sector, which is what a run that has to budget its subspace needs.
+
+    A solver that selected the carryover itself reports it in
+    :attr:`SCIResult.carryover`, which is taken as given.
+
+    Raises:
+        ValueError: The result has neither an SCI state nor a carryover.
+    """
+    if result.carryover is not None:
+        return result.carryover
+
+    sci_state = _require_sci_state(result, "taking a fraction of the ranking")
+    weights_a, weights_b = _marginal_weights(sci_state.amplitudes)
+    return _rank_carryover(
+        sci_state,
+        _top_indices(weights_a, ratio, max_strings),
+        _top_indices(weights_b, ratio, max_strings),
+        symmetrize_spin=symmetrize_spin,
+    )
+
+
+def _top_indices(weights: np.ndarray, ratio: float, max_strings: int | None) -> np.ndarray:
+    """Return the indices of the largest weights, at least one and at most ``max_strings``."""
+    num = max(1, math.ceil(ratio * len(weights)))
+    if max_strings is not None:
+        num = min(num, max_strings)
+    return np.argsort(-weights, kind="stable")[:num]
 
 
 def solve_sci_batch(
