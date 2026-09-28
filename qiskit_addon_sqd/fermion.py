@@ -534,17 +534,13 @@ def _prepare_ci_strings(
     # Convert bitstrings to CI strings and include requested and carryover strings
     ci_strings = []
     for samples in subsamples:
-        # Get the single-spin bitstrings and counts.
-        samples_a, counts_a = np.unique(
-            bitstring_matrix_to_integers(samples[:, config.norb :]), return_counts=True
-        )
-        samples_b, counts_b = np.unique(
-            bitstring_matrix_to_integers(samples[:, : config.norb]), return_counts=True
-        )
+        # Get the single-spin bitstrings.
+        samples_a = bitstring_matrix_to_integers(samples[:, config.norb :])
+        samples_b = bitstring_matrix_to_integers(samples[:, : config.norb])
         if config.symmetrize_spin:
-            # Merge the bitstrings for spin alpha and spin beta.
-            samples = np.concatenate((samples_a, samples_b))
-            counts = np.concatenate((counts_a, counts_b))
+            # Merge the spin sectors before counting so that a string sampled in both
+            # sectors is ranked by its combined marginal probability.
+            samples, counts = np.unique(np.concatenate((samples_a, samples_b)), return_counts=True)
             # Sort the single-spin bitstrings in descending order by marginal probability.
             samples = samples[np.argsort(counts)[::-1]]
             # Prioritize explicitly requested bitstrings, then carryover strings, and
@@ -557,6 +553,8 @@ def _prepare_ci_strings(
             # In this case, max_dim_a and max_dim_b are equal.
             strs_a = strs_b = _unique_with_order_preserved(strs)[: config.max_dim_a]
         else:
+            samples_a, counts_a = np.unique(samples_a, return_counts=True)
+            samples_b, counts_b = np.unique(samples_b, return_counts=True)
             # Sort the single-spin bitstrings in descending order by marginal probability.
             samples_a = samples_a[np.argsort(counts_a)[::-1]]
             samples_b = samples_b[np.argsort(counts_b)[::-1]]

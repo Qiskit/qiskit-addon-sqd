@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    Fixed the ranking of sampled CI strings when ``symmetrize_spin=True`` in
+    :func:`qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian`. If the
+    same string was sampled in both spin sectors, its alpha and beta counts were
+    previously ranked separately rather than being added together. This could
+    cause a lower-weight string to be retained when ``max_dim`` truncated the
+    subspace.
