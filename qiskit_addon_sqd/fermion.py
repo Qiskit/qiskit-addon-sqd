@@ -542,7 +542,7 @@ def _prepare_ci_strings(
             # sectors is ranked by its combined marginal probability.
             samples, counts = np.unique(np.concatenate((samples_a, samples_b)), return_counts=True)
             # Sort the single-spin bitstrings in descending order by marginal probability.
-            samples = samples[np.argsort(counts)[::-1]]
+            samples = samples[np.argsort(-counts, kind="stable")]
             # Prioritize explicitly requested bitstrings, then carryover strings, and
             # finally sampled bitstrings.
             # Note that in this case, carryover_strings_a and carryover_strings_b are equal.
@@ -556,8 +556,8 @@ def _prepare_ci_strings(
             samples_a, counts_a = np.unique(samples_a, return_counts=True)
             samples_b, counts_b = np.unique(samples_b, return_counts=True)
             # Sort the single-spin bitstrings in descending order by marginal probability.
-            samples_a = samples_a[np.argsort(counts_a)[::-1]]
-            samples_b = samples_b[np.argsort(counts_b)[::-1]]
+            samples_a = samples_a[np.argsort(-counts_a, kind="stable")]
+            samples_b = samples_b[np.argsort(-counts_b, kind="stable")]
             # Prioritize explicitly requested bitstrings, then carryover strings, and
             # finally sampled bitstrings
             strs_a = np.concatenate((config.include_a, carryover_strings_a, samples_a))
