@@ -37,7 +37,7 @@ import numpy as np
 from .fermion import (
     SCIResult,
     SubspaceRequest,
-    _select_carryover_by_quota,
+    _select_carryover,
     _unique_with_order_preserved,
     batch_to_ci_strings,
 )
@@ -183,8 +183,8 @@ class TrimPolicy:
             return None
         kept_a, kept_b = [], []
         for result in results:
-            strings_a, strings_b = _select_carryover_by_quota(
-                result, self.trim_ratio, self.max_strings_per_trim
+            strings_a, strings_b = _select_carryover(
+                result, ratio=self.trim_ratio, max_strings=self.max_strings_per_trim
             )
             kept_a.append(strings_a)
             kept_b.append(strings_b)
@@ -205,10 +205,10 @@ class TrimPolicy:
         cutoff. The ranking itself is the same, and so is the treatment of
         ``symmetrize_spin``, which ranks the two sectors together before merging them.
         """
-        return _select_carryover_by_quota(
+        return _select_carryover(
             result,
-            self.carryover_ratio,
-            self.max_carryover,
+            ratio=self.carryover_ratio,
+            max_strings=self.max_carryover,
             symmetrize_spin=symmetrize_spin,
         )
 

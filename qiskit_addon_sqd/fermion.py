@@ -439,8 +439,8 @@ class StandardPolicy:
         self, result: SCIResult, *, symmetrize_spin: bool = False
     ) -> tuple[np.ndarray, np.ndarray]:
         """Carry over the strings whose amplitudes exceed the threshold."""
-        return _select_carryover_by_threshold(
-            result, self.carryover_threshold, symmetrize_spin=symmetrize_spin
+        return _select_carryover(
+            result, threshold=self.carryover_threshold, symmetrize_spin=symmetrize_spin
         )
 
 
@@ -1106,21 +1106,73 @@ def _rank_carryover(
     )
 
 
-def _select_carryover_by_threshold(
+def _select_carryover(
     result: SCIResult,
-    threshold: float,
     *,
+    threshold: float | None = None,
+    ratio: float | None = None,
+    max_strings: int | None = None,
     symmetrize_spin: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Choose the carryover strings by thresholding the eigenvector amplitudes.
+    """Choose the CI strings that seed the next iteration, and the order they are kept in.
 
-    A configuration survives when its own amplitude exceeds ``threshold``; a CI string is
-    carried over when it appears in any surviving configuration. The number that survive
-    is therefore whatever the amplitudes give, with no bound.
+    Three constraints select the strings, and any combination of them may be given. They
+    are applied in this order, each narrowing what the previous one left:
 
-    A solver that selected the carryover itself has already done this work, so its choice
-    is taken as-is. Note that ``threshold`` does not apply in that case: the solver, not
-    this function, decided how many determinants survive.
+    1. ``threshold`` keeps a configuration when its own amplitude exceeds the value, and
+       keeps a CI string when it appears in any surviving configuration. This bounds the
+       weight discarded but not the number of strings kept.
+    2. ``ratio`` keeps that fraction of the surviving strings, and ``max_strings`` caps
+       their number outright. Both act on the marginal-weight ranking and bound the
+       count, which is what a run that has to budget its subspace needs.
+
+    The two steps ask different questions, and can disagree about the same string. A
+    subspace is the Cartesian product of the two spin sectors, so a CI string has no
+    weight of its own: it appears in one configuration for every string it pairs with in
+    the other sector. ``threshold`` asks whether any *one* of those configurations is
+    large, reading a single amplitude. The marginal weight asks how much probability the
+    string carries in *total*, summing over all of them. Two strings of the same spin can
+    therefore trade places between the two measures::
+
+        # Two rival strings in the SAME spin sector, say spin alpha, in a
+        # subspace whose other sector holds eight strings. Each row is one
+        # alpha string's amplitudes across all eight beta strings.
+        spread    = [0.34, 0.34, 0.34, 0.34, 0.34, 0.34, 0.34, 0.34]
+        localized = [0.90, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0 ]
+
+        marginal weight of spread:     8 * 0.34**2 = 0.925  <- more total weight
+        marginal weight of localized:  1 * 0.90**2 = 0.810
+
+        threshold=0.5:  none of spread's amplitudes reaches 0.5, so it is
+                        dropped, while localized survives on its single 0.90.
+
+    A spread-out string is invisible to a per-configuration cutoff, even when it carries
+    more weight than the string that clears it. So the order is observable: with both
+    constraints the threshold runs first, and a string it dropped is not restored by the
+    quota, which can only narrow what it is handed. That also means fewer strings than
+    the quota may survive.
+
+    ``ratio`` is taken against the number of strings that reach step 2, not the number the
+    diagonalization produced, so a threshold that already removed most of them does not
+    then have a fraction taken of what little remains twice over -- it is one fraction of
+    what survived. At least one string per spin sector is always kept.
+
+    A solver that selected the carryover itself reports it in
+    :attr:`SCIResult.carryover`, which is taken as given; none of these constraints apply
+    in that case, since the solver decided how many determinants survive.
+
+    Args:
+        result: The result to take the carryover from.
+        threshold: Amplitude cutoff for a single configuration, or ``None`` for no cutoff.
+        ratio: Fraction of the surviving strings to keep, or ``None`` to keep all of them.
+        max_strings: Hard cap on the strings kept per spin sector, or ``None`` for none.
+        symmetrize_spin: Whether the two spin sectors share one list of strings. The
+            sectors are ranked together before being merged, so this cannot be applied
+            afterwards.
+
+    Returns:
+        The spin-alpha and spin-beta strings, in descending order of marginal weight,
+        which is the order a later truncation to ``max_dim`` keeps.
 
     Raises:
         ValueError: The result has neither an SCI state nor a carryover.
@@ -1128,61 +1180,49 @@ def _select_carryover_by_threshold(
     if result.carryover is not None:
         return result.carryover
 
-    sci_state = _require_sci_state(result, "thresholding the amplitudes")
-    flattened = sci_state.amplitudes.reshape(-1)
+    sci_state = _require_sci_state(result, "selecting the carryover")
+    weights_a, weights_b = _marginal_weights(sci_state.amplitudes)
+    num_a, num_b = sci_state.amplitudes.shape
+    alpha_indices = np.arange(num_a)
+    beta_indices = np.arange(num_b)
+
+    if threshold is not None:
+        alpha_indices, beta_indices = _threshold_indices(sci_state.amplitudes, threshold)
+
+    if ratio is not None or max_strings is not None:
+        alpha_indices = _limit_indices(alpha_indices, weights_a, ratio, max_strings)
+        beta_indices = _limit_indices(beta_indices, weights_b, ratio, max_strings)
+
+    return _rank_carryover(sci_state, alpha_indices, beta_indices, symmetrize_spin=symmetrize_spin)
+
+
+def _threshold_indices(amplitudes: np.ndarray, threshold: float) -> tuple[np.ndarray, np.ndarray]:
+    """Return the indices of the CI strings appearing in an above-threshold configuration."""
+    flattened = amplitudes.reshape(-1)
     absolute_vals = np.abs(flattened)
     indices = np.argsort(absolute_vals)
     carryover_index = np.searchsorted(absolute_vals, threshold, sorter=indices)
     carryover_indices = indices[carryover_index:]
-    _, n_strings_b = sci_state.amplitudes.shape
+    _, n_strings_b = amplitudes.shape
     alpha_indices, beta_indices = np.divmod(carryover_indices, n_strings_b)
-    return _rank_carryover(
-        sci_state,
-        np.unique(alpha_indices),
-        np.unique(beta_indices),
-        symmetrize_spin=symmetrize_spin,
-    )
+    return np.unique(alpha_indices), np.unique(beta_indices)
 
 
-def _select_carryover_by_quota(
-    result: SCIResult,
-    ratio: float,
+def _limit_indices(
+    indices: np.ndarray,
+    weights: np.ndarray,
+    ratio: float | None,
     max_strings: int | None,
-    *,
-    symmetrize_spin: bool = False,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Choose the carryover strings by keeping a fixed fraction of the marginal ranking.
-
-    Where :func:`_select_carryover_by_threshold` sets an absolute cutoff and accepts
-    however many strings clear it, this sets the count and accepts whatever weight that
-    buys. It is the bounded counterpart: the result never exceeds ``max_strings`` per
-    spin sector, which is what a run that has to budget its subspace needs.
-
-    A solver that selected the carryover itself reports it in
-    :attr:`SCIResult.carryover`, which is taken as given.
-
-    Raises:
-        ValueError: The result has neither an SCI state nor a carryover.
-    """
-    if result.carryover is not None:
-        return result.carryover
-
-    sci_state = _require_sci_state(result, "taking a fraction of the ranking")
-    weights_a, weights_b = _marginal_weights(sci_state.amplitudes)
-    return _rank_carryover(
-        sci_state,
-        _top_indices(weights_a, ratio, max_strings),
-        _top_indices(weights_b, ratio, max_strings),
-        symmetrize_spin=symmetrize_spin,
-    )
-
-
-def _top_indices(weights: np.ndarray, ratio: float, max_strings: int | None) -> np.ndarray:
-    """Return the indices of the largest weights, at least one and at most ``max_strings``."""
-    num = max(1, math.ceil(ratio * len(weights)))
+) -> np.ndarray:
+    """Keep the highest-weight of ``indices``, at least one and at most ``max_strings``."""
+    num = len(indices)
+    if ratio is not None:
+        num = math.ceil(ratio * num)
     if max_strings is not None:
         num = min(num, max_strings)
-    return np.argsort(-weights, kind="stable")[:num]
+    num = max(1, min(num, len(indices)))
+    order = np.argsort(-weights[indices], kind="stable")[:num]
+    return indices[order]
 
 
 def solve_sci_batch(
