@@ -1,6 +1,6 @@
 # This code is a Qiskit project.
 #
-# (C) Copyright IBM 2024.
+# (C) Copyright IBM 2024, 2026.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -446,7 +446,7 @@ class StandardPolicy:
 def diagonalize_fermionic_hamiltonian(
     one_body_tensor: np.ndarray,
     two_body_tensor: np.ndarray,
-    bit_array: BitArray,
+    bit_array: BitArray | np.ndarray,
     samples_per_batch: int,
     norb: int,
     nelec: tuple[int, int],
@@ -474,10 +474,11 @@ def diagonalize_fermionic_hamiltonian(
     Args:
         one_body_tensor: The one-body tensor of the Hamiltonian.
         two_body_tensor: The two-body tensor of the Hamiltonian.
-        bit_array: Array of sampled bitstrings. Each bitstring should have both the
-            alpha part and beta part concatenated together, with the alpha part
-            concatenated on the right-hand side, like this:
-            ``[b_N, ..., b_0, a_N, ..., a_0]``.
+        bit_array: Array of sampled bitstrings, provided as either a Qiskit
+            :class:`~qiskit.primitives.BitArray` or a two-dimensional NumPy boolean
+            array. Each bitstring should have both the alpha part and beta part
+            concatenated together, with the alpha part concatenated on the right-hand
+            side, like this: ``[b_N, ..., b_0, a_N, ..., a_0]``.
         samples_per_batch: The number of bitstrings to include in each subsampled batch
             of bitstrings.
         norb: The number of spatial orbitals.
@@ -540,7 +541,16 @@ def diagonalize_fermionic_hamiltonian(
             independent, so any policy works with any solver.
         symmetrize_spin: Whether to always merge spin-alpha and spin-beta CI strings
             into a single list, so that the diagonalization subspace is invariant with
-            respect to the exchange of spin alpha with spin beta.
+            respect to the exchange of spin alpha with spin beta. This requires the
+            numbers of alpha and beta electrons to be equal, as well as a single
+            ``max_dim`` shared by both spin sectors; otherwise, an error is raised.
+            The invariance ensures that the returned state does not mix components of
+            even and odd total spin, but it does *not* guarantee that the state is an
+            eigenvector of the total spin operator :math:`S^2`. Note that merging the
+            two lists increases the number of CI strings in each spin sector by up to a
+            factor of two, so the dimension of the diagonalization subspace can grow by
+            up to a factor of four (less when the lists overlap, which is typical). This
+            growth is still subject to the ``max_dim`` limit, if one is set.
         max_dim: Limit on the dimension of the spin sectors of the SCI subspace.
             It can be either:
 
@@ -700,8 +710,12 @@ def diagonalize_fermionic_hamiltonian(
     carryover_strings_a = np.array([], dtype=np.int64)
     carryover_strings_b = np.array([], dtype=np.int64)
 
-    # Convert BitArray into bitstring and probability arrays
-    raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
+    # Convert the samples into bitstring and probability arrays
+    if isinstance(bit_array, BitArray):
+        raw_bitstrings, raw_probs = bit_array_to_arrays(bit_array)
+    else:
+        raw_bitstrings, counts = np.unique(bit_array, axis=0, return_counts=True)
+        raw_probs = counts / len(bit_array)
 
     # Bundle the loop-invariant configuration once, so the per-iteration helper
     # calls only need to pass the values that change between iterations.
@@ -895,13 +909,9 @@ def batch_to_ci_strings(
         The spin-alpha and spin-beta CI string arrays. When ``symmetrize_spin`` is set,
         the two are the same array.
     """
-    # Get the single-spin bitstrings and counts.
-    samples_a, counts_a = np.unique(
-        bitstring_matrix_to_integers(batch[:, norb:]), return_counts=True
-    )
-    samples_b, counts_b = np.unique(
-        bitstring_matrix_to_integers(batch[:, :norb]), return_counts=True
-    )
+    # Get the single-spin bitstrings.
+    samples_a = bitstring_matrix_to_integers(batch[:, norb:])
+    samples_b = bitstring_matrix_to_integers(batch[:, :norb])
     empty = np.array([], dtype=np.int64)
     if carryover_strings_a is None:
         carryover_strings_a = empty
@@ -909,17 +919,19 @@ def batch_to_ci_strings(
         carryover_strings_b = empty
 
     if symmetrize_spin:
-        # Merge the bitstrings for spin alpha and spin beta.
-        samples = np.concatenate((samples_a, samples_b))
-        counts = np.concatenate((counts_a, counts_b))
+        # Merge the spin sectors before counting so that a string sampled in both
+        # sectors is ranked by its combined marginal probability.
+        samples, counts = np.unique(np.concatenate((samples_a, samples_b)), return_counts=True)
         # Sort the single-spin bitstrings in descending order by marginal probability.
-        samples = samples[np.argsort(counts)[::-1]]
+        samples = samples[np.argsort(-counts, kind="stable")]
         # Note that in this case, carryover_strings_a and carryover_strings_b are equal.
         strs_a = strs_b = np.concatenate((carryover_strings_a, samples))
     else:
+        samples_a, counts_a = np.unique(samples_a, return_counts=True)
+        samples_b, counts_b = np.unique(samples_b, return_counts=True)
         # Sort the single-spin bitstrings in descending order by marginal probability.
-        samples_a = samples_a[np.argsort(counts_a)[::-1]]
-        samples_b = samples_b[np.argsort(counts_b)[::-1]]
+        samples_a = samples_a[np.argsort(-counts_a, kind="stable")]
+        samples_b = samples_b[np.argsort(-counts_b, kind="stable")]
         strs_a = np.concatenate((carryover_strings_a, samples_a))
         strs_b = np.concatenate((carryover_strings_b, samples_b))
     return strs_a, strs_b
