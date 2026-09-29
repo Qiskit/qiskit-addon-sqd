@@ -1,6 +1,6 @@
 # This code is a Qiskit project.
 #
-# (C) Copyright IBM 2024.
+# (C) Copyright IBM 2024, 2026.
 #
 # This code is licensed under the Apache License, Version 2.0. You may
 # obtain a copy of this license in the LICENSE.txt file in the root directory
@@ -129,8 +129,46 @@ class TestFermion(unittest.TestCase):
 
         # Check
         self.assertLess(sci_dim, 0.5 * fci_dim)
-        self.assertAlmostEqual(result.energy + nuclear_repulsion_energy, exact_energy, places=2)
+        # The energy error here is a sampling error, and with samples_per_batch=10
+        # and max_iterations=5 it varies a lot from seed to seed. Over 200 seeds it
+        # ranged from 0.0014 to 0.026 Ha (median 0.0078, mean 0.0085, stdev 0.0044),
+        # so the delta below is roughly twice the worst case observed. A tighter
+        # bound passes only by luck: places=2 (0.005) fails for 78% of seeds.
+        self.assertAlmostEqual(result.energy + nuclear_repulsion_energy, exact_energy, delta=0.05)
         self.assertAlmostEqual(result.sci_state.spin_square(), expected_spin_square)
+
+    def test_diagonalize_fermionic_hamiltonian_numpy_bitstrings(self):
+        """Test diagonalization with bitstrings stored in a NumPy array."""
+        mol = pyscf.gto.Mole()
+        mol.build(
+            atom=[["H", (0, 0, 0)], ["H", (0, 0, 0.735)]],
+            basis="sto-3g",
+        )
+
+        scf = pyscf.scf.RHF(mol).run()
+        norb = mol.nao_nr()
+        nelec = (1, 1)
+        cas = pyscf.mcscf.CASCI(scf, norb, nelec)
+        hcore, nuclear_repulsion_energy = cas.get_h1cas()
+        eri = pyscf.ao2mo.restore(1, cas.get_h2cas(), norb)
+        cas.kernel()
+
+        bitstrings = BitArray.from_samples(
+            ["0101", "0110", "1001", "1010"], num_bits=2 * norb
+        ).to_bool_array()
+
+        result = diagonalize_fermionic_hamiltonian(
+            hcore,
+            eri,
+            bitstrings,
+            samples_per_batch=4,
+            norb=norb,
+            nelec=nelec,
+            max_iterations=1,
+            seed=self.rng,
+        )
+
+        self.assertAlmostEqual(result.energy + nuclear_repulsion_energy, cas.e_tot)
 
     def test_diagonalize_fermionic_hamiltonian_max_dim(self):
         """Test diagonalize_fermionic_hamiltonian with maximum dimension."""
@@ -228,6 +266,45 @@ class TestFermion(unittest.TestCase):
         self.assertEqual(sci_dim_a, 15)
         self.assertEqual(sci_dim_b, 10)
         self.assertAlmostEqual(result.sci_state.spin_square(), expected_spin_square)
+
+    def test_symmetrize_spin_aggregates_counts_before_truncating(self):
+        """A string's alpha and beta sample counts are combined before ranking."""
+        norb = 4
+        x, y, z, w = 0b0001, 0b0010, 0b0100, 0b1000
+        configurations = [
+            (y, x),
+            (y, z),
+            (y, w),
+            (x, z),
+            (x, w),
+            (z, x),
+        ]
+        samples = [(string_b << norb) | string_a for string_a, string_b in configurations]
+        bit_array = BitArray.from_samples(samples, num_bits=2 * norb)
+        seen: list[tuple[np.ndarray, np.ndarray]] = []
+
+        def solver(ci_strings, *args, **kwargs):
+            seen.extend(ci_strings)
+            return solve_sci_batch(ci_strings, *args, **kwargs)
+
+        diagonalize_fermionic_hamiltonian(
+            np.zeros((norb, norb)),
+            np.zeros((norb,) * 4),
+            bit_array,
+            samples_per_batch=len(samples),
+            norb=norb,
+            nelec=(1, 1),
+            max_iterations=1,
+            sci_solver=solver,
+            symmetrize_spin=True,
+            max_dim=1,
+            seed=self.rng,
+        )
+
+        # x occurs twice in each sector, so its combined count of four exceeds y's
+        # alpha-only count of three.
+        np.testing.assert_array_equal(seen[0][0], [x])
+        np.testing.assert_array_equal(seen[0][1], [x])
 
     def test_diagonalize_fermionic_hamiltonian_no_valid_bitstrings(self):
         """Test diagonalize_fermionic_hamiltonian when no valid bitstrings for subsampling."""
