@@ -1115,7 +1115,10 @@ def _select_carryover(
        weight discarded but not the number of strings kept.
     2. ``ratio`` keeps that fraction of the surviving strings, and ``max_strings`` caps
        their number outright. Both act on the marginal-weight ranking and bound the
-       count, which is what a run that has to budget its subspace needs.
+       count, which is what a run that has to budget its subspace needs. They compose
+       into one cut of that ranking, keeping
+       ``min(ceil(ratio * surviving), max_strings)`` strings per sector, so a binding cap
+       lowers the effective ratio. Either may be given without the other.
 
     The two steps ask different questions, and can disagree about the same string. A
     subspace is the Cartesian product of the two spin sectors, so a CI string has no
