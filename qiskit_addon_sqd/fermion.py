@@ -1050,22 +1050,6 @@ def _symmetrize_carryover(
     return merged, merged
 
 
-def _require_sci_state(result: SCIResult, requester: str) -> SCIState:
-    """Return the result's SCI state, which the caller needs in order to rank the strings.
-
-    Call this only once ``result.carryover`` has been found absent: the error it raises
-    reports that the solver supplied neither, which is only accurate then.
-    """
-    sci_state = result.sci_state
-    if sci_state is None:
-        raise ValueError(
-            f"The solver returned a result with neither an SCI state nor a carryover, so "
-            f"{requester} has nothing to rank the CI strings by. A solver that does not "
-            f"return an SCI state must set SCIResult.carryover."
-        )
-    return sci_state
-
-
 def _marginal_weights(amplitudes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Return each CI string's summed squared amplitude over the other spin sector."""
     probabilities = np.abs(amplitudes) ** 2
@@ -1116,8 +1100,15 @@ def _select_carryover(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Choose the CI strings that seed the next iteration, and the order they are kept in.
 
-    Three constraints select the strings, and any combination of them may be given. They
-    are applied in this order, each narrowing what the previous one left:
+    A *CI string* is a single-spin configuration, one per spin sector; a *configuration*
+    is a complete pair of them, one spin-alpha CI string with one spin-beta CI string. The
+    amplitudes are indexed by configuration, so ``amplitudes[i, j]`` belongs to the
+    configuration pairing ``ci_strs_a[i]`` with ``ci_strs_b[j]``, while what this function
+    returns is two lists of CI strings.
+
+    Three arguments constrain the selection -- ``threshold``, ``ratio`` and
+    ``max_strings`` -- and any combination of them may be given. They act in two stages,
+    each narrowing what the previous one left:
 
     1. ``threshold`` keeps a configuration when its own amplitude exceeds the value, and
        keeps a CI string when it appears in any surviving configuration. This bounds the
@@ -1180,7 +1171,13 @@ def _select_carryover(
     if result.carryover is not None:
         return result.carryover
 
-    sci_state = _require_sci_state(result, "selecting the carryover")
+    sci_state = result.sci_state
+    if sci_state is None:
+        raise ValueError(
+            "The solver returned a result with neither an SCI state nor a carryover, so "
+            "there is nothing to select the carryover from. A solver that does not return "
+            "an SCI state must set SCIResult.carryover."
+        )
     weights_a, weights_b = _marginal_weights(sci_state.amplitudes)
     num_a, num_b = sci_state.amplitudes.shape
     alpha_indices = np.arange(num_a)
@@ -1190,8 +1187,8 @@ def _select_carryover(
         alpha_indices, beta_indices = _threshold_indices(sci_state.amplitudes, threshold)
 
     if ratio is not None or max_strings is not None:
-        alpha_indices = _limit_indices(alpha_indices, weights_a, ratio, max_strings)
-        beta_indices = _limit_indices(beta_indices, weights_b, ratio, max_strings)
+        alpha_indices = _limit_indices(alpha_indices, weights_a[alpha_indices], ratio, max_strings)
+        beta_indices = _limit_indices(beta_indices, weights_b[beta_indices], ratio, max_strings)
 
     return _rank_carryover(sci_state, alpha_indices, beta_indices, symmetrize_spin=symmetrize_spin)
 
@@ -1214,14 +1211,18 @@ def _limit_indices(
     ratio: float | None,
     max_strings: int | None,
 ) -> np.ndarray:
-    """Keep the highest-weight of ``indices``, at least one and at most ``max_strings``."""
+    """Keep the highest-weight of ``indices``, at least one and at most ``max_strings``.
+
+    ``weights`` holds one weight per entry of ``indices``, in the same order, rather than
+    one per CI string.
+    """
     num = len(indices)
     if ratio is not None:
         num = math.ceil(ratio * num)
     if max_strings is not None:
         num = min(num, max_strings)
     num = max(1, min(num, len(indices)))
-    order = np.argsort(-weights[indices], kind="stable")[:num]
+    order = np.argsort(-weights, kind="stable")[:num]
     return indices[order]
 
 

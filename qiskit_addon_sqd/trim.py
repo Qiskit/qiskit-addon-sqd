@@ -102,7 +102,7 @@ class TrimPolicy:
         self,
         *,
         trim_ratio: float = 0.1,
-        carryover_ratio: float | None = None,
+        carryover_ratio: float = 0.1,
         max_strings_per_trim: int | None = None,
         max_carryover: int | None = None,
     ) -> None:
@@ -117,12 +117,12 @@ class TrimPolicy:
                 survive screening and enter the merged subspace. Ranked by summed squared
                 amplitude over the other spin sector.
             carryover_ratio: The fraction of the merged subspace's CI strings that seed the
-                next iteration. Defaults to ``trim_ratio``, for no stronger reason than that
-                one ratio is one fewer thing to choose; the two apply to different things,
-                so equal values carry no particular meaning. Note that the merged subspace
-                grows from one iteration to the next unless ``num_batches *
-                trim_ratio * carryover_ratio`` is less than one, and that a ceiling is the
-                only hard bound on it.
+                next iteration. This and ``trim_ratio`` share a default value but are
+                otherwise unrelated: they apply to different things, one batch against the
+                merged subspace of roughly ``num_batches`` of them, so equal values carry no
+                particular meaning. Note that the merged subspace grows from one iteration
+                to the next unless ``num_batches * trim_ratio * carryover_ratio`` is less
+                than one, and that a ceiling is the only hard bound on it.
             max_strings_per_trim: Ceiling on the number of CI strings, per spin sector, that
                 any one screening trim retains. Where it binds it lowers the effective
                 ratio, so a trim keeps
@@ -157,7 +157,7 @@ class TrimPolicy:
             ("trim_ratio", trim_ratio),
             ("carryover_ratio", carryover_ratio),
         ):
-            if ratio is not None and not 0 < ratio <= 1:
+            if not 0 < ratio <= 1:
                 raise ValueError(f"{name} must be greater than zero and at most one. Got {ratio}.")
         for name, limit in (
             ("max_strings_per_trim", max_strings_per_trim),
@@ -167,7 +167,7 @@ class TrimPolicy:
                 raise ValueError(f"{name} must be at least one. Got {limit}.")
 
         self.trim_ratio = trim_ratio
-        self.carryover_ratio = trim_ratio if carryover_ratio is None else carryover_ratio
+        self.carryover_ratio = carryover_ratio
         self.max_strings_per_trim = max_strings_per_trim
         self.max_carryover = max_carryover
 
@@ -188,7 +188,15 @@ class TrimPolicy:
             )
             kept_a.append(strings_a)
             kept_b.append(strings_b)
-        return [(_merge_preserving_order(kept_a), _merge_preserving_order(kept_b))]
+        # Merge with the order preserved, not by sorting: the batches were each ranked by
+        # weight, and a string ranked highly by its own batch has to stay early, since that
+        # is what a later truncation to max_dim keeps.
+        return [
+            (
+                _unique_with_order_preserved(np.concatenate(kept_a)),
+                _unique_with_order_preserved(np.concatenate(kept_b)),
+            )
+        ]
 
     def select_result(self, results: list[SCIResult]) -> SCIResult:
         """Report the merged diagonalization, which is the only result of the last round."""
@@ -231,15 +239,3 @@ class TrimPolicy:
             )
             for batch in batches
         ]
-
-
-def _merge_preserving_order(arrays: list[np.ndarray]) -> np.ndarray:
-    """Concatenate weight-ranked arrays and drop duplicates, keeping the first occurrence.
-
-    The batches are ranked individually, so the merge interleaves several rankings rather
-    than producing one. What it does preserve is that a string ranked highly by its own
-    batch appears early, which is what a later truncation to ``max_dim`` keeps. Sorting
-    here instead would order the merged subspace by integer value and so discard the
-    ranking entirely.
-    """
-    return _unique_with_order_preserved(np.concatenate(arrays))

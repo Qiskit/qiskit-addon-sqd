@@ -306,9 +306,13 @@ def test_trim_policy_validation(kwargs, match):
         TrimPolicy(**kwargs)
 
 
-def test_carryover_ratio_defaults_to_trim_ratio():
-    """Leaving carryover_ratio unset reuses trim_ratio."""
-    assert TrimPolicy(trim_ratio=0.25).carryover_ratio == 0.25
+def test_ratios_default_independently():
+    """The two ratios share a default value but are not tied to each other."""
+    assert TrimPolicy().trim_ratio == 0.1
+    assert TrimPolicy().carryover_ratio == 0.1
+    # Setting one does not move the other.
+    assert TrimPolicy(trim_ratio=0.25).carryover_ratio == 0.1
+    assert TrimPolicy(carryover_ratio=0.5).trim_ratio == 0.1
     assert TrimPolicy(trim_ratio=0.25, carryover_ratio=0.5).carryover_ratio == 0.5
 
 
