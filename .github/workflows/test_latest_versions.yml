@@ -5,10 +5,6 @@ on:
     branches:
       - main
       - 'stable/**'
-      # TEMPORARY(coheriq-engine): revert before merging -- see the commit
-      # that added this line.  Lets the full CI matrix run on this branch, which
-      # otherwise gets no test workflows because they gate on main.
-      - coheriq-engine
   pull_request:
     branches:
       - main
