@@ -60,7 +60,7 @@ style = [
 lint = [
     "qiskit-addon-sqd[style]",
     "mypy==2.3.1",
-    "pylint==4.0.8",
+    "pylint==4.0.9",
     "reno>=4.1",
     "toml>=0.9.6",
 ]
