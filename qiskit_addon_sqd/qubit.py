@@ -208,7 +208,7 @@ def matrix_elements_from_pauli(
         raise ValueError("Bitstrings (rows) in bitstring_matrix must have length < 64.")
 
     d, _ = bitstring_matrix.shape
-    row_ids = np.arange(d)
+    input_ids = np.arange(d)
 
     # Get a qubit-wise representation of the Pauli properties
     diag = np.logical_not(pauli.x)[::-1]
@@ -216,28 +216,33 @@ def matrix_elements_from_pauli(
     imag = np.logical_and(pauli.x, pauli.z)[::-1]
 
     # Convert bitstrings to integers
-    int_array_rows = _int_conversion_from_bts_matrix_vmap(bitstring_matrix)
+    int_array_inputs = _int_conversion_from_bts_matrix_vmap(bitstring_matrix)
 
     # The bitstrings in bs_mat_conn are "agreement maps" between the original bitstring
     # and the "diag" operator mask, which guarantees they are unique, since the original
-    # bitstring matrix is expected to be unique.
+    # bitstring matrix is expected to be unique. Each amplitude is the matrix element
+    # <connected element | P | input> for the corresponding input bitstring.
     bs_mat_conn, amplitudes = _connected_elements_and_amplitudes_bool_vmap(
         bitstring_matrix, diag, sign, imag
     )
     # After we calculate the "connected elements" above, we will get the indices
     # of connected elements which appeared in the original set of samples
     int_array_conn = _int_conversion_from_bts_matrix_vmap(bs_mat_conn)
-    conn_ele_mask = np.isin(int_array_conn, int_array_rows, assume_unique=True, kind="sort")
+    conn_ele_mask = np.isin(int_array_conn, int_array_inputs, assume_unique=True, kind="sort")
 
     # Retain configurations which are represented both in the original samples and connected elements
     amplitudes = amplitudes[conn_ele_mask]
     int_array_conn = int_array_conn[conn_ele_mask]
-    row_ids = row_ids[conn_ele_mask]
+    input_ids = input_ids[conn_ele_mask]
 
-    # Get column indices of non-zero matrix elements
-    col_array = np.searchsorted(int_array_rows, int_array_conn)
+    # Index of each connected element among the (sorted) input bitstrings
+    conn_ids = np.searchsorted(int_array_inputs, int_array_conn)
 
-    return amplitudes, row_ids, col_array
+    # Each amplitude is the matrix element <connected | P | input>, so it belongs at
+    # matrix position (row=connected element, col=input). Returning the connected element
+    # as the row index ensures a single Pauli Y projects to Y itself rather than its
+    # transpose -Y (and likewise for any term with an odd number of Y factors).
+    return amplitudes, conn_ids, input_ids
 
 
 def _connected_elements_and_amplitudes_bool(
