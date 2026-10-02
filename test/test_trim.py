@@ -19,6 +19,7 @@ import pytest
 from qiskit_addon_sqd.counts import generate_bit_array_uniform
 from qiskit_addon_sqd.fermion import (
     SCIResult,
+    StandardPolicy,
     SubspacePolicy,
     diagonalize_fermionic_hamiltonian,
     solve_sci_batch,
@@ -306,10 +307,15 @@ def test_trim_policy_validation(kwargs, match):
         TrimPolicy(**kwargs)
 
 
-def test_carryover_ratio_defaults_to_trim_ratio():
-    """Leaving carryover_ratio unset reuses trim_ratio."""
-    assert TrimPolicy(trim_ratio=0.25).carryover_ratio == 0.25
-    assert TrimPolicy(trim_ratio=0.25, carryover_ratio=0.5).carryover_ratio == 0.5
+def test_carryover_exposes_both_criteria():
+    """The carryover takes StandardPolicy's cutoff and a ratio, and they are independent."""
+    assert TrimPolicy().carryover_threshold == StandardPolicy().carryover_threshold
+    assert TrimPolicy().carryover_ratio == 0.1
+    assert TrimPolicy().trim_ratio == 0.1
+    # Setting one does not move the others.
+    assert TrimPolicy(trim_ratio=0.25).carryover_ratio == 0.1
+    assert TrimPolicy(carryover_ratio=0.5).carryover_threshold == 1e-4
+    assert TrimPolicy(carryover_threshold=1e-3).carryover_ratio == 0.1
 
 
 def test_merged_subspace_is_spin_symmetric():
