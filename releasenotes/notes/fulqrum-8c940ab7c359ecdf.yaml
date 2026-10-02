@@ -1,8 +1,8 @@
 ---
 features:
   - |
-    Adds a `guide <https://qiskit.github.io/qiskit-addon-sqd/how_tos/integrate_fulqrum.html>`_
-    showing how to use `fulqrum <https://github.com/qiskit-community/fulqrum>`_
+    Adds a `guide <https://qiskit.github.io/qiskit-addon-sqd/guides/integrate_fulqrum.html>`__
+    showing how to use `fulqrum <https://github.com/qiskit-community/fulqrum>`__
     as a subspace solver for fermionic systems.
     To install the optional dependency, use the ``fulqrum`` extra::
 
