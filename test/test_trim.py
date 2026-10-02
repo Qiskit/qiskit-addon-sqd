@@ -296,6 +296,7 @@ def test_trim_policy_requires_a_state_or_carryover():
     [
         ({"trim_ratio": 0.0}, "trim_ratio must be greater than zero"),
         ({"trim_ratio": 1.5}, "trim_ratio must be greater than zero"),
+        ({"carryover_ratio": 0.0}, "carryover_ratio must be greater than zero"),
         ({"max_strings_per_trim": 0}, "max_strings_per_trim must be at least one"),
         ({"max_carryover": 0}, "max_carryover must be at least one"),
     ],
@@ -306,12 +307,15 @@ def test_trim_policy_validation(kwargs, match):
         TrimPolicy(**kwargs)
 
 
-def test_carryover_matches_the_standard_policy_default():
-    """The carryover cutoff is the same criterion, and the same value, as StandardPolicy."""
+def test_carryover_exposes_both_criteria():
+    """The carryover takes StandardPolicy's cutoff and a ratio, and they are independent."""
     assert TrimPolicy().carryover_threshold == StandardPolicy().carryover_threshold
-    # The screening ratio is independent of it.
+    assert TrimPolicy().carryover_ratio == 0.1
     assert TrimPolicy().trim_ratio == 0.1
-    assert TrimPolicy(trim_ratio=0.25).carryover_threshold == 1e-4
+    # Setting one does not move the others.
+    assert TrimPolicy(trim_ratio=0.25).carryover_ratio == 0.1
+    assert TrimPolicy(carryover_ratio=0.5).carryover_threshold == 1e-4
+    assert TrimPolicy(carryover_threshold=1e-3).carryover_ratio == 0.1
 
 
 def test_merged_subspace_is_spin_symmetric():

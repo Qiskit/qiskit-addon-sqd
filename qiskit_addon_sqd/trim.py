@@ -103,6 +103,7 @@ class TrimPolicy:
         *,
         trim_ratio: float = 0.1,
         carryover_threshold: float = 1e-4,
+        carryover_ratio: float = 0.1,
         max_strings_per_trim: int | None = None,
         max_carryover: int | None = None,
     ) -> None:
@@ -110,9 +111,10 @@ class TrimPolicy:
 
         This policy performs two kinds of trim, and they are bounded separately. The
         *screening* trims shrink each batch of the first round, once per batch; the
-        *carryover* trim shrinks the merged subspace to what seeds the next iteration. Only
-        the screening trims use a ratio; the carryover uses the same amplitude cutoff as
-        :class:`~qiskit_addon_sqd.fermion.StandardPolicy`.
+        *carryover* trim shrinks the merged subspace to what seeds the next iteration. The
+        carryover applies the same amplitude cutoff as
+        :class:`~qiskit_addon_sqd.fermion.StandardPolicy`, then a fraction of what survives
+        it.
 
         Args:
             trim_ratio: The fraction of each batch's CI strings, per spin sector, that
@@ -121,9 +123,13 @@ class TrimPolicy:
             carryover_threshold: Amplitude cutoff for the CI strings that seed the next
                 iteration, applied exactly as
                 :class:`~qiskit_addon_sqd.fermion.StandardPolicy` applies it, with the same
-                default. Note that this bounds the weight discarded rather than the number
-                of strings kept, so the merged subspace can grow from one iteration to the
-                next; ``max_carryover`` is the only hard bound on it.
+                default. This bounds the weight discarded rather than the number of strings
+                kept.
+            carryover_ratio: The fraction of the strings surviving ``carryover_threshold``
+                that seed the next iteration, ranked by summed squared amplitude over the
+                other spin sector. The cutoff runs first and the fraction narrows what it
+                left, so the two bound different things: the cutoff the weight discarded,
+                the fraction the count.
             max_strings_per_trim: Ceiling on the number of CI strings, per spin sector, that
                 any one screening trim retains. Where it binds it lowers the effective
                 ratio, so a trim keeps
@@ -142,10 +148,10 @@ class TrimPolicy:
                 :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` is what
                 bounds a subspace.
             max_carryover: Ceiling on the number of CI strings, per spin sector, that seed
-                the next iteration, applied to the marginal-weight ranking of whatever
-                survived ``carryover_threshold``. Unlike ``max_strings_per_trim`` this
-                governs a single trim of the merged subspace, so it bounds the carryover as
-                a whole.
+                the next iteration, applied together with ``carryover_ratio`` to the
+                marginal-weight ranking of whatever survived ``carryover_threshold``. Unlike
+                ``max_strings_per_trim`` this governs a single trim of the merged subspace,
+                so it bounds the carryover as a whole.
 
         Note:
             Neither ceiling constrains a solver that selects its own carryover through
@@ -153,13 +159,14 @@ class TrimPolicy:
             as given.
 
         Raises:
-            ValueError: ``trim_ratio`` was not in ``(0, 1]``, or a ceiling was less than
-                one.
+            ValueError: A ratio was not in ``(0, 1]``, or a ceiling was less than one.
         """
-        if not 0 < trim_ratio <= 1:
-            raise ValueError(
-                f"trim_ratio must be greater than zero and at most one. Got {trim_ratio}."
-            )
+        for name, ratio in (
+            ("trim_ratio", trim_ratio),
+            ("carryover_ratio", carryover_ratio),
+        ):
+            if not 0 < ratio <= 1:
+                raise ValueError(f"{name} must be greater than zero and at most one. Got {ratio}.")
         for name, limit in (
             ("max_strings_per_trim", max_strings_per_trim),
             ("max_carryover", max_carryover),
@@ -169,6 +176,7 @@ class TrimPolicy:
 
         self.trim_ratio = trim_ratio
         self.carryover_threshold = carryover_threshold
+        self.carryover_ratio = carryover_ratio
         self.max_strings_per_trim = max_strings_per_trim
         self.max_carryover = max_carryover
 
@@ -209,15 +217,16 @@ class TrimPolicy:
     ) -> tuple[np.ndarray, np.ndarray]:
         """Carry over the highest-weight CI strings of the merged diagonalization.
 
-        This selects the carryover exactly as
-        :class:`~qiskit_addon_sqd.fermion.StandardPolicy` does, by amplitude cutoff, and
-        with the same default. ``max_carryover`` additionally bounds the count, which the
-        threshold alone does not. The treatment of ``symmetrize_spin`` is the same too: it
-        ranks the two sectors together before merging them.
+        The amplitude cutoff is applied exactly as
+        :class:`~qiskit_addon_sqd.fermion.StandardPolicy` applies it, with the same default,
+        and ``carryover_ratio`` and ``max_carryover`` then bound the count, which the cutoff
+        alone does not. The treatment of ``symmetrize_spin`` is the same too: it ranks the
+        two sectors together before merging them.
         """
         return _select_carryover(
             result,
             threshold=self.carryover_threshold,
+            ratio=self.carryover_ratio,
             max_strings=self.max_carryover,
             symmetrize_spin=symmetrize_spin,
         )
