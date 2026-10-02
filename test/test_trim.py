@@ -19,6 +19,7 @@ import pytest
 from qiskit_addon_sqd.counts import generate_bit_array_uniform
 from qiskit_addon_sqd.fermion import (
     SCIResult,
+    StandardPolicy,
     SubspacePolicy,
     diagonalize_fermionic_hamiltonian,
     solve_sci_batch,
@@ -295,7 +296,6 @@ def test_trim_policy_requires_a_state_or_carryover():
     [
         ({"trim_ratio": 0.0}, "trim_ratio must be greater than zero"),
         ({"trim_ratio": 1.5}, "trim_ratio must be greater than zero"),
-        ({"carryover_ratio": 0.0}, "carryover_ratio must be greater than zero"),
         ({"max_strings_per_trim": 0}, "max_strings_per_trim must be at least one"),
         ({"max_carryover": 0}, "max_carryover must be at least one"),
     ],
@@ -306,14 +306,12 @@ def test_trim_policy_validation(kwargs, match):
         TrimPolicy(**kwargs)
 
 
-def test_ratios_default_independently():
-    """The two ratios share a default value but are not tied to each other."""
+def test_carryover_matches_the_standard_policy_default():
+    """The carryover cutoff is the same criterion, and the same value, as StandardPolicy."""
+    assert TrimPolicy().carryover_threshold == StandardPolicy().carryover_threshold
+    # The screening ratio is independent of it.
     assert TrimPolicy().trim_ratio == 0.1
-    assert TrimPolicy().carryover_ratio == 0.1
-    # Setting one does not move the other.
-    assert TrimPolicy(trim_ratio=0.25).carryover_ratio == 0.1
-    assert TrimPolicy(carryover_ratio=0.5).trim_ratio == 0.1
-    assert TrimPolicy(trim_ratio=0.25, carryover_ratio=0.5).carryover_ratio == 0.5
+    assert TrimPolicy(trim_ratio=0.25).carryover_threshold == 1e-4
 
 
 def test_merged_subspace_is_spin_symmetric():
