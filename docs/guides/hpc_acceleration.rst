@@ -56,7 +56,12 @@ participate and contribute work, so an eigensolver implementation can use
 every process. The remaining parts of the configuration-recovery loop have no
 distributed implementation and run on the control process (rank 0) only.
 
-Some existing eigensolver implementations instead require the calling program to
+Every subspace of an iteration is passed to the eigensolver in a single call, so
+an implementation is free to divide the processes into groups and diagonalize
+several subspaces in parallel. How a solver uses the processes available to it is a
+property of that eigensolver.
+
+Some existing eigensolver implementations require the calling program to
 run outside an MPI/SPMD environment, because they launch and manage their own
 parallel processes internally, for example by invoking ``mpirun`` on the user's
 behalf. That mode is convenient for interactive and notebook-based work and

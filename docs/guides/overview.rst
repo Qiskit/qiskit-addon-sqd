@@ -25,6 +25,7 @@ Fermionic systems
 """""""""""""""""
 - :doc:`Scale SQD workflows for Fermionic systems with Fulqrum <integrate_fulqrum>`
 - :doc:`Scale SQD workflows for Fermionic systems with the Dice solver <integrate_dice_solver>`
+- :doc:`Leverage trim SQD for improved configuration selection <trim_sqd>`
 - :doc:`Improve an SQD estimate with orbital optimization <optimize_orbitals>`
 - :doc:`Understand open- and closed-shell options and their effect on subspace construction <select_open_closed_shell>`
 - :doc:`Augment the pool of electronic configurations using Fermionic transition operators to improve energy estimations and compute energies of excited states <add_fermionic_excitations_to_configuration_pool>`
@@ -52,6 +53,7 @@ Spin systems
    :hidden:
    :caption: Fermionic systems
 
+   Trim SQD <trim_sqd>
    Scale workloads with Fulqrum <integrate_fulqrum>
    Scale workloads with the Dice solver <integrate_dice_solver>
    Orbital optimization <optimize_orbitals>
