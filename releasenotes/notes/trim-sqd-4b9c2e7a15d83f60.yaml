@@ -1,0 +1,85 @@
+---
+features:
+  - |
+    Adds the :mod:`qiskit_addon_sqd.trim` module, containing
+    :class:`~qiskit_addon_sqd.trim.TrimPolicy`. This implements *trim SQD*, a schedule
+    that treats the subsampled batches as candidates to be screened rather than as
+    independent estimates: each batch is diagonalized and trimmed down to the CI strings
+    carrying the largest weight, and the survivors of all the batches are merged and
+    diagonalized together. The merged diagonalization is what the iteration reports, and
+    its own trimmed strings seed the next one.
+
+    An iteration therefore costs ``num_batches + 1`` diagonalizations rather than
+    ``num_batches``. Screening only selects among batches that differ, so
+    :class:`~qiskit_addon_sqd.trim.TrimPolicy` draws them as a single pool of
+    ``samples_per_batch * num_batches`` bitstrings divided among the batches, leaving no
+    bitstring in more than one. That follows from what the schedule does and is not
+    separately configurable.
+  - |
+    Adds a `guide <https://qiskit.github.io/qiskit-addon-sqd/guides/trim_sqd.html>`__
+    covering trim SQD, including how to bound the subspace that trimming produces and
+    how to check whether the screening step is helping on a given system.
+  - |
+    :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` has a new
+    ``policy`` argument, which selects the schedule each iteration follows: how the
+    sampled configurations become subspaces, whether one round of diagonalizations leads
+    to another, which result the iteration reports, and which CI strings seed the next
+    one. Trim SQD is chosen by passing a :class:`~qiskit_addon_sqd.trim.TrimPolicy`. The
+    argument defaults to :class:`~qiskit_addon_sqd.fermion.StandardPolicy`, the behavior
+    this function has always had, so omitting it changes nothing.
+
+    A policy is described by the :class:`~qiskit_addon_sqd.fermion.SubspacePolicy`
+    protocol and receives its inputs as a
+    :class:`~qiskit_addon_sqd.fermion.SubspaceRequest`. It returns the subspaces and the loop calls
+    ``sci_solver`` with them, so a schedule and an eigensolver are chosen independently
+    and any combination works.
+
+    A policy chooses *which strings* a subspace holds. The constraints on the *shape* of
+    a subspace remain the caller's: the configurations requested through
+    ``include_configurations`` go into every subspace, spin symmetrization is enforced
+    where it was asked for, and each spin sector is truncated to ``max_dim``.
+  - |
+    An ``sci_solver`` may now report the configurations it wants carried into the next
+    iteration, and may skip returning the eigenvector altogether. This is what lets trim
+    SQD scale: an eigensolver that ranks and trims its own subspace already knows which
+    configurations survive, and the eigenvector it would otherwise have to hand back is
+    of size ``len(strings_a) * len(strings_b)`` -- the one quantity a large distributed
+    calculation cannot afford to move between processes.
+
+    Two additions to :class:`~qiskit_addon_sqd.fermion.SCIResult` provide this. The new
+    optional field :attr:`~qiskit_addon_sqd.fermion.SCIResult.carryover` holds a pair
+    ``(strings_a, strings_b)`` of CI strings; when a solver sets it, those strings are
+    used in place of the ones that would otherwise be selected from the eigenvector
+    amplitudes using ``carryover_threshold``. And
+    :attr:`~qiskit_addon_sqd.fermion.SCIResult.sci_state` may now be ``None``, so that a
+    solver which never materializes the eigenvector does not have to fabricate one. Such
+    a solver must set :attr:`~qiskit_addon_sqd.fermion.SCIResult.carryover`, since there
+    would otherwise be nothing to build the next subspace from; a result with neither now
+    raises ``ValueError``.
+
+    The solvers built into this package always return an eigenvector, so nothing changes
+    for callers using them.
+  - |
+    Adds :func:`~qiskit_addon_sqd.subsampling.partition_subsample`, which draws a pool of
+    bitstrings and divides it among the batches so that they are disjoint. This is what
+    :class:`~qiskit_addon_sqd.trim.TrimPolicy` uses, exposed for callers writing a policy
+    of their own.
+  - |
+    Adds :func:`~qiskit_addon_sqd.fermion.batch_to_ci_strings`, which converts a batch of
+    bitstrings into a pair of per-spin CI string arrays ranked by the number of times
+    each string was sampled. This is the step that turns subsampled bitstrings into a
+    subspace, exposed so that a policy does not have to reimplement it.
+upgrade:
+  - |
+    Code that reads :attr:`~qiskit_addon_sqd.fermion.SCIResult.sci_state` from a result
+    produced by a custom ``sci_solver`` should be prepared for ``None``, as the field is
+    now optional. Results from the solvers built into this package always populate it,
+    so callers using the default solver are unaffected.
+  - |
+    ``carryover_threshold`` is now a setting of the default policy, which is what chooses
+    the carryover by thresholding amplitudes. It remains an argument of
+    :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` with the same
+    meaning and the same default, but passing it together with an explicit ``policy``
+    raises ``ValueError`` rather than being silently ignored, since another policy
+    chooses the carryover in its own way. Pass the threshold to
+    :class:`~qiskit_addon_sqd.fermion.StandardPolicy` when constructing one explicitly.
