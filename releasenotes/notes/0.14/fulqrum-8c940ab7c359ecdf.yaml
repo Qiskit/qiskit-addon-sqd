@@ -6,4 +6,4 @@ features:
     as a subspace solver for fermionic systems.
     To install the optional dependency, use the ``fulqrum`` extra::
 
-        pip install qiskit-addon-sqd[fulqrum]
+        pip install 'qiskit-addon-sqd[fulqrum]'
