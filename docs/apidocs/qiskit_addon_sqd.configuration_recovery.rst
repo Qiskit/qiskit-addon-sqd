@@ -9,5 +9,4 @@ Configuration recovery (:mod:`qiskit_addon_sqd.configuration_recovery`)
 
 .. currentmodule:: qiskit_addon_sqd.configuration_recovery
 
-.. autofunction:: post_select_by_hamming_weight
 .. autofunction:: recover_configurations
