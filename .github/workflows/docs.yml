@@ -42,7 +42,7 @@ jobs:
 
   deploy:
     name: Deploy docs
-    if: ${{ github.ref == 'refs/heads/stable/0.13' }}
+    if: ${{ github.ref == 'refs/heads/stable/0.14' }}
     needs: build
     permissions:
       pages: write
