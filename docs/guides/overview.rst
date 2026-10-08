@@ -21,11 +21,14 @@ General
 - :doc:`How to choose the subspace dimension from its impact on eigenvalue estimation accuracy <choose_subspace_dimension>`
 - :doc:`Understand this package's support for multi-process and multi-threaded acceleration <hpc_acceleration>`
 
-Fermionic systems
-"""""""""""""""""
+Eigensolvers
+""""""""""""
+- :doc:`Scale SQD workflows for Fermionic systems with the Dice solver <integrate_dice_solver>`
 - :doc:`Scale SQD workflows for Fermionic systems with Fulqrum <integrate_fulqrum>`
 - :doc:`Scale SQD workflows for Fermionic systems with the SBD eigensolver <integrate_sbd>`
-- :doc:`Scale SQD workflows for Fermionic systems with the Dice solver <integrate_dice_solver>`
+
+Fermionic systems
+"""""""""""""""""
 - :doc:`Leverage trim SQD for improved configuration selection <trim_sqd>`
 - :doc:`Improve an SQD estimate with orbital optimization <optimize_orbitals>`
 - :doc:`Understand open- and closed-shell options and their effect on subspace construction <select_open_closed_shell>`
@@ -52,12 +55,17 @@ Spin systems
 
 .. toctree::
    :hidden:
+   :caption: Eigensolvers
+
+   Scale workloads with the Dice solver <integrate_dice_solver>
+   Scale workloads with Fulqrum <integrate_fulqrum>
+   Scale workloads with the SBD eigensolver <integrate_sbd>
+
+.. toctree::
+   :hidden:
    :caption: Fermionic systems
 
    Trim SQD <trim_sqd>
-   Scale workloads with Fulqrum <integrate_fulqrum>
-   Scale workloads with the SBD eigensolver <integrate_sbd>
-   Scale workloads with the Dice solver <integrate_dice_solver>
    Orbital optimization <optimize_orbitals>
    Open- and closed-shell options <select_open_closed_shell>
    Augment pool of electronic configurations <add_fermionic_excitations_to_configuration_pool>
