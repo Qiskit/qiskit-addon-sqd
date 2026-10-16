@@ -918,3 +918,110 @@ def test_policies_are_picklable():
 def test_standard_policy_satisfies_the_protocol():
     """The protocol is runtime-checkable, so a user can assert conformance."""
     assert isinstance(StandardPolicy(), SubspacePolicy)
+
+
+# (atom, basis, 2S, exact spin_square). Full spaces only: on a truncated subspace the
+# eigenvector is not a spin eigenstate, so there is no exact value to compare against.
+SIGN_CONVENTION_SYSTEMS = [
+    ("H 0 0 0; H 0 0 0.8; H 0 0 2.2", "sto-3g", 1, 0.75),
+    ("H 0 0 0; H 0 0 0.9; H 0 0 1.9; H 0 0 3.0", "sto-3g", 0, 0.0),
+    ("; ".join(f"H 0 0 {0.95 * i:.2f}" for i in range(6)), "sto-3g", 0, 0.0),
+]
+
+
+def _reordering_phase(strings_a, strings_b, norb):
+    """The phase between interleaving a determinant's operators and alpha-first.
+
+    Interleaving by orbital (alpha 0, beta 0, alpha 1, ...) rather than putting every
+    alpha operator first costs ``(-1) ** n``, where ``n`` counts, over the occupied beta
+    orbitals ``p``, the occupied alpha orbitals above ``p``. Used here only to build a
+    deliberately wrong-convention state, to show these assertions would catch one.
+    """
+    phase = np.ones((len(strings_a), len(strings_b)))
+    for i, string_a in enumerate(strings_a):
+        occupied_a = [p for p in range(norb) if int(string_a) >> p & 1]
+        for j, string_b in enumerate(strings_b):
+            occupied_b = [p for p in range(norb) if int(string_b) >> p & 1]
+            crossings = sum(sum(1 for q in occupied_a if q > p) for p in occupied_b)
+            phase[i, j] = (-1) ** crossings
+    return phase
+
+
+def _hamiltonian(atom, basis, spin):
+    """Molecular integrals in the MO basis, plus the full determinant lists."""
+    mol = pyscf.gto.Mole()
+    mol.build(atom=atom, basis=basis, spin=spin, symmetry=False, verbose=0)
+    mean_field = (pyscf.scf.ROHF if spin else pyscf.scf.RHF)(mol)
+    mean_field.conv_tol = 1e-12
+    mean_field.run()
+    norb = mol.nao
+    hcore = mean_field.mo_coeff.T @ pyscf.scf.hf.get_hcore(mol) @ mean_field.mo_coeff
+    eri = pyscf.ao2mo.restore(1, pyscf.ao2mo.kernel(mol, mean_field.mo_coeff), norb)
+    strings_a = np.asarray(cistring.make_strings(range(norb), mol.nelec[0]))
+    strings_b = np.asarray(cistring.make_strings(range(norb), mol.nelec[1]))
+    return hcore, eri, norb, mol.nelec, (strings_a, strings_b)
+
+
+def _energy_from_rdms(sci_state, hcore, eri):
+    """Rebuild the energy the way a caller of SCIResult.rdm1/rdm2 contracts them."""
+    return np.einsum("pr,pr->", sci_state.rdm(rank=1, spin_summed=True), hcore) + 0.5 * np.einsum(
+        "prqs,prqs->", sci_state.rdm(rank=2, spin_summed=True), eri
+    )
+
+
+@pytest.mark.parametrize(
+    "atom, basis, spin, expected_spin_square",
+    SIGN_CONVENTION_SYSTEMS,
+    ids=["h3-doublet", "h4-singlet", "h6-singlet"],
+)
+def test_sci_state_follows_pyscf_sign_convention(atom, basis, spin, expected_spin_square):
+    """What SCIState computes through PySCF must agree with the physics.
+
+    ``rdm()`` and ``spin_square()`` hand the amplitudes to PySCF, so they are only
+    correct if the amplitudes follow the convention documented on
+    :attr:`SCIState.amplitudes`. Neither the energy nor any amplitude magnitude depends
+    on that convention, so a solver can get it wrong and still look right everywhere
+    else -- these two quantities are what notice.
+
+    The references are physics, not recorded output. Over a full determinant space the
+    eigenvector is a spin eigenstate, so ``spin_square()`` must be exactly
+    :math:`S(S+1)`; and the energy rebuilt from the RDMs must equal the eigenvalue the
+    solver itself returned, whatever that value happens to be.
+    """
+    hcore, eri, norb, nelec, ci_strings = _hamiltonian(atom, basis, spin)
+    result = solve_sci(ci_strings, hcore, eri, norb=norb, nelec=nelec)
+
+    assert result.sci_state.spin_square() == pytest.approx(expected_spin_square, abs=1e-8)
+    assert _energy_from_rdms(result.sci_state, hcore, eri) == pytest.approx(result.energy, abs=1e-8)
+
+
+@pytest.mark.parametrize(
+    "atom, basis, spin, expected_spin_square",
+    SIGN_CONVENTION_SYSTEMS,
+    ids=["h3-doublet", "h4-singlet", "h6-singlet"],
+)
+def test_wrong_sign_convention_is_caught(atom, basis, spin, expected_spin_square):
+    """Test that the assertions above have teeth: a wrong-convention state fails both.
+
+    Without this, ``test_sci_state_follows_pyscf_sign_convention`` could pass because
+    the quantities are insensitive rather than because they are right. Interleaving the
+    creation operators by orbital is the convention a real solver used, so this is the
+    mistake that was actually made, not an arbitrary perturbation.
+    """
+    hcore, eri, norb, nelec, ci_strings = _hamiltonian(atom, basis, spin)
+    result = solve_sci(ci_strings, hcore, eri, norb=norb, nelec=nelec)
+    correct = result.sci_state
+
+    wrong = SCIState(
+        amplitudes=correct.amplitudes * _reordering_phase(*ci_strings, norb),
+        ci_strs_a=correct.ci_strs_a,
+        ci_strs_b=correct.ci_strs_b,
+        norb=norb,
+        nelec=nelec,
+    )
+
+    # The magnitudes, and so the energy and any selection by weight, are untouched.
+    np.testing.assert_allclose(np.abs(wrong.amplitudes), np.abs(correct.amplitudes))
+
+    assert wrong.spin_square() != pytest.approx(expected_spin_square, abs=1e-3)
+    assert _energy_from_rdms(wrong, hcore, eri) != pytest.approx(result.energy, abs=1e-3)
