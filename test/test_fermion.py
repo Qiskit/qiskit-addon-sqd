@@ -1025,3 +1025,80 @@ def test_wrong_sign_convention_is_caught(atom, basis, spin, expected_spin_square
 
     assert wrong.spin_square() != pytest.approx(expected_spin_square, abs=1e-3)
     assert _energy_from_rdms(wrong, hcore, eri) != pytest.approx(result.energy, abs=1e-3)
+
+
+# An explicit subspace of the H4 chain above, written out determinant by determinant
+# rather than generated: alpha and beta each span orbitals {0,1}, {0,2}, {1,2} and
+# {0,3}, with the Hartree-Fock determinant first. Four strings per sector, so a 4x4
+# amplitude matrix small enough to record in full and read by eye.
+GOLDEN_CI_STRINGS = (0b0011, 0b0101, 0b0110, 0b1001)
+
+# The ground state of that subspace, recorded to full double precision. Canonicalized
+# so the Hartree-Fock amplitude is positive, because an eigenvector is only defined up
+# to a global sign. Reproduced bitwise across runs at tol=1e-12, and checked against a
+# dense diagonalization of the subspace Hamiltonian built independently from PySCF
+# contract_2e (agreeing to 0.0 in the energy and elementwise to 1e-11). SBD 1.7.1
+# reproduces them from the same subspace to 3.6e-8, while 1.7.0, which predates its
+# own sign-convention fix, lands 0.16 away with an energy still correct to 1e-15.
+GOLDEN_ENERGY = -4.4543936937167805
+GOLDEN_AMPLITUDES = [
+    [0.9719185556184625, -0.00213225691152554, 0.0074494738060661035, 0.005486127864403891],
+    [-0.0021322569115254865, -0.18793973292372163, 0.017134757062691307, -0.017231298679982056],
+    [0.007449473806066197, 0.017134757062691325, -0.06136557858017357, 0.08194812669137441],
+    [0.005486127864403782, -0.01723129867998209, 0.08194812669137444, -0.038664456515278],
+]
+
+
+def test_sci_state_matches_a_recorded_subspace_eigenvector():
+    """Test the amplitudes against a recorded vector for an explicitly written subspace.
+
+    ``test_sci_state_follows_pyscf_sign_convention`` compares derived quantities, which
+    pins the convention only where those quantities are sensitive to it. This compares
+    the amplitudes themselves, elementwise, so a per-determinant sign has nowhere to
+    hide -- including on a truncated subspace, where ``spin_square()`` has no exact
+    value to be checked against.
+
+    The subspace is written out literally and the reference is recorded rather than
+    recomputed, so this test needs no second eigensolver to run against. That is what
+    makes it reusable: any solver can be pointed at the same subspace and compared to
+    the same numbers.
+    """
+    hcore, eri, norb, nelec, _ = _hamiltonian(
+        "H 0 0 0; H 0 0 0.9; H 0 0 1.9; H 0 0 3.0", "sto-3g", 0
+    )
+    ci_strings = np.array(GOLDEN_CI_STRINGS, dtype=np.int64)
+
+    # The default tolerance converges the energy but leaves the vector good to only
+    # ~1e-6, which is looser than the sign error this is meant to detect.
+    result = solve_sci((ci_strings, ci_strings), hcore, eri, norb=norb, nelec=nelec, tol=1e-12)
+
+    assert result.energy == pytest.approx(GOLDEN_ENERGY, abs=1e-9)
+    np.testing.assert_array_equal(result.sci_state.ci_strs_a, ci_strings)
+    np.testing.assert_array_equal(result.sci_state.ci_strs_b, ci_strings)
+
+    # Only the relative signs are physical, so compare after fixing the global one.
+    # 1e-6 is loose enough for any solver that converges this vector -- SBD's Davidson
+    # lands 3.6e-8 away -- and still eight orders of magnitude tighter than the 0.16
+    # that a wrong sign convention moves the largest element by.
+    amplitudes = result.sci_state.amplitudes
+    amplitudes = amplitudes * np.sign(amplitudes[0, 0])
+    np.testing.assert_allclose(amplitudes, GOLDEN_AMPLITUDES, rtol=0, atol=1e-6)
+
+
+def test_recorded_subspace_eigenvector_detects_a_sign_error():
+    """Test that the recorded vector catches a wrong convention on a truncated subspace.
+
+    This is the gap the full-space tests leave: a truncated subspace has no exact
+    ``spin_square()``, so an elementwise reference is the only thing that pins the
+    convention there. The subspace above is truncated, and the phase does change some
+    of its signs, so the comparison genuinely bites.
+    """
+    norb = 4
+    ci_strings = np.array(GOLDEN_CI_STRINGS, dtype=np.int64)
+    phase = _reordering_phase(ci_strings, ci_strings, norb)
+
+    assert not np.all(phase == 1.0), "this subspace would not expose a sign error"
+
+    wrong = np.array(GOLDEN_AMPLITUDES) * phase
+    wrong = wrong * np.sign(wrong[0, 0])
+    assert not np.allclose(wrong, GOLDEN_AMPLITUDES, rtol=0, atol=1e-6)
