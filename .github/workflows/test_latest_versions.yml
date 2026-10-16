@@ -15,7 +15,11 @@ on:
 jobs:
   tests:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    # The notebook run alone takes about 26 minutes, and max-parallel means four jobs
+    # share runners, so 30 was not a reliable ceiling: contended jobs were cancelled
+    # mid-notebook after the unit tests had already passed. Matches the development
+    # version workflow, which hit the same wall.
+    timeout-minutes: 60
     strategy:
       # One failing cell should not hide the state of the rest, which matters
       # most when a break is specific to one OS.
