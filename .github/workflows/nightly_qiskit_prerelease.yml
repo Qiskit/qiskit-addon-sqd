@@ -1,11 +1,12 @@
 name: Nightly qiskit prerelease tests
 
-# A qiskit pre-release is published to PyPI as a wheel built by qiskit's own
-# release pipeline, which enables features a `python -m build` from a git
-# checkout does not -- mimalloc among them. `Development version tests` builds
-# qiskit from source, so a defect that only the released wheel exhibits is
-# invisible there no matter how often it runs. Installing the pre-release wheel
-# from PyPI is the only way to see it before the final release lands.
+# A qiskit pre-release is published to PyPI as a wheel built by
+# qiskit's own release pipeline, which at times has enabled features a
+# `python -m build` from a git checkout does not -- mimalloc among
+# them. `Development version tests` builds qiskit from source, so a
+# defect that only the released wheel exhibits is invisible there no
+# matter how often it runs. Installing the pre-release wheel from PyPI
+# is the only way to see it before the final release lands.
 #
 # Running every night is pointless once the newest release is final, since
 # `Latest version tests` resolves that same wheel, so the first job decides
@@ -13,8 +14,6 @@ name: Nightly qiskit prerelease tests
 
 on:
   schedule:
-    # 03:43 UTC, off the hour to miss the top-of-hour crush on GitHub's runners,
-    # and clear of the 01:00 scheduled runs in this repository.
     - cron: '43 3 * * *'
   # Also run when the workflow or its helper changes, so a pull request can
   # exercise it rather than finding out after it lands on main.
@@ -51,10 +50,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install packaging
-      # PyPI rather than the GitHub releases API on purpose: PyPI only knows a
-      # version once its wheels are uploaded, which is the artifact under test.
-      # A GitHub tag appears about an hour earlier, so gating on it would start
-      # runs that have nothing to install.
       - name: Find the newest qiskit on PyPI
         id: release
         run: python tools/latest_qiskit_release.py
@@ -64,12 +59,8 @@ jobs:
     needs: check-for-prerelease
     if: needs.check-for-prerelease.outputs.proceed == 'true'
     runs-on: ${{ matrix.os }}
-    # Matches `Latest version tests`: the notebook run alone takes about 26
-    # minutes, and contended jobs were cancelled at a 30-minute limit.
     timeout-minutes: 60
     strategy:
-      # One failing cell should not hide the state of the rest, which matters
-      # most when a break is specific to one OS.
       fail-fast: false
       max-parallel: 4
       matrix:
@@ -143,8 +134,8 @@ jobs:
           extremal-python-dependencies pin-dependencies --inplace "qiskit==${NEWEST}"
           grep -n 'qiskit==' pyproject.toml
       # Cap the SQD subspace dimension in the Fulqrum guide for CI execution only.
-      # The committed notebook (and the docs site) stay unbounded; this edits the
-      # working-tree copy so tox -e notebook fits in the runner's memory.
+      # This edits the working-tree copy so tox -e notebook fits in
+      # the runner's memory.
       - name: Cap notebook memory for CI
         run: python tools/ci_cap_notebook_memory.py
       - name: Show the installed qiskit
@@ -152,8 +143,6 @@ jobs:
         run: |
           tox -e py --notest
           .tox/py/bin/python -c "import qiskit; print('qiskit', qiskit.__version__)"
-      # Run the environments serially; tox's parallel mode buffers output and a
-      # failing environment's stderr does not survive the replay.
       - name: Test using tox environment
         shell: bash
         env:
