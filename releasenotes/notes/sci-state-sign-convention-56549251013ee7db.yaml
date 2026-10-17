@@ -1,0 +1,7 @@
+---
+other:
+  - |
+    :attr:`qiskit_addon_sqd.fermion.SCIState.amplitudes` now documents the sign
+    convention its amplitudes must follow, which
+    :meth:`~qiskit_addon_sqd.fermion.SCIState.rdm` and
+    :meth:`~qiskit_addon_sqd.fermion.SCIState.spin_square` rely on.
