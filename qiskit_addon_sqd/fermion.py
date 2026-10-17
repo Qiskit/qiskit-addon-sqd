@@ -63,6 +63,13 @@ class SCIState:
     """An :math:`M \\times N` array where :math:`M =` len(``ci_strs_a``)
     and :math:`N` = len(``ci_strs_b``). ``amplitudes[i][j]`` is the
     amplitude of the determinant pair (``ci_strs_a[i]``, ``ci_strs_b[j]``).
+
+    The sign of each amplitude follows the convention PySCF assumes, in which a
+    determinant orders its creation operators with every spin-alpha operator before
+    every spin-beta one. :meth:`rdm` and :meth:`spin_square` pass the amplitudes to
+    PySCF, so a solver that orders them differently must apply the reordering phase
+    before populating this field. Otherwise those methods return wrong values
+    silently, while energies and amplitude magnitudes still look correct.
     """
 
     ci_strs_a: np.ndarray
@@ -512,7 +519,9 @@ def diagonalize_fermionic_hamiltonian(
             - A pair (n_alpha, n_beta) indicating the numbers of alpha and beta
               electrons.
 
-            Output: List of :class:`SCIResult`, one per subspace passed in.
+            Output: List of :class:`SCIResult`, one per subspace passed in. Any
+            eigenvector it returns must follow the sign convention documented in
+            :attr:`SCIState.amplitudes`.
 
             A solver that selects its own carryover CI strings can return them in
             :attr:`SCIResult.carryover`, in which case they are used in place of the
