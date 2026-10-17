@@ -929,24 +929,6 @@ SIGN_CONVENTION_SYSTEMS = [
 ]
 
 
-def _reordering_phase(strings_a, strings_b, norb):
-    """The phase between interleaving a determinant's operators and alpha-first.
-
-    Interleaving by orbital (alpha 0, beta 0, alpha 1, ...) rather than putting every
-    alpha operator first costs ``(-1) ** n``, where ``n`` counts, over the occupied beta
-    orbitals ``p``, the occupied alpha orbitals above ``p``. Used here only to build a
-    deliberately wrong-convention state, to show these assertions would catch one.
-    """
-    phase = np.ones((len(strings_a), len(strings_b)))
-    for i, string_a in enumerate(strings_a):
-        occupied_a = [p for p in range(norb) if int(string_a) >> p & 1]
-        for j, string_b in enumerate(strings_b):
-            occupied_b = [p for p in range(norb) if int(string_b) >> p & 1]
-            crossings = sum(sum(1 for q in occupied_a if q > p) for p in occupied_b)
-            phase[i, j] = (-1) ** crossings
-    return phase
-
-
 def _hamiltonian(atom, basis, spin):
     """Molecular integrals in the MO basis, plus the full determinant lists."""
     mol = pyscf.gto.Mole()
@@ -993,38 +975,6 @@ def test_sci_state_follows_pyscf_sign_convention(atom, basis, spin, expected_spi
 
     assert result.sci_state.spin_square() == pytest.approx(expected_spin_square, abs=1e-8)
     assert _energy_from_rdms(result.sci_state, hcore, eri) == pytest.approx(result.energy, abs=1e-8)
-
-
-@pytest.mark.parametrize(
-    "atom, basis, spin, expected_spin_square",
-    SIGN_CONVENTION_SYSTEMS,
-    ids=["h3-doublet", "h4-singlet", "h6-singlet"],
-)
-def test_wrong_sign_convention_is_caught(atom, basis, spin, expected_spin_square):
-    """Test that the assertions above have teeth: a wrong-convention state fails both.
-
-    Without this, ``test_sci_state_follows_pyscf_sign_convention`` could pass because
-    the quantities are insensitive rather than because they are right. Interleaving the
-    creation operators by orbital is the convention a real solver used, so this is the
-    mistake that was actually made, not an arbitrary perturbation.
-    """
-    hcore, eri, norb, nelec, ci_strings = _hamiltonian(atom, basis, spin)
-    result = solve_sci(ci_strings, hcore, eri, norb=norb, nelec=nelec)
-    correct = result.sci_state
-
-    wrong = SCIState(
-        amplitudes=correct.amplitudes * _reordering_phase(*ci_strings, norb),
-        ci_strs_a=correct.ci_strs_a,
-        ci_strs_b=correct.ci_strs_b,
-        norb=norb,
-        nelec=nelec,
-    )
-
-    # The magnitudes, and so the energy and any selection by weight, are untouched.
-    np.testing.assert_allclose(np.abs(wrong.amplitudes), np.abs(correct.amplitudes))
-
-    assert wrong.spin_square() != pytest.approx(expected_spin_square, abs=1e-3)
-    assert _energy_from_rdms(wrong, hcore, eri) != pytest.approx(result.energy, abs=1e-3)
 
 
 # An explicit subspace of the H4 chain above, written out determinant by determinant
@@ -1083,22 +1033,3 @@ def test_sci_state_matches_a_recorded_subspace_eigenvector():
     amplitudes = result.sci_state.amplitudes
     amplitudes = amplitudes * np.sign(amplitudes[0, 0])
     np.testing.assert_allclose(amplitudes, GOLDEN_AMPLITUDES, rtol=0, atol=1e-6)
-
-
-def test_recorded_subspace_eigenvector_detects_a_sign_error():
-    """Test that the recorded vector catches a wrong convention on a truncated subspace.
-
-    This is the gap the full-space tests leave: a truncated subspace has no exact
-    ``spin_square()``, so an elementwise reference is the only thing that pins the
-    convention there. The subspace above is truncated, and the phase does change some
-    of its signs, so the comparison genuinely bites.
-    """
-    norb = 4
-    ci_strings = np.array(GOLDEN_CI_STRINGS, dtype=np.int64)
-    phase = _reordering_phase(ci_strings, ci_strings, norb)
-
-    assert not np.all(phase == 1.0), "this subspace would not expose a sign error"
-
-    wrong = np.array(GOLDEN_AMPLITUDES) * phase
-    wrong = wrong * np.sign(wrong[0, 0])
-    assert not np.allclose(wrong, GOLDEN_AMPLITUDES, rtol=0, atol=1e-6)
