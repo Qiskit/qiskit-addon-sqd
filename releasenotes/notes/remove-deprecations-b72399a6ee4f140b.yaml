@@ -1,0 +1,70 @@
+---
+upgrade:
+  - |
+    Removed ``qiskit_addon_sqd.configuration_recovery.post_select_by_hamming_weight``, which was deprecated in version 0.12.0. Instead, use :func:`qiskit_addon_sqd.subsampling.postselect_by_hamming_right_and_left`, which returns the postselected bitstring matrix and renormalized probabilities rather than a mask.
+
+    To upgrade, change this code
+
+    .. code-block:: python
+
+        # DEPRECATED CODE
+        from qiskit_addon_sqd.configuration_recovery import post_select_by_hamming_weight
+
+        mask = post_select_by_hamming_weight(
+            bitstring_matrix, hamming_right=num_elec_a, hamming_left=num_elec_b
+        )
+        bitstrings_postsel = bitstring_matrix[mask]
+        probs_postsel = probabilities[mask]
+        probs_postsel = probs_postsel / np.sum(probs_postsel)
+
+        ### SHOULD BECOME ###
+
+        # NEW CODE
+        from qiskit_addon_sqd.subsampling import postselect_by_hamming_right_and_left
+
+        bitstrings_postsel, probs_postsel = postselect_by_hamming_right_and_left(
+            bitstring_matrix, probabilities, hamming_right=num_elec_a, hamming_left=num_elec_b
+        )
+  - |
+    Removed ``qiskit_addon_sqd.subsampling.postselect_and_subsample``, which was deprecated in version 0.12.0. Instead, compose :func:`qiskit_addon_sqd.subsampling.postselect_by_hamming_right_and_left` with :func:`qiskit_addon_sqd.subsampling.subsample`.
+
+    To upgrade, change this code
+
+    .. code-block:: python
+
+        # DEPRECATED CODE
+        from qiskit_addon_sqd.subsampling import postselect_and_subsample
+
+        batches = postselect_and_subsample(
+            bitstring_matrix,
+            probabilities,
+            hamming_right=num_elec_a,
+            hamming_left=num_elec_b,
+            samples_per_batch=samples_per_batch,
+            num_batches=num_batches,
+            rand_seed=rand_seed,
+        )
+
+        ### SHOULD BECOME ###
+
+        # NEW CODE
+        from qiskit_addon_sqd.subsampling import (
+            postselect_by_hamming_right_and_left,
+            subsample,
+        )
+
+        bitstrings_postsel, probs_postsel = postselect_by_hamming_right_and_left(
+            bitstring_matrix,
+            probabilities,
+            hamming_right=num_elec_a,
+            hamming_left=num_elec_b,
+        )
+        batches = subsample(
+            bitstrings_postsel,
+            probs_postsel,
+            samples_per_batch,
+            num_batches,
+            rand_seed=rand_seed,
+        )
+  - |
+    Passing the ``avg_occupancies`` argument of :func:`qiskit_addon_sqd.configuration_recovery.recover_configurations` as a 1D array is no longer supported; this usage was deprecated in version 0.10.0. Pass a length-2 tuple holding the spin-up and spin-down occupancies, respectively, formatted as ``(array([occ_a_0, ..., occ_a_N]), array([occ_b_0, ..., occ_b_N]))``. This is the format in which :func:`qiskit_addon_sqd.fermion.solve_fermion` returns the occupancies.

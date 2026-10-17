@@ -15,45 +15,10 @@
 
 from __future__ import annotations
 
-import warnings
 from collections import defaultdict
 from collections.abc import Sequence
 
 import numpy as np
-from qiskit.utils.deprecation import deprecate_func
-
-
-@deprecate_func(
-    since="0.12.0",
-    package_name="qiskit-addon-sqd",
-    removal_timeline="no earlier than v0.13.0",
-    additional_msg=("Instead, use the ``postselect_by_hamming_right_and_left`` function."),
-)
-def post_select_by_hamming_weight(
-    bitstring_matrix: np.ndarray, *, hamming_right: int, hamming_left: int
-) -> np.ndarray:
-    """Post-select bitstrings based on the hamming weight of each half.
-
-    Args:
-        bitstring_matrix: A 2D array of ``bool`` representations of bit
-            values such that each row represents a single bitstring
-        hamming_right: The target hamming weight of the right half of bitstrings
-        hamming_left: The target hamming weight of the left half of bitstrings
-
-    Returns:
-        A mask signifying which samples (rows) were selected from the input matrix.
-
-    """
-    if hamming_left < 0 or hamming_right < 0:
-        raise ValueError("Hamming weights must be non-negative integers.")
-    num_bits = bitstring_matrix.shape[1]
-
-    # Find the bitstrings with correct hamming weight on both halves
-    up_keepers = np.sum(bitstring_matrix[:, num_bits // 2 :], axis=1) == hamming_right
-    down_keepers = np.sum(bitstring_matrix[:, : num_bits // 2], axis=1) == hamming_left
-    correct_bs_mask = np.array(np.logical_and(up_keepers, down_keepers))
-
-    return correct_bs_mask
 
 
 def recover_configurations(
@@ -95,16 +60,6 @@ def recover_configurations(
              arXiv:2405.05068 [quant-ph].
     """
     rng = np.random.default_rng(rand_seed)
-
-    occ_dims = len(np.array(avg_occupancies).shape)
-    if occ_dims == 1:
-        warnings.warn(
-            "Passing avg_occupancies as a 1D array is deprecated. Pass a length-2 tuple containing the spin-up and spin-down occupancies respectively.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        norb = bitstring_matrix.shape[1] // 2
-        avg_occupancies = (np.flip(avg_occupancies[norb:]), np.flip(avg_occupancies[:norb]))
 
     if num_elec_a < 0 or num_elec_b < 0:
         raise ValueError("The numbers of electrons must be specified as non-negative integers.")
