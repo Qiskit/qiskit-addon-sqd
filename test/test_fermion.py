@@ -975,3 +975,64 @@ def test_sci_state_follows_pyscf_sign_convention(atom, basis, spin, expected_spi
 
     assert result.sci_state.spin_square() == pytest.approx(expected_spin_square, abs=1e-8)
     assert _energy_from_rdms(result.sci_state, hcore, eri) == pytest.approx(result.energy, abs=1e-8)
+
+
+# An explicit subspace of the H4 chain above, written out determinant by determinant
+# rather than generated: alpha and beta each span orbitals {0,1}, {0,2}, {1,2} and
+# {0,3}, with the Hartree-Fock determinant first. Four strings per sector, so a 4x4
+# amplitude matrix small enough to record in full and read by eye.
+GOLDEN_CI_STRINGS = (0b0011, 0b0101, 0b0110, 0b1001)
+
+# The ground state of that subspace, recorded to full double precision. Canonicalized
+# so the Hartree-Fock amplitude is positive, because an eigenvector is only defined up
+# to a global sign. Reproduced bitwise across runs at tol=1e-12, and checked against a
+# dense diagonalization of the subspace Hamiltonian built independently from PySCF
+# contract_2e (agreeing to 0.0 in the energy and elementwise to 1e-11). SBD 1.7.1
+# reproduces them from the same subspace to 3.6e-8, while 1.7.0, which predates its
+# own sign-convention fix, lands 0.16 away with an energy still correct to 1e-15.
+GOLDEN_ENERGY = -4.4543936937167805
+GOLDEN_AMPLITUDES = [
+    [0.9719185556184625, -0.00213225691152554, 0.0074494738060661035, 0.005486127864403891],
+    [-0.0021322569115254865, -0.18793973292372163, 0.017134757062691307, -0.017231298679982056],
+    [0.007449473806066197, 0.017134757062691325, -0.06136557858017357, 0.08194812669137441],
+    [0.005486127864403782, -0.01723129867998209, 0.08194812669137444, -0.038664456515278],
+]
+
+
+def test_sci_state_matches_a_recorded_subspace_eigenvector():
+    """Test the amplitudes against a recorded vector for an explicitly written subspace.
+
+    ``test_sci_state_follows_pyscf_sign_convention`` compares derived quantities, which
+    pins the convention only where those quantities are sensitive to it. This compares
+    the amplitudes themselves, elementwise, so a per-determinant sign has nowhere to
+    hide -- including on a truncated subspace, where ``spin_square()`` has no exact
+    value to be checked against.
+
+    The subspace is written out literally and the reference is recorded rather than
+    recomputed, so this test needs no second eigensolver to run against.
+    """
+    hcore, eri, norb, nelec, _ = _hamiltonian(
+        "H 0 0 0; H 0 0 0.9; H 0 0 1.9; H 0 0 3.0", "sto-3g", 0
+    )
+    ci_strings = np.array(GOLDEN_CI_STRINGS, dtype=np.int64)
+
+    # Davidson converges the energy faster than the eigenvector: at the default
+    # tolerance the energy is already right to 2e-11 while the amplitudes are still
+    # 2e-6 away, which is the atol used below. Converge the eigenvector well past
+    # that atol, so the comparison measures the convention rather than how far the
+    # iteration happened to get.
+    result = solve_sci((ci_strings, ci_strings), hcore, eri, norb=norb, nelec=nelec, tol=1e-12)
+
+    assert result.energy == pytest.approx(GOLDEN_ENERGY, abs=1e-9)
+    np.testing.assert_array_equal(result.sci_state.ci_strs_a, ci_strings)
+    np.testing.assert_array_equal(result.sci_state.ci_strs_b, ci_strings)
+
+    # Only the relative signs are physical, so compare after fixing the global one.
+    # A wrong convention flips signs outright, moving the affected amplitudes by
+    # orders of magnitude more than this atol, so 1e-6 catches one with room to spare
+    # while still admitting a solver whose iteration stops a little short. rtol is
+    # pinned to 0 because assert_allclose otherwise adds rtol * |desired|, and its
+    # 1e-5 default would set the real tolerance near 1e-5 on these O(1) amplitudes.
+    amplitudes = result.sci_state.amplitudes
+    amplitudes = amplitudes * np.sign(amplitudes[0, 0])
+    np.testing.assert_allclose(amplitudes, GOLDEN_AMPLITUDES, rtol=0, atol=1e-6)
