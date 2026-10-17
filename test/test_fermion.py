@@ -1016,8 +1016,11 @@ def test_sci_state_matches_a_recorded_subspace_eigenvector():
     )
     ci_strings = np.array(GOLDEN_CI_STRINGS, dtype=np.int64)
 
-    # The default tolerance converges the energy but leaves the vector good to only
-    # ~1e-6, which is looser than the sign error this is meant to detect.
+    # Davidson converges the energy faster than the eigenvector: at the default
+    # tolerance the energy is already right to 2e-11 while the amplitudes are still
+    # 2e-6 away, which is the atol used below. Converge the eigenvector well past
+    # that atol, so the comparison measures the convention rather than how far the
+    # iteration happened to get.
     result = solve_sci((ci_strings, ci_strings), hcore, eri, norb=norb, nelec=nelec, tol=1e-12)
 
     assert result.energy == pytest.approx(GOLDEN_ENERGY, abs=1e-9)
@@ -1025,9 +1028,11 @@ def test_sci_state_matches_a_recorded_subspace_eigenvector():
     np.testing.assert_array_equal(result.sci_state.ci_strs_b, ci_strings)
 
     # Only the relative signs are physical, so compare after fixing the global one.
-    # 1e-6 is loose enough for any solver that converges this vector -- SBD's Davidson
-    # lands 3.6e-8 away -- and still eight orders of magnitude tighter than the 0.16
-    # that a wrong sign convention moves the largest element by.
+    # A wrong convention flips signs outright, moving the affected amplitudes by
+    # orders of magnitude more than this atol, so 1e-6 catches one with room to spare
+    # while still admitting a solver whose iteration stops a little short. rtol is
+    # pinned to 0 because assert_allclose otherwise adds rtol * |desired|, and its
+    # 1e-5 default would set the real tolerance near 1e-5 on these O(1) amplitudes.
     amplitudes = result.sci_state.amplitudes
     amplitudes = amplitudes * np.sign(amplitudes[0, 0])
     np.testing.assert_allclose(amplitudes, GOLDEN_AMPLITUDES, rtol=0, atol=1e-6)
