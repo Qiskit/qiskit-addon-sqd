@@ -102,6 +102,7 @@ modindex_common_prefix = ["qiskit_addon_sqd."]
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "qiskit": ("https://quantum.cloud.ibm.com/docs/api/qiskit/", None),
     "rustworkx": ("https://www.rustworkx.org/", None),
 }
@@ -114,7 +115,6 @@ plot_html_show_source_link = False
 # ----------------------------------------------------------------------------------
 
 _inlined_apis = [
-    ("qiskit_addon_sqd.configuration_recovery", "post_select_by_hamming_weight"),
     ("qiskit_addon_sqd.configuration_recovery", "recover_configurations"),
     ("qiskit_addon_sqd.counts", "counts_to_arrays"),
     ("qiskit_addon_sqd.counts", "generate_counts_uniform"),
@@ -131,7 +131,6 @@ _inlined_apis = [
     ("qiskit_addon_sqd.qubit", "sort_and_remove_duplicates"),
     ("qiskit_addon_sqd.qubit", "matrix_elements_from_pauli"),
     ("qiskit_addon_sqd.subsampling", "subsample"),
-    ("qiskit_addon_sqd.subsampling", "postselect_and_subsample"),
 ]
 
 redirects = {
