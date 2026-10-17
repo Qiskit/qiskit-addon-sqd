@@ -1009,9 +1009,7 @@ def test_sci_state_matches_a_recorded_subspace_eigenvector():
     value to be checked against.
 
     The subspace is written out literally and the reference is recorded rather than
-    recomputed, so this test needs no second eigensolver to run against. That is what
-    makes it reusable: any solver can be pointed at the same subspace and compared to
-    the same numbers.
+    recomputed, so this test needs no second eigensolver to run against.
     """
     hcore, eri, norb, nelec, _ = _hamiltonian(
         "H 0 0 0; H 0 0 0.9; H 0 0 1.9; H 0 0 3.0", "sto-3g", 0
