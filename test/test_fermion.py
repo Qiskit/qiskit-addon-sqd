@@ -918,3 +918,60 @@ def test_policies_are_picklable():
 def test_standard_policy_satisfies_the_protocol():
     """The protocol is runtime-checkable, so a user can assert conformance."""
     assert isinstance(StandardPolicy(), SubspacePolicy)
+
+
+# (atom, basis, 2S, exact spin_square). Full spaces only: on a truncated subspace the
+# eigenvector is not a spin eigenstate, so there is no exact value to compare against.
+SIGN_CONVENTION_SYSTEMS = [
+    ("H 0 0 0; H 0 0 0.8; H 0 0 2.2", "sto-3g", 1, 0.75),
+    ("H 0 0 0; H 0 0 0.9; H 0 0 1.9; H 0 0 3.0", "sto-3g", 0, 0.0),
+    ("; ".join(f"H 0 0 {0.95 * i:.2f}" for i in range(6)), "sto-3g", 0, 0.0),
+]
+
+
+def _hamiltonian(atom, basis, spin):
+    """Molecular integrals in the MO basis, plus the full determinant lists."""
+    mol = pyscf.gto.Mole()
+    mol.build(atom=atom, basis=basis, spin=spin, symmetry=False, verbose=0)
+    mean_field = (pyscf.scf.ROHF if spin else pyscf.scf.RHF)(mol)
+    mean_field.conv_tol = 1e-12
+    mean_field.run()
+    norb = mol.nao
+    hcore = mean_field.mo_coeff.T @ pyscf.scf.hf.get_hcore(mol) @ mean_field.mo_coeff
+    eri = pyscf.ao2mo.restore(1, pyscf.ao2mo.kernel(mol, mean_field.mo_coeff), norb)
+    strings_a = np.asarray(cistring.make_strings(range(norb), mol.nelec[0]))
+    strings_b = np.asarray(cistring.make_strings(range(norb), mol.nelec[1]))
+    return hcore, eri, norb, mol.nelec, (strings_a, strings_b)
+
+
+def _energy_from_rdms(sci_state, hcore, eri):
+    """Rebuild the energy the way a caller of SCIResult.rdm1/rdm2 contracts them."""
+    return np.einsum("pr,pr->", sci_state.rdm(rank=1, spin_summed=True), hcore) + 0.5 * np.einsum(
+        "prqs,prqs->", sci_state.rdm(rank=2, spin_summed=True), eri
+    )
+
+
+@pytest.mark.parametrize(
+    "atom, basis, spin, expected_spin_square",
+    SIGN_CONVENTION_SYSTEMS,
+    ids=["h3-doublet", "h4-singlet", "h6-singlet"],
+)
+def test_sci_state_follows_pyscf_sign_convention(atom, basis, spin, expected_spin_square):
+    """What SCIState computes through PySCF must agree with the physics.
+
+    ``rdm()`` and ``spin_square()`` hand the amplitudes to PySCF, so they are only
+    correct if the amplitudes follow the convention documented on
+    :attr:`SCIState.amplitudes`. Neither the energy nor any amplitude magnitude depends
+    on that convention, so a solver can get it wrong and still look right everywhere
+    else -- these two quantities are what notice.
+
+    The references are physics, not recorded output. Over a full determinant space the
+    eigenvector is a spin eigenstate, so ``spin_square()`` must be exactly
+    :math:`S(S+1)`; and the energy rebuilt from the RDMs must equal the eigenvalue the
+    solver itself returned, whatever that value happens to be.
+    """
+    hcore, eri, norb, nelec, ci_strings = _hamiltonian(atom, basis, spin)
+    result = solve_sci(ci_strings, hcore, eri, norb=norb, nelec=nelec)
+
+    assert result.sci_state.spin_square() == pytest.approx(expected_spin_square, abs=1e-8)
+    assert _energy_from_rdms(result.sci_state, hcore, eri) == pytest.approx(result.energy, abs=1e-8)
