@@ -1,0 +1,13 @@
+---
+fixes:
+  - |
+    Fixed an issue in :func:`~qiskit_addon_sqd.fermion.rotate_integrals` where
+    orbital rotations for four or more orbitals (``norb >= 4``) generated a
+    generator matrix that was not anti-symmetric due to an indexing mismatch
+    between upper and lower triangles, causing the transformation not to be
+    orthogonal and altering the Hamiltonian spectrum.
+  - |
+    Fixed an issue in :func:`~qiskit_addon_sqd.fermion.optimize_orbitals` where
+    orbital rotation parameters ``k_flat`` were not updated during optimization
+    because subtraction of the JAX gradient array rebound the variable in the
+    gradient descent step rather than updating the array in place.

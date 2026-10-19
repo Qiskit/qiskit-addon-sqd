@@ -20,6 +20,7 @@ import numpy as np
 import pyscf
 import pyscf.mcscf
 import pytest
+import scipy.linalg
 from pyscf.fci import cistring, spin_square
 from qiskit.primitives import BitArray
 from qiskit_addon_sqd.counts import generate_bit_array_uniform
@@ -29,9 +30,13 @@ from qiskit_addon_sqd.fermion import (
     StandardPolicy,
     SubspacePolicy,
     SubspaceRequest,
+    _antisymmetric_matrix_from_upper_tri,
+    _optimize_orbitals_sci,
     batch_to_ci_strings,
     bitstring_matrix_to_ci_strs,
     diagonalize_fermionic_hamiltonian,
+    optimize_orbitals,
+    rotate_integrals,
     solve_sci,
     solve_sci_batch,
 )
@@ -1036,3 +1041,83 @@ def test_sci_state_matches_a_recorded_subspace_eigenvector():
     amplitudes = result.sci_state.amplitudes
     amplitudes = amplitudes * np.sign(amplitudes[0, 0])
     np.testing.assert_allclose(amplitudes, GOLDEN_AMPLITUDES, rtol=0, atol=1e-6)
+
+
+@pytest.mark.parametrize("norb", [2, 3, 4, 5, 6])
+def test_antisymmetric_matrix_from_upper_tri(norb):
+    """Test that _antisymmetric_matrix_from_upper_tri produces an antisymmetric matrix."""
+    num_params = norb * (norb - 1) // 2
+    k_flat = np.linspace(0.1, 0.9, num_params)
+    K = np.asarray(_antisymmetric_matrix_from_upper_tri(k_flat, norb))
+
+    np.testing.assert_allclose(K, -K.T)
+    U = scipy.linalg.expm(K)
+    np.testing.assert_allclose(U.T @ U, np.eye(norb), atol=1e-12)
+    np.testing.assert_allclose(K[np.triu_indices(norb, k=1)], k_flat)
+
+
+def test_rotate_integrals_preserves_fci_spectrum():
+    """Test that rotate_integrals acts as an orthogonal similarity transform and preserves FCI energy."""
+    hcore, eri, norb, nelec, _ = _hamiltonian(
+        "H 0 0 0; H 0 0 0.9; H 0 0 1.9; H 0 0 3.0", "sto-3g", 0
+    )
+    e_orig = pyscf.fci.direct_spin1.kernel(hcore, eri, norb, nelec)[0]
+
+    num_params = norb * (norb - 1) // 2
+    k_flat = np.array([0.1, -0.2, 0.3, 0.15, -0.25, 0.05])
+    with pytest.deprecated_call():
+        hcore_rot, eri_rot = rotate_integrals(hcore, eri, k_flat)
+
+    e_rot = pyscf.fci.direct_spin1.kernel(hcore_rot, eri_rot, norb, nelec)[0]
+    assert e_rot == pytest.approx(e_orig, abs=1e-10)
+
+    # Invalid k_flat length raises ValueError
+    with (
+        pytest.deprecated_call(),
+        pytest.raises(ValueError, match="k_flat must specify the upper triangle"),
+    ):
+        rotate_integrals(hcore, eri, np.zeros(num_params + 1))
+
+
+def test_optimize_orbitals_updates_k_flat():
+    """Test that optimize_orbitals and _optimize_orbitals_sci update k_flat."""
+    hcore, eri, norb, _nelec, _ = _hamiltonian(
+        "H 0 0 0; H 0 0 0.9; H 0 0 1.9; H 0 0 3.0", "sto-3g", 0
+    )
+    num_params = norb * (norb - 1) // 2
+
+    # Invalid k_flat length raises ValueError
+    with (
+        pytest.deprecated_call(),
+        pytest.raises(ValueError, match="k_flat must specify the upper triangle"),
+    ):
+        optimize_orbitals(([0b0011], [0b0011]), hcore, eri, np.zeros(num_params + 1))
+
+    # Calling with CI strings
+    ci_strs = (np.array([0b0011, 0b0101]), np.array([0b0011, 0b0101]))
+    k_init = np.zeros(num_params)
+    with pytest.deprecated_call():
+        _e_opt, k_opt, _occs = optimize_orbitals(
+            ci_strs, hcore, eri, k_init, num_iters=2, num_steps_grad=10
+        )
+    assert np.abs(k_opt).max() > 1e-4
+
+    # Calling with a bitstring matrix
+    bts = np.array(
+        [
+            [True, True, False, False, True, True, False, False],
+            [True, False, True, False, True, False, True, False],
+        ]
+    )
+    with pytest.deprecated_call():
+        _e_opt_bts, k_opt_bts, _ = optimize_orbitals(
+            bts, hcore, eri, np.zeros(num_params), num_iters=1, num_steps_grad=5
+        )
+    assert np.abs(k_opt_bts).max() > 1e-4
+
+    # Direct in-place update in _optimize_orbitals_sci
+    dm1 = np.diag([2.0, 2.0, 0.0, 0.0])
+    dm2 = np.zeros((norb, norb, norb, norb))
+    k_sci = np.zeros(num_params)
+    _optimize_orbitals_sci(k_sci, 0.01, 0.9, 5, dm1, dm2, hcore, eri)
+    assert np.abs(k_sci).max() > 1e-4
