@@ -43,7 +43,7 @@ sbd = [
 ]
 dev = [
     "qiskit-addon-sqd[test,nbtest,lint,docs]",
-    "tox>=4.4.3",
+    "tox>=4.21.2",
 ]
 basetest = [
     "pytest>=8.0",
