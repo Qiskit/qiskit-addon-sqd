@@ -1661,13 +1661,8 @@ def enlarge_batch_from_transitions(
 
 def _antisymmetric_matrix_from_upper_tri(k_flat: np.ndarray, k_dim: int) -> Array:
     """Create an anti-symmetric matrix given the upper triangle."""
-    K = jnp.zeros((k_dim, k_dim))
-    upper_indices = jnp.triu_indices(k_dim, k=1)
-    lower_indices = jnp.tril_indices(k_dim, k=-1)
-    K = K.at[upper_indices].set(k_flat)
-    K = K.at[lower_indices].set(-k_flat)
-
-    return K
+    upper = jnp.zeros((k_dim, k_dim)).at[jnp.triu_indices(k_dim, k=1)].set(k_flat)
+    return upper - upper.T
 
 
 def _check_ci_strs(
@@ -1709,9 +1704,9 @@ def _optimize_orbitals_sci(
 
     This procedure is described in `Sec. II A 4 <https://arxiv.org/pdf/2405.05068>`_.
     """
-    prev_update = np.zeros(len(k_flat))
+    prev_update: np.ndarray = np.zeros(len(k_flat))
     for _ in range(num_steps):
-        grad = _SCISCF_Energy_contract_grad(dm1, dm2, hcore, eri, k_flat)
+        grad = np.asarray(_SCISCF_Energy_contract_grad(dm1, dm2, hcore, eri, k_flat))
         prev_update = learning_rate * grad + momentum * prev_update
         k_flat -= prev_update
 
