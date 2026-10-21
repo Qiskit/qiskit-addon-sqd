@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from qiskit.primitives import BitArray
 from qiskit_addon_sqd.counts import generate_bit_array_uniform
 from qiskit_addon_sqd.fermion import (
     SCIResult,
@@ -351,3 +352,37 @@ def test_merged_subspace_is_spin_symmetric():
     )
 
     assert not violations, f"subspaces with unequal spin sectors: {violations}"
+
+
+def test_trim_policy_ranks_by_sample_frequency():
+    """TrimPolicy respects sample frequency when truncating to max_dim (#396)."""
+    norb, nelec = 4, (1, 1)
+    rng = np.random.default_rng(0)
+    h1 = rng.normal(size=(norb, norb))
+    h1 = h1 + h1.T
+    h2 = np.zeros((norb,) * 4)
+
+    def bs(a, b):
+        return format(b, f"0{norb}b") + format(a, f"0{norb}b")
+
+    counts = {
+        bs(0b0001, 0b0001): 9000,
+        bs(0b0010, 0b0001): 10,
+        bs(0b0010, 0b0010): 10,
+        bs(0b0010, 0b0100): 10,
+    }
+    bit_array = BitArray.from_counts(counts, num_bits=2 * norb)
+
+    result = diagonalize_fermionic_hamiltonian(
+        h1,
+        h2,
+        bit_array,
+        samples_per_batch=100,
+        norb=norb,
+        nelec=nelec,
+        max_iterations=1,
+        max_dim=(1, 3),
+        seed=0,
+        policy=TrimPolicy(),
+    )
+    assert [int(x) for x in result.sci_state.ci_strs_a] == [1]

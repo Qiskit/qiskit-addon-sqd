@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Callable, Protocol, cast, runtime_checkable
 
@@ -415,12 +416,14 @@ class StandardPolicy:
             num_batches=request.num_batches,
             rand_seed=request.rng,
         )
+        prob_dict = _bitstring_probability_map(request.bitstrings, request.probabilities)
         return [
             batch_to_ci_strings(
                 batch,
                 request.norb,
                 request.carryover_strings_a,
                 request.carryover_strings_b,
+                probabilities=_batch_probabilities(batch, prob_dict),
                 symmetrize_spin=request.symmetrize_spin,
             )
             for batch in batches
@@ -891,13 +894,15 @@ def batch_to_ci_strings(
     carryover_strings_a: np.ndarray | None = None,
     carryover_strings_b: np.ndarray | None = None,
     *,
+    probabilities: np.ndarray | None = None,
     symmetrize_spin: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Convert a batch of bitstrings into a pair of per-spin CI string arrays.
 
-    The strings of each spin sector are returned in descending order of the number of
-    times they were sampled, with any carryover strings ahead of them. That order is
-    what a later truncation to a maximum dimension keeps, so it matters.
+    The strings of each spin sector are returned in descending order of their marginal
+    weight (by sample frequency or summed probability), with any carryover strings
+    ahead of them. That order is what a later truncation to a maximum dimension keeps, so
+    it matters.
 
     This is the step a subspace policy needs in order to turn subsampled bitstrings into
     a subspace, and it is exposed so that a policy does not have to reimplement it.
@@ -911,6 +916,9 @@ def batch_to_ci_strings(
             in the order they should be kept. Defaults to none.
         carryover_strings_b: The same for spin beta. When ``symmetrize_spin`` is set,
             this is ignored, since the two sectors hold the same strings.
+        probabilities: A 1D array of probabilities or weights for each bitstring in
+            ``batch``. When omitted, each bitstring in ``batch`` is given equal weight
+            (ranking by the number of times each single-spin string appears in ``batch``).
         symmetrize_spin: Whether to merge the two spin sectors into a single list of
             strings, used for both. The merge happens before the strings are ranked, so
             that the ranking is over both sectors at once rather than within each.
@@ -919,6 +927,14 @@ def batch_to_ci_strings(
         The spin-alpha and spin-beta CI string arrays. When ``symmetrize_spin`` is set,
         the two are the same array.
     """
+    if probabilities is not None:
+        probabilities = np.asarray(probabilities)
+        if probabilities.shape != (batch.shape[0],):
+            raise ValueError(
+                f"The number of probabilities ({len(probabilities)}) must match "
+                f"the number of bitstrings in batch ({batch.shape[0]})."
+            )
+
     # Get the single-spin bitstrings.
     samples_a = bitstring_matrix_to_integers(batch[:, norb:])
     samples_b = bitstring_matrix_to_integers(batch[:, :norb])
@@ -931,20 +947,50 @@ def batch_to_ci_strings(
     if symmetrize_spin:
         # Merge the spin sectors before counting so that a string sampled in both
         # sectors is ranked by its combined marginal probability.
-        samples, counts = np.unique(np.concatenate((samples_a, samples_b)), return_counts=True)
+        samples = np.concatenate((samples_a, samples_b))
+        weights_concat = (
+            np.concatenate((probabilities, probabilities)) if probabilities is not None else None
+        )
+        unique_s, inverse_s = np.unique(samples, return_inverse=True)
+        weights_s = np.bincount(inverse_s, weights=weights_concat)
         # Sort the single-spin bitstrings in descending order by marginal probability.
-        samples = samples[np.argsort(-counts, kind="stable")]
+        sorted_s = unique_s[np.argsort(-weights_s, kind="stable")]
         # Note that in this case, carryover_strings_a and carryover_strings_b are equal.
-        strs_a = strs_b = np.concatenate((carryover_strings_a, samples))
+        strs_a = strs_b = np.concatenate((carryover_strings_a, sorted_s))
     else:
-        samples_a, counts_a = np.unique(samples_a, return_counts=True)
-        samples_b, counts_b = np.unique(samples_b, return_counts=True)
+        unique_a, inverse_a = np.unique(samples_a, return_inverse=True)
+        weights_a = np.bincount(inverse_a, weights=probabilities)
         # Sort the single-spin bitstrings in descending order by marginal probability.
-        samples_a = samples_a[np.argsort(-counts_a, kind="stable")]
-        samples_b = samples_b[np.argsort(-counts_b, kind="stable")]
-        strs_a = np.concatenate((carryover_strings_a, samples_a))
-        strs_b = np.concatenate((carryover_strings_b, samples_b))
+        sorted_a = unique_a[np.argsort(-weights_a, kind="stable")]
+
+        unique_b, inverse_b = np.unique(samples_b, return_inverse=True)
+        weights_b = np.bincount(inverse_b, weights=probabilities)
+        sorted_b = unique_b[np.argsort(-weights_b, kind="stable")]
+
+        strs_a = np.concatenate((carryover_strings_a, sorted_a))
+        strs_b = np.concatenate((carryover_strings_b, sorted_b))
     return strs_a, strs_b
+
+
+def _bitstring_probability_map(
+    bitstrings: np.ndarray, probabilities: np.ndarray
+) -> dict[int, float]:
+    """Map each integer bitstring to its probability."""
+    prob_dict: dict[int, float] = defaultdict(float)
+    for b, p in zip(bitstring_matrix_to_integers(bitstrings), probabilities):
+        prob_dict[b] += float(p)
+    return prob_dict
+
+
+def _batch_probabilities(batch: np.ndarray, prob_dict: dict[int, float]) -> np.ndarray:
+    """Extract probabilities for each bitstring in a batch from a probability map."""
+    if len(batch) == 0:
+        return np.array([], dtype=float)
+    return np.fromiter(
+        (prob_dict[b] for b in bitstring_matrix_to_integers(batch)),
+        dtype=float,
+        count=len(batch),
+    )
 
 
 def _apply_shape_constraints(

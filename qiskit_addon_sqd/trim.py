@@ -37,6 +37,8 @@ import numpy as np
 from .fermion import (
     SCIResult,
     SubspaceRequest,
+    _batch_probabilities,
+    _bitstring_probability_map,
     _select_carryover,
     _unique_with_order_preserved,
     batch_to_ci_strings,
@@ -240,12 +242,14 @@ class TrimPolicy:
             num_batches=request.num_batches,
             rand_seed=request.rng,
         )
+        prob_dict = _bitstring_probability_map(request.bitstrings, request.probabilities)
         return [
             batch_to_ci_strings(
                 batch,
                 request.norb,
                 request.carryover_strings_a,
                 request.carryover_strings_b,
+                probabilities=_batch_probabilities(batch, prob_dict),
                 symmetrize_spin=request.symmetrize_spin,
             )
             for batch in batches

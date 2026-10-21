@@ -1,0 +1,13 @@
+---
+fixes:
+  - |
+    Fixed an issue in :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian`
+    where ``max_dim`` truncation ranked single-spin CI strings by the count of
+    distinct bitstrings containing them rather than their sample frequency or
+    marginal probability. Subspaces are now ranked using the summed probabilities
+    of the sampled bitstrings, preventing dominant configurations from being
+    erroneously discarded.
+  - |
+    Added an optional ``probabilities`` argument to
+    :func:`~qiskit_addon_sqd.fermion.batch_to_ci_strings` to weight single-spin
+    CI strings by their sampled probabilities when ranking.
