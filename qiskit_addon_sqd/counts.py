@@ -194,7 +194,7 @@ def bitstring_matrix_to_integers(bitstring_matrix: np.ndarray) -> np.ndarray:
         dtype = object
         bitstring_matrix = bitstring_matrix.astype(object)
 
-    result = np.zeros(n_bitstrings, dtype=dtype)
+    result: np.ndarray = np.zeros(n_bitstrings, dtype=dtype)
     for i in range(n_bits):
         result += bitstring_matrix[:, i] * (1 << (n_bits - 1 - i))
 
