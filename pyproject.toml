@@ -14,7 +14,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -22,7 +21,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 dependencies = [
     "qiskit>=2.0, <3",
@@ -104,14 +103,16 @@ only-include = [
 ]
 
 [tool.mypy]
-python_version = "3.10"
+# Deliberately ahead of requires-python.  numpy's stubs use PEP 695 "type"
+# statements, which mypy rejects unless it is analyzing as 3.12 or later.
+python_version = "3.12"
 show_error_codes = true
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
 
 [tool.pylint]
-py-version = "3.10"
+py-version = "3.11"
 load-plugins = ["pylint.extensions.no_self_use"]
 
 [tool.pylint."messages control"]
