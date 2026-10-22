@@ -156,6 +156,41 @@ class TestSubsampling(unittest.TestCase):
             self.assertEqual(num_batches, len(batches))
             self.assertEqual(0, batches[0].shape[0])
 
+        with self.subTest("Return probabilities"):
+            samples_per_batch = 3
+            num_batches = 4
+            non_uniform_probs = np.linspace(0.1, 1.0, len(self.bitstring_matrix))
+            non_uniform_probs /= non_uniform_probs.sum()
+            batches, batch_probs = subsample(
+                self.bitstring_matrix,
+                non_uniform_probs,
+                samples_per_batch,
+                num_batches,
+                rand_seed=42,
+                return_probabilities=True,
+            )
+            self.assertEqual(num_batches, len(batches))
+            self.assertEqual(num_batches, len(batch_probs))
+            prob_map = {tuple(bs): p for bs, p in zip(self.bitstring_matrix, non_uniform_probs)}
+            for batch, probs in zip(batches, batch_probs):
+                self.assertEqual(samples_per_batch, batch.shape[0])
+                self.assertEqual(samples_per_batch, len(probs))
+                expected = np.array([prob_map[tuple(bs)] for bs in batch])
+                np.testing.assert_allclose(probs, expected)
+
+        with self.subTest("Empty matrix with return_probabilities"):
+            batches, batch_probs = subsample(
+                np.array([]),
+                np.array([]),
+                samples_per_batch=2,
+                num_batches=3,
+                return_probabilities=True,
+            )
+            self.assertEqual(3, len(batches))
+            self.assertEqual(3, len(batch_probs))
+            self.assertEqual(0, batches[0].shape[0])
+            self.assertEqual(0, len(batch_probs[0]))
+
     def test_partition_subsample(self):
         def as_rows(batch):
             """Represent the rows of a batch as hashable tuples."""
@@ -228,3 +263,34 @@ class TestSubsampling(unittest.TestCase):
                 e_info.value.args[0]
                 == "The number of batches must be specified with a positive integer."
             )
+        with self.subTest("Return probabilities"):
+            non_uniform_probs = np.linspace(0.1, 1.0, len(self.bitstring_matrix))
+            non_uniform_probs /= non_uniform_probs.sum()
+            batches, batch_probs = partition_subsample(
+                self.bitstring_matrix,
+                non_uniform_probs,
+                samples_per_batch=3,
+                num_batches=4,
+                rand_seed=42,
+                return_probabilities=True,
+            )
+            self.assertEqual(4, len(batches))
+            self.assertEqual(4, len(batch_probs))
+            prob_map = {tuple(bs): p for bs, p in zip(self.bitstring_matrix, non_uniform_probs)}
+            for batch, probs in zip(batches, batch_probs):
+                self.assertEqual(3, batch.shape[0])
+                self.assertEqual(3, len(probs))
+                expected = np.array([prob_map[tuple(bs)] for bs in batch])
+                np.testing.assert_allclose(probs, expected)
+        with self.subTest("Empty input with return_probabilities"):
+            batches, batch_probs = partition_subsample(
+                np.array([]),
+                np.array([]),
+                samples_per_batch=2,
+                num_batches=3,
+                return_probabilities=True,
+            )
+            self.assertEqual(3, len(batches))
+            self.assertEqual(3, len(batch_probs))
+            self.assertEqual(0, batches[0].shape[0])
+            self.assertEqual(0, len(batch_probs[0]))

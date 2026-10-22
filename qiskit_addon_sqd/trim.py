@@ -37,8 +37,6 @@ import numpy as np
 from .fermion import (
     SCIResult,
     SubspaceRequest,
-    _batch_probabilities,
-    _bitstring_probability_map,
     _select_carryover,
     _unique_with_order_preserved,
     batch_to_ci_strings,
@@ -235,22 +233,22 @@ class TrimPolicy:
 
     def prepare_subspaces(self, request: SubspaceRequest) -> list[tuple[np.ndarray, np.ndarray]]:
         """Divide one pool of bitstrings among the batches, so that they are disjoint."""
-        batches = partition_subsample(
+        batches, batch_probabilities = partition_subsample(
             request.bitstrings,
             request.probabilities,
             samples_per_batch=request.samples_per_batch,
             num_batches=request.num_batches,
             rand_seed=request.rng,
+            return_probabilities=True,
         )
-        prob_dict = _bitstring_probability_map(request.bitstrings, request.probabilities)
         return [
             batch_to_ci_strings(
                 batch,
                 request.norb,
                 request.carryover_strings_a,
                 request.carryover_strings_b,
-                probabilities=_batch_probabilities(batch, prob_dict),
+                probabilities=probs,
                 symmetrize_spin=request.symmetrize_spin,
             )
-            for batch in batches
+            for batch, probs in zip(batches, batch_probabilities)
         ]

@@ -684,21 +684,22 @@ def test_sci_state_save_load(tmp_path):
     assert loaded_state.nelec == sci_state.nelec
 
 
-def test_batch_to_ci_strings_ranks_by_sample_count():
-    """Strings are returned by descending number of times sampled, carryover first."""
+def test_batch_to_ci_strings_unweighted_ranks_by_occurrence():
+    """Without probabilities, strings are ranked by occurrences across distinct batch rows."""
     norb = 3
     # Beta is the left half of a row, alpha the right half, and rows are MSB-first.
     a1, a2 = [True, True, False], [True, False, True]  # 0b110, 0b101
     b1, b2 = [False, True, True], [True, True, False]  # 0b011, 0b110
-    batch = np.array([b1 + a1, b1 + a1, b2 + a2])
-    # Alpha 0b110 sampled twice, 0b101 once. Beta 0b011 twice, 0b110 once.
+    # All 3 rows are distinct; a2 and b1 each appear in two rows while a1 and b2 appear in one.
+    batch = np.array([b1 + a1, b1 + a2, b2 + a2])
+    # Alpha 0b101 (a2) appears twice, 0b110 (a1) once. Beta 0b011 (b1) twice, 0b110 (b2) once.
     strs_a, strs_b = batch_to_ci_strings(batch, norb)
-    assert list(strs_a) == [0b110, 0b101]
+    assert list(strs_a) == [0b101, 0b110]
     assert list(strs_b) == [0b011, 0b110]
 
-    # Carryover strings come first, in the order given, regardless of sample counts.
-    strs_a, _ = batch_to_ci_strings(batch, norb, np.array([0b101, 0b011]), np.array([]))
-    assert list(strs_a) == [0b101, 0b011, 0b110, 0b101]
+    # Carryover strings come first, in the order given, regardless of occurrence counts.
+    strs_a, _ = batch_to_ci_strings(batch, norb, np.array([0b110, 0b011]), np.array([]))
+    assert list(strs_a) == [0b110, 0b011, 0b101, 0b110]
 
 
 def test_batch_to_ci_strings_symmetrize_spin_ranks_across_sectors():

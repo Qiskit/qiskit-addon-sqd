@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import math
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import Callable, Protocol, cast, runtime_checkable
 
@@ -409,24 +408,24 @@ class StandardPolicy:
 
     def prepare_subspaces(self, request: SubspaceRequest) -> list[tuple[np.ndarray, np.ndarray]]:
         """Subsample the batches independently and build a subspace from each."""
-        batches = subsample(
+        batches, batch_probabilities = subsample(
             request.bitstrings,
             request.probabilities,
             samples_per_batch=request.samples_per_batch,
             num_batches=request.num_batches,
             rand_seed=request.rng,
+            return_probabilities=True,
         )
-        prob_dict = _bitstring_probability_map(request.bitstrings, request.probabilities)
         return [
             batch_to_ci_strings(
                 batch,
                 request.norb,
                 request.carryover_strings_a,
                 request.carryover_strings_b,
-                probabilities=_batch_probabilities(batch, prob_dict),
+                probabilities=probs,
                 symmetrize_spin=request.symmetrize_spin,
             )
-            for batch in batches
+            for batch, probs in zip(batches, batch_probabilities)
         ]
 
     def refine(
@@ -900,9 +899,9 @@ def batch_to_ci_strings(
     """Convert a batch of bitstrings into a pair of per-spin CI string arrays.
 
     The strings of each spin sector are returned in descending order of their marginal
-    weight (by sample frequency or summed probability), with any carryover strings
-    ahead of them. That order is what a later truncation to a maximum dimension keeps, so
-    it matters.
+    weight (by summed pool probability, or sample occurrence count when unweighted), with
+    any carryover strings ahead of them. That order is what a later truncation to a
+    maximum dimension keeps, so it matters.
 
     This is the step a subspace policy needs in order to turn subsampled bitstrings into
     a subspace, and it is exposed so that a policy does not have to reimplement it.
@@ -917,8 +916,10 @@ def batch_to_ci_strings(
         carryover_strings_b: The same for spin beta. When ``symmetrize_spin`` is set,
             this is ignored, since the two sectors hold the same strings.
         probabilities: A 1D array of probabilities or weights for each bitstring in
-            ``batch``. When omitted, each bitstring in ``batch`` is given equal weight
-            (ranking by the number of times each single-spin string appears in ``batch``).
+            ``batch``, corresponding to their probabilities from the full sampled pool or
+            distribution (unnormalized within the batch). When omitted, each bitstring in
+            ``batch`` is given equal weight (ranking by the number of occurrences of each
+            single-spin string across the batch rows).
         symmetrize_spin: Whether to merge the two spin sectors into a single list of
             strings, used for both. The merge happens before the strings are ranked, so
             that the ranking is over both sectors at once rather than within each.
@@ -970,27 +971,6 @@ def batch_to_ci_strings(
         strs_a = np.concatenate((carryover_strings_a, sorted_a))
         strs_b = np.concatenate((carryover_strings_b, sorted_b))
     return strs_a, strs_b
-
-
-def _bitstring_probability_map(
-    bitstrings: np.ndarray, probabilities: np.ndarray
-) -> dict[int, float]:
-    """Map each integer bitstring to its probability."""
-    prob_dict: dict[int, float] = defaultdict(float)
-    for b, p in zip(bitstring_matrix_to_integers(bitstrings), probabilities):
-        prob_dict[b] += float(p)
-    return prob_dict
-
-
-def _batch_probabilities(batch: np.ndarray, prob_dict: dict[int, float]) -> np.ndarray:
-    """Extract probabilities for each bitstring in a batch from a probability map."""
-    if len(batch) == 0:
-        return np.array([], dtype=float)
-    return np.fromiter(
-        (prob_dict[b] for b in bitstring_matrix_to_integers(batch)),
-        dtype=float,
-        count=len(batch),
-    )
 
 
 def _apply_shape_constraints(

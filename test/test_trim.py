@@ -75,9 +75,10 @@ def test_trim_policy_partitions_its_batches():
     original = partition_subsample
 
     def spy_partition(*args, **kwargs):
-        batches = original(*args, **kwargs)
+        result = original(*args, **kwargs)
+        batches = result[0] if kwargs.get("return_probabilities") else result
         seen.extend(batches)
-        return batches
+        return result
 
     import qiskit_addon_sqd.trim as trim_module
 
