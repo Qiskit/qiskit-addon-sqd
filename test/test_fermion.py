@@ -684,21 +684,22 @@ def test_sci_state_save_load(tmp_path):
     assert loaded_state.nelec == sci_state.nelec
 
 
-def test_batch_to_ci_strings_ranks_by_sample_count():
-    """Strings are returned by descending number of times sampled, carryover first."""
+def test_batch_to_ci_strings_unweighted_ranks_by_occurrence():
+    """Without probabilities, strings are ranked by occurrences across distinct batch rows."""
     norb = 3
     # Beta is the left half of a row, alpha the right half, and rows are MSB-first.
     a1, a2 = [True, True, False], [True, False, True]  # 0b110, 0b101
     b1, b2 = [False, True, True], [True, True, False]  # 0b011, 0b110
-    batch = np.array([b1 + a1, b1 + a1, b2 + a2])
-    # Alpha 0b110 sampled twice, 0b101 once. Beta 0b011 twice, 0b110 once.
+    # All 3 rows are distinct; a2 and b1 each appear in two rows while a1 and b2 appear in one.
+    batch = np.array([b1 + a1, b1 + a2, b2 + a2])
+    # Alpha 0b101 (a2) appears twice, 0b110 (a1) once. Beta 0b011 (b1) twice, 0b110 (b2) once.
     strs_a, strs_b = batch_to_ci_strings(batch, norb)
-    assert list(strs_a) == [0b110, 0b101]
+    assert list(strs_a) == [0b101, 0b110]
     assert list(strs_b) == [0b011, 0b110]
 
-    # Carryover strings come first, in the order given, regardless of sample counts.
-    strs_a, _ = batch_to_ci_strings(batch, norb, np.array([0b101, 0b011]), np.array([]))
-    assert list(strs_a) == [0b101, 0b011, 0b110, 0b101]
+    # Carryover strings come first, in the order given, regardless of occurrence counts.
+    strs_a, _ = batch_to_ci_strings(batch, norb, np.array([0b110, 0b011]), np.array([]))
+    assert list(strs_a) == [0b110, 0b011, 0b101, 0b110]
 
 
 def test_batch_to_ci_strings_symmetrize_spin_ranks_across_sectors():
@@ -717,6 +718,86 @@ def test_batch_to_ci_strings_symmetrize_spin_ranks_across_sectors():
     assert strs_a is strs_b
     assert next(iter(strs_a)) == 0b110
     assert set(strs_a) == {0b110, 0b101, 0b011}
+
+
+def test_batch_to_ci_strings_ranks_by_probabilities():
+    """When probabilities are given, strings are ranked by summed probability."""
+    norb = 3
+    # a1 appears in 1 bitstring with high probability (0.9);
+    # a2 appears in 2 bitstrings with lower total probability (0.05 + 0.05 = 0.1).
+    a1, a2 = [True, True, False], [True, False, True]  # 0b110, 0b101
+    b1, b2, b3 = (
+        [False, True, True],
+        [True, True, False],
+        [True, False, True],
+    )  # 0b011, 0b110, 0b101
+    batch = np.array([b1 + a1, b2 + a2, b3 + a2])
+    probs = np.array([0.9, 0.06, 0.04])
+
+    # Without probabilities, a2 (2 occurrences) ranks ahead of a1 (1 occurrence).
+    strs_a, _ = batch_to_ci_strings(batch, norb)
+    assert list(strs_a) == [0b101, 0b110]
+
+    # With probabilities, a1 (prob 0.9) ranks ahead of a2 (prob 0.1).
+    strs_a, strs_b = batch_to_ci_strings(batch, norb, probabilities=probs)
+    assert list(strs_a) == [0b110, 0b101]
+    assert list(strs_b) == [0b011, 0b110, 0b101]
+
+    # Length mismatch raises ValueError.
+    with pytest.raises(ValueError, match="The number of probabilities"):
+        batch_to_ci_strings(batch, norb, probabilities=np.array([0.5, 0.5]))
+
+
+def test_batch_to_ci_strings_symmetrize_spin_ranks_by_probabilities():
+    """With symmetrize_spin and probabilities, ranking is by combined probability."""
+    norb = 3
+    a1, a2 = [True, True, False], [True, False, True]  # 0b110, 0b101
+    b1, b2 = [True, False, True], [False, True, True]  # 0b101, 0b011
+    batch = np.array([b1 + a1, b2 + a2])
+    # Row 0 (prob 0.2): beta=0b101, alpha=0b110
+    # Row 1 (prob 0.8): beta=0b011, alpha=0b101
+    # Combined weights:
+    # 0b101: 0.2 (from beta) + 0.8 (from alpha) = 1.0 -> ranks 1st
+    # 0b011: 0.8 (from beta) = 0.8 -> ranks 2nd
+    # 0b110: 0.2 (from alpha) = 0.2 -> ranks 3rd
+    probs = np.array([0.2, 0.8])
+    strs_a, strs_b = batch_to_ci_strings(batch, norb, probabilities=probs, symmetrize_spin=True)
+    assert strs_a is strs_b
+    assert list(strs_a) == [0b101, 0b011, 0b110]
+
+
+def test_max_dim_truncation_ranks_by_sample_frequency():
+    """max_dim keeps strings with highest sample frequency, not distinct partner counts (#396)."""
+    norb, nelec = 4, (1, 1)
+    rng = np.random.default_rng(0)
+    h1 = rng.normal(size=(norb, norb))
+    h1 = h1 + h1.T
+    h2 = np.zeros((norb,) * 4)
+
+    def bs(a, b):  # bitstring = [beta | alpha], orbital 0 rightmost
+        return format(b, f"0{norb}b") + format(a, f"0{norb}b")
+
+    counts = {
+        bs(0b0001, 0b0001): 9000,  # alpha=0001: 9000 shots, one beta partner
+        bs(0b0010, 0b0001): 10,  # alpha=0010: 30 shots, three beta partners
+        bs(0b0010, 0b0010): 10,
+        bs(0b0010, 0b0100): 10,
+    }
+    bit_array = BitArray.from_counts(counts, num_bits=2 * norb)
+
+    result = diagonalize_fermionic_hamiltonian(
+        h1,
+        h2,
+        bit_array,
+        samples_per_batch=100,
+        norb=norb,
+        nelec=nelec,
+        max_iterations=1,
+        max_dim=(1, 3),
+        seed=0,
+    )
+    # alpha=0001 (int 1) must be kept over alpha=0010 (int 2)
+    assert [int(x) for x in result.sci_state.ci_strs_a] == [1]
 
 
 def test_default_policy_matches_omitting_it():
