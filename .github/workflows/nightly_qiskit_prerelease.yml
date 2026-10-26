@@ -138,11 +138,13 @@ jobs:
       # the runner's memory.
       - name: Cap notebook memory for CI
         run: python tools/ci_cap_notebook_memory.py
+      # This is where the whole dependency graph is resolved and compiled.
+      - name: Install the tox test environment
+        shell: bash
+        run: tox -e py --notest
       - name: Show the installed qiskit
         shell: bash
-        run: |
-          tox -e py --notest
-          .tox/py/bin/python -c "import qiskit; print('qiskit', qiskit.__version__)"
+        run: .tox/py/bin/python -c "import qiskit; print('qiskit', qiskit.__version__)"
       - name: Test using tox environment
         shell: bash
         env:
