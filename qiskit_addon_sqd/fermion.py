@@ -512,7 +512,9 @@ def diagonalize_fermionic_hamiltonian(
               and spin-beta CI strings whose Cartesian product give the basis of the
               subspace in which to perform a diagonalization. Every subspace of an
               iteration is passed in a single call, so that a solver may diagonalize
-              them concurrently rather than one after another.
+              them concurrently rather than one after another. Both arrays are sorted
+              in ascending order, so a solver may rely on that ordering when mapping
+              amplitudes back to determinants.
             - One-body tensor of the Hamiltonian.
             - Two-body tensor of the Hamiltonian.
             - The number of spatial orbitals.
@@ -970,6 +972,8 @@ def _apply_shape_constraints(
         # Truncate bitstrings to the maximum dimension.
         strs_a = _unique_with_order_preserved(strs_a)[: config.max_dim_a]
         strs_b = _unique_with_order_preserved(strs_b)[: config.max_dim_b]
+    # Sorted order is part of the sci_solver contract. PySCF's selected_ci locates
+    # excitations by binary search, and gives a wrong energy without it.
     strs_a = np.sort(strs_a)
     strs_b = np.sort(strs_b)
     return strs_a, strs_b
@@ -1253,7 +1257,10 @@ def solve_sci_batch(
     Args:
         ci_strings: List of pairs (strings_a, strings_b) of arrays of spin-alpha CI
             strings and spin-beta CI strings whose Cartesian product give the basis of
-            the subspace in which to perform a diagonalization.
+            the subspace in which to perform a diagonalization. Both arrays in each
+            pair must be sorted in ascending order. The underlying PySCF solver
+            locates excitations by binary search, so unsorted strings yield a wrong
+            energy rather than an error.
         one_body_tensor: The one-body tensor of the Hamiltonian.
         two_body_tensor: The two-body tensor of the Hamiltonian.
         norb: The number of spatial orbitals.
@@ -1294,7 +1301,10 @@ def solve_sci(
     Args:
         ci_strings: Pair (strings_a, strings_b) of arrays of spin-alpha CI
             strings and spin-beta CI strings whose Cartesian product give the basis of
-            the subspace in which to perform a diagonalization.
+            the subspace in which to perform a diagonalization. Both arrays must be
+            sorted in ascending order. The underlying PySCF solver locates excitations
+            by binary search, so unsorted strings yield a wrong energy rather than an
+            error.
         one_body_tensor: The one-body tensor of the Hamiltonian.
         two_body_tensor: The two-body tensor of the Hamiltonian.
         norb: The number of spatial orbitals.
