@@ -1,0 +1,4 @@
+---
+other:
+  - |
+    Documented that the CI strings passed to the ``sci_solver`` argument of :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian` are sorted in ascending order. A solver may rely on that ordering when mapping amplitudes back to determinants. This was already the behavior and the Fulqrum guide relied on it; it is now part of the documented interface.

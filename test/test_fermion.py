@@ -311,6 +311,65 @@ class TestFermion(unittest.TestCase):
         np.testing.assert_array_equal(seen[0][0], [x])
         np.testing.assert_array_equal(seen[0][1], [x])
 
+    def test_sci_solver_receives_sorted_ci_strings(self):
+        """The CI strings handed to an sci_solver are sorted in ascending order.
+
+        A solver that maps a flat eigenvector back onto determinants depends on this
+        ordering, so it is part of the sci_solver contract rather than an accident of
+        how the subspaces are built. The cases below cover the paths that assemble a
+        subspace out of differently ordered pieces: explicitly requested
+        configurations are prepended to what the policy chose, and truncation to
+        ``max_dim`` keeps the policy's ranking order.
+        """
+        norb = 6
+        nelec = (3, 3)
+        one_body = np.zeros((norb, norb))
+        for p in range(norb - 1):
+            one_body[p, p + 1] = one_body[p + 1, p] = -1.0
+        two_body = np.zeros((norb,) * 4)
+        for p in range(norb):
+            two_body[p, p, p, p] = 2.0
+
+        # Deliberately unsorted, and chosen so that no subspace is a single string.
+        include = [0b111000, 0b000111, 0b010101]
+
+        cases = [
+            {},
+            {"max_dim": 4},
+            {"include_configurations": include},
+            {"include_configurations": include, "max_dim": 4},
+            {"include_configurations": include, "symmetrize_spin": True},
+            {"include_configurations": (include, include[::-1])},
+        ]
+        for kwargs in cases:
+            with self.subTest(**{k: str(v) for k, v in kwargs.items()}):
+                rng = np.random.default_rng(1234)
+                bit_array = generate_bit_array_uniform(2_000, 2 * norb, rand_seed=rng)
+                seen: list[tuple[np.ndarray, np.ndarray]] = []
+
+                def solver(ci_strings, *args, record=seen, **kwargs2):
+                    record.extend(ci_strings)
+                    return solve_sci_batch(ci_strings, *args, **kwargs2)
+
+                diagonalize_fermionic_hamiltonian(
+                    one_body,
+                    two_body,
+                    bit_array,
+                    samples_per_batch=20,
+                    norb=norb,
+                    nelec=nelec,
+                    num_batches=2,
+                    max_iterations=2,
+                    sci_solver=solver,
+                    seed=rng,
+                    **kwargs,
+                )
+
+                self.assertTrue(seen)
+                for strings_a, strings_b in seen:
+                    np.testing.assert_array_equal(strings_a, np.sort(strings_a))
+                    np.testing.assert_array_equal(strings_b, np.sort(strings_b))
+
     def test_diagonalize_fermionic_hamiltonian_no_valid_bitstrings(self):
         """Test diagonalize_fermionic_hamiltonian when no valid bitstrings for subsampling."""
         # Build N2 molecule
