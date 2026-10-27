@@ -20,7 +20,12 @@ jobs:
     # sensitive to runner speed: the same content has taken anywhere from
     # 24 to over 30 minutes, so 30 was not a reliable ceiling. At 30 the job
     # was cancelled mid-notebook-run, after the unit tests had already passed.
-    timeout-minutes: 60
+    # 60 was then lost to the apt step below. For of order one run in ten, the
+    # Azure Ubuntu mirror serving the runner's region is degraded, and the step
+    # costs an extra half hour. apt keeps receiving data the whole time, some
+    # three orders of magnitude below the usual rate, so no timeout setting
+    # helps; the only lever is headroom.
+    timeout-minutes: 90
     strategy:
       # One failing cell should not hide the state of the rest.
       fail-fast: false
@@ -41,12 +46,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
       # BLAS/LAPACK and OpenMP are needed to build fulqrum, and MPI and BLAS to
-      # build sbd-eigensolver, for notebook testing
+      # build sbd-eigensolver, for notebook testing.
+      #
+      # --no-install-recommends drops a dozen packages nothing here uses. The
+      # ROCm and OpenCL libraries that dominate the download stay regardless,
+      # being hard dependencies of libopenmpi40.
       - name: Install BLAS/LAPACK and MPI (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libblas-dev liblapack-dev libopenblas-dev libopenmpi-dev openmpi-bin
+          sudo apt-get install -y --no-install-recommends libblas-dev liblapack-dev libopenblas-dev libopenmpi-dev openmpi-bin
       - name: Install OpenMP and BLAS (macOS)
         if: runner.os == 'macOS'
         shell: bash
