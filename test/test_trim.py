@@ -100,6 +100,39 @@ def test_trim_policy_partitions_its_batches():
     assert len(rows) == len(set(rows)), "the batches should share no bitstring"
 
 
+def test_both_rounds_pass_sorted_ci_strings():
+    """Each round's CI strings are sorted, including the merged subspace.
+
+    The merged subspace is assembled from the surviving batches with their order
+    preserved rather than by sorting, so the second round exercises a different path
+    into the solver than the first.
+    """
+    norb, nelec = 6, (3, 3)
+    one_body, two_body = _hubbard_integrals(norb)
+    seen: list[tuple[np.ndarray, np.ndarray]] = []
+
+    def spy(ci_strings, *args, **kwargs):
+        seen.extend(ci_strings)
+        return solve_sci_batch(ci_strings, *args, **kwargs)
+
+    _run(
+        one_body,
+        two_body,
+        policy=TrimPolicy(trim_ratio=0.5),
+        seed=31,
+        spy=spy,
+        samples_per_batch=20,
+        nelec=nelec,
+        num_batches=3,
+        max_iterations=1,
+    )
+
+    assert len(seen) > 3, "both the screening round and the merged round should be seen"
+    for strings_a, strings_b in seen:
+        np.testing.assert_array_equal(strings_a, np.sort(strings_a))
+        np.testing.assert_array_equal(strings_b, np.sort(strings_b))
+
+
 def test_screening_round_passes_every_batch_in_one_call():
     """No matter how many batches there are, the solver sees them together.
 
