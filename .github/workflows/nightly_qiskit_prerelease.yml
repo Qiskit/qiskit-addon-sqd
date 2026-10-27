@@ -85,7 +85,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libblas-dev liblapack-dev libopenblas-dev libopenmpi-dev openmpi-bin
+          sudo apt-get install -y --no-install-recommends libblas-dev liblapack-dev libopenblas-dev libopenmpi-dev openmpi-bin
       - name: Install OpenMP and BLAS (macOS)
         if: runner.os == 'macOS'
         shell: bash
