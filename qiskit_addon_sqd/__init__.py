@@ -14,3 +14,10 @@
 # If we ever publicly expose interfaces users can import from this module,
 # we should set up its RST file.
 """Primary SQD functionality."""
+
+import contextlib
+from importlib.metadata import PackageNotFoundError, version
+
+# Leaves __version__ unbound when running from an uninstalled source tree.
+with contextlib.suppress(PackageNotFoundError):
+    __version__ = version("qiskit-addon-sqd")
