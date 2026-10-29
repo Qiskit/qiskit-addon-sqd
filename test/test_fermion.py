@@ -104,7 +104,7 @@ class TestFermion(unittest.TestCase):
         indices_a, indices_b = np.divmod(addresses, dim_b)
         strings_a = [int(s) for s in cistring.addrs2str(norb=norb, nelec=n_alpha, addrs=indices_a)]
         strings_b = [int(s) for s in cistring.addrs2str(norb=norb, nelec=n_beta, addrs=indices_b)]
-        strings = [(sb << norb) + sa for sa, sb in zip(strings_a, strings_b)]
+        strings = [(sb << norb) + sa for sa, sb in zip(strings_a, strings_b, strict=True)]
         bit_array_ground_state = BitArray.from_samples(strings, num_bits=2 * norb)
 
         # Generate random bitstrings
@@ -214,7 +214,7 @@ class TestFermion(unittest.TestCase):
         indices_a, indices_b = np.divmod(addresses, dim_b)
         strings_a = [int(s) for s in cistring.addrs2str(norb=norb, nelec=n_alpha, addrs=indices_a)]
         strings_b = [int(s) for s in cistring.addrs2str(norb=norb, nelec=n_beta, addrs=indices_b)]
-        strings = [(sb << norb) + sa for sa, sb in zip(strings_a, strings_b)]
+        strings = [(sb << norb) + sa for sa, sb in zip(strings_a, strings_b, strict=True)]
         bit_array_ground_state = BitArray.from_samples(strings, num_bits=2 * norb)
 
         # Generate random bitstrings
@@ -649,7 +649,7 @@ def test_solver_supplied_carryover_ignores_carryover_threshold():
     # solver's carryover is used verbatim.
     assert energies[0] == energies[1]
     assert len(records[0]) == len(records[1])
-    for (a1, b1), (a2, b2) in zip(records[0], records[1]):
+    for (a1, b1), (a2, b2) in zip(records[0], records[1], strict=True):
         np.testing.assert_array_equal(a1, a2)
         np.testing.assert_array_equal(b1, b2)
 
