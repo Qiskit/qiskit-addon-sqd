@@ -87,7 +87,7 @@ jobs:
             export LDFLAGS="-L${LLVM_PREFIX}/lib -L${OMP_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib"
             export CPPFLAGS="-I${LLVM_PREFIX}/include -I${OMP_PREFIX}/include"
           fi
-          git clone --recurse-submodules https://github.com/qiskit-community/fulqrum
+          git clone --recurse-submodules https://github.com/Qiskit/fulqrum
           cd fulqrum
           git rev-parse HEAD
           python -m build --wheel
