@@ -34,7 +34,7 @@ dependencies = [
 
 [project.optional-dependencies]
 fulqrum = [
-    "fulqrum>=0.4.4",
+    "fulqrum>=0.5.0",
     "primme>=3.2.3",
 ]
 sbd = [
