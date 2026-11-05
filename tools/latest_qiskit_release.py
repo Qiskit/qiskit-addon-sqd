@@ -15,7 +15,7 @@ URL = "https://pypi.org/pypi/qiskit/json"
 
 
 def main() -> None:
-    with urllib.request.urlopen(URL) as response:
+    with urllib.request.urlopen(URL, timeout=30) as response:
         releases = json.load(response)["releases"]
 
     newest = None
