@@ -18,6 +18,8 @@ Activate your new environment.
 
     source /path/to/virtual/environment/bin/activate
 
+On Windows, run ``\path\to\virtual\environment\Scripts\activate`` instead.
+
 There are two primary ways to install this package -- from PyPI or source. The preferred method is to install from PyPI:
 
 Install from PyPI
@@ -26,6 +28,9 @@ Install from PyPI
 .. code:: sh
 
     pip install 'qiskit-addon-sqd'
+
+The optional ``sbd`` and ``fulqrum`` extras, and the ``notebook-dependencies`` extra
+that includes them, are supported only on Linux and macOS.
 
 
 Install from source

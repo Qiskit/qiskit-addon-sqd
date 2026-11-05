@@ -8,7 +8,7 @@ This workflow checks that the code is formatted properly and follows the style g
 
 ## Latest version tests (`test_latest_versions.yml`)
 
-This workflow installs the latest version of tox and runs [the current repository's tests](/tests/#test-py-environments) under each supported Python version on Linux and under a single Python version on macOS and Windows.  This is the primary testing workflow.  It runs for all code changes and additionally once per day, to ensure tests continue to pass as new versions of dependencies are released.
+This workflow installs the latest version of tox and runs [the current repository's tests](/tests/#test-py-environments) under each supported Python version on Linux and under a single Python version on macOS and Windows (where the notebooks are not run).  This is the primary testing workflow.  It runs for all code changes and additionally once per day, to ensure tests continue to pass as new versions of dependencies are released.
 
 ## Development version tests (`test_development_versions.yml`)
 

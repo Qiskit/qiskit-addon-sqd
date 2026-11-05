@@ -1,0 +1,11 @@
+---
+features:
+  - |
+    Windows is now a supported platform.  The optional ``sbd`` and ``fulqrum``
+    extras remain supported only on Linux and macOS.
+upgrade:
+  - |
+    The minimum supported version of pyscf is now 2.15, the first release to
+    publish Windows wheels.  pyscf is now installed on Windows too, where it
+    previously was not, so :mod:`qiskit_addon_sqd.fermion` can now be imported
+    there.

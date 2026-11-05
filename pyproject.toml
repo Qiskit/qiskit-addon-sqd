@@ -13,6 +13,8 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Natural Language :: English",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -26,7 +28,7 @@ requires-python = ">=3.11"
 dependencies = [
     "qiskit>=2.0, <3",
     "numpy>=2.0",
-    "pyscf>=2.9; sys_platform != 'win32'",
+    "pyscf>=2.15",
     "jaxlib>=0.4.30",
     "jax>=0.4.30",
     "scipy>=1.14.1",
