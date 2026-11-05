@@ -60,6 +60,10 @@ nbtest = [
 style = [
     "ruff==0.17.3",
     "nbqa>=1.8.5",
+    # tools/notebook_execution_counts.py, which both style and lint run. nbqa does not
+    # depend on nbformat, so nothing else in these environments provides it. 5.5.0 is
+    # the first release carrying nbformat.warnings, which that script silences.
+    "nbformat>=5.5.0",
 ]
 lint = [
     "qiskit-addon-sqd[style]",
