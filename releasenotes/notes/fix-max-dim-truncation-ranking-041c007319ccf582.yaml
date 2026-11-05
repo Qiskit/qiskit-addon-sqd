@@ -1,0 +1,22 @@
+---
+fixes:
+  - |
+    Fixed an issue in :func:`~qiskit_addon_sqd.fermion.diagonalize_fermionic_hamiltonian`
+    where ``max_dim`` truncation ranked single-spin CI strings by the number of
+    distinct bitstrings containing them rather than their sample frequency or
+    marginal probability. Because a CI string has no weight of its own and appears
+    in one configuration for each partner string it pairs with, single-spin strings
+    must be ranked by marginal weight (summed probability across configurations)
+    consistently with carryover selection. Previously, this could cause a lower-weight
+    string to be retained over a dominant configuration (such as the Hartree-Fock
+    state) when ``max_dim`` truncated the subspace; any run with a binding ``max_dim``
+    may produce different energies after this change.
+  - |
+    Added an optional ``probabilities`` argument to
+    :func:`~qiskit_addon_sqd.fermion.batch_to_ci_strings` to weight single-spin
+    CI strings by their sampled pool probabilities when ranking.
+  - |
+    Added an optional ``return_probabilities`` argument to
+    :func:`~qiskit_addon_sqd.subsampling.subsample` and
+    :func:`~qiskit_addon_sqd.subsampling.partition_subsample` to return the
+    probabilities corresponding to the sampled bitstrings for each batch.

@@ -233,12 +233,13 @@ class TrimPolicy:
 
     def prepare_subspaces(self, request: SubspaceRequest) -> list[tuple[np.ndarray, np.ndarray]]:
         """Divide one pool of bitstrings among the batches, so that they are disjoint."""
-        batches = partition_subsample(
+        batches, batch_probabilities = partition_subsample(
             request.bitstrings,
             request.probabilities,
             samples_per_batch=request.samples_per_batch,
             num_batches=request.num_batches,
             rand_seed=request.rng,
+            return_probabilities=True,
         )
         return [
             batch_to_ci_strings(
@@ -246,7 +247,8 @@ class TrimPolicy:
                 request.norb,
                 request.carryover_strings_a,
                 request.carryover_strings_b,
+                probabilities=probs,
                 symmetrize_spin=request.symmetrize_spin,
             )
-            for batch in batches
+            for batch, probs in zip(batches, batch_probabilities)
         ]

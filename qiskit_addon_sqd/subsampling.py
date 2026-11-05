@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+from typing import Literal, overload
+
 import numpy as np
 
 
@@ -69,13 +71,39 @@ def postselect_by_hamming_right_and_left(
     return bitstrings_post, probs_post
 
 
+@overload
 def partition_subsample(
     bitstring_matrix: np.ndarray,
     probabilities: np.ndarray,
     samples_per_batch: int,
     num_batches: int,
     rand_seed: np.random.Generator | int | None = None,
-) -> list[np.ndarray]:
+    *,
+    return_probabilities: Literal[False] = False,
+) -> list[np.ndarray]: ...
+
+
+@overload
+def partition_subsample(
+    bitstring_matrix: np.ndarray,
+    probabilities: np.ndarray,
+    samples_per_batch: int,
+    num_batches: int,
+    rand_seed: np.random.Generator | int | None = None,
+    *,
+    return_probabilities: Literal[True],
+) -> tuple[list[np.ndarray], list[np.ndarray]]: ...
+
+
+def partition_subsample(
+    bitstring_matrix: np.ndarray,
+    probabilities: np.ndarray,
+    samples_per_batch: int,
+    num_batches: int,
+    rand_seed: np.random.Generator | int | None = None,
+    *,
+    return_probabilities: bool = False,
+) -> list[np.ndarray] | tuple[list[np.ndarray], list[np.ndarray]]:
     """Partition a subsampled pool of bit arrays into disjoint batches.
 
     Unlike :func:`subsample`, which draws each batch independently, this function draws a
@@ -114,17 +142,24 @@ def partition_subsample(
         samples_per_batch: The number of samples in each batch
         num_batches: The number of batches to generate
         rand_seed: A seed to control random behavior
+        return_probabilities: If True, also return the probabilities corresponding to the
+            sampled bitstrings for each batch.
 
     Returns:
         A list of bitstring matrices, pairwise disjoint, subsampled from the input
-        bitstring matrix.
+        bitstring matrix. If ``return_probabilities`` is True, returns a tuple
+        ``(batches, batch_probabilities)`` where ``batch_probabilities`` is a list of 1D
+        arrays containing the probability of each sampled bitstring in each batch.
 
     Raises:
         ValueError: The number of elements in ``probabilities`` must equal the number of rows in ``bitstring_matrix``.
         ValueError: Samples per batch and number of batches must be positive integers.
     """
     if bitstring_matrix.shape[0] < 1:
-        return [np.array([])] * num_batches
+        empty_batches = [np.array([])] * num_batches
+        if return_probabilities:
+            return empty_batches, [np.array([])] * num_batches
+        return empty_batches
     if len(probabilities) != bitstring_matrix.shape[0]:
         raise ValueError(
             "The number of elements in the probabilities array must match the number of rows in the bitstring matrix."
@@ -155,7 +190,35 @@ def partition_subsample(
     # is a uniformly random subset of the pool. Round-robin keeps the batch sizes within
     # one of each other when the pool does not divide evenly.
     rng.shuffle(pool)
-    return [bitstring_matrix[pool[offset::num_batches]] for offset in range(num_batches)]
+    batches = [bitstring_matrix[pool[offset::num_batches]] for offset in range(num_batches)]
+    if return_probabilities:
+        batch_probs = [probabilities[pool[offset::num_batches]] for offset in range(num_batches)]
+        return batches, batch_probs
+    return batches
+
+
+@overload
+def subsample(
+    bitstring_matrix: np.ndarray,
+    probabilities: np.ndarray,
+    samples_per_batch: int,
+    num_batches: int,
+    rand_seed: np.random.Generator | int | None = None,
+    *,
+    return_probabilities: Literal[False] = False,
+) -> list[np.ndarray]: ...
+
+
+@overload
+def subsample(
+    bitstring_matrix: np.ndarray,
+    probabilities: np.ndarray,
+    samples_per_batch: int,
+    num_batches: int,
+    rand_seed: np.random.Generator | int | None = None,
+    *,
+    return_probabilities: Literal[True],
+) -> tuple[list[np.ndarray], list[np.ndarray]]: ...
 
 
 def subsample(
@@ -164,7 +227,9 @@ def subsample(
     samples_per_batch: int,
     num_batches: int,
     rand_seed: np.random.Generator | int | None = None,
-) -> list[np.ndarray]:
+    *,
+    return_probabilities: bool = False,
+) -> list[np.ndarray] | tuple[list[np.ndarray], list[np.ndarray]]:
     """Subsample batches of bit arrays from an input ``bitstring_matrix``.
 
     Each individual batch will be sampled without replacement from the input ``bitstring_matrix``.
@@ -178,9 +243,14 @@ def subsample(
         samples_per_batch: The number of samples to draw for each batch
         num_batches: The number of batches to generate
         rand_seed: A seed to control random behavior
+        return_probabilities: If True, also return the probabilities corresponding to the
+            sampled bitstrings for each batch.
 
     Returns:
         A list of bitstring matrices subsampled from the input bitstring matrix.
+        If ``return_probabilities`` is True, returns a tuple ``(batches, batch_probabilities)``
+        where ``batch_probabilities`` is a list of 1D arrays containing the probability of
+        each sampled bitstring in each batch.
 
     Raises:
         ValueError: The number of elements in ``probabilities`` must equal the number of rows in ``bitstring_matrix``.
@@ -188,7 +258,10 @@ def subsample(
 
     """
     if bitstring_matrix.shape[0] < 1:
-        return [np.array([])] * num_batches
+        empty_batches = [np.array([])] * num_batches
+        if return_probabilities:
+            return empty_batches, [np.array([])] * num_batches
+        return empty_batches
     if len(probabilities) != bitstring_matrix.shape[0]:
         raise ValueError(
             "The number of elements in the probabilities array must match the number of rows in the bitstring matrix."
@@ -211,6 +284,7 @@ def subsample(
 
     # Create batches of samples
     batches = []
+    batch_probabilities = []
     for _ in range(num_batches):
         if randomly_sample:
             indices = rng.choice(
@@ -221,5 +295,9 @@ def subsample(
             )
 
         batches.append(bitstring_matrix[indices])
+        if return_probabilities:
+            batch_probabilities.append(probabilities[indices])
 
+    if return_probabilities:
+        return batches, batch_probabilities
     return batches
