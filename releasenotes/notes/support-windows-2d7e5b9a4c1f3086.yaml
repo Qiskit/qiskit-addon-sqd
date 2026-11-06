@@ -1,0 +1,7 @@
+---
+upgrade:
+  - |
+    This release adds a dependency on pyscf on all platforms, given the recent
+    availability of binary wheel distributions for Windows.  Previously,
+    pyscf was not installable on Windows, so it was not possible to import
+    :mod:`qiskit_addon_sqd.fermion` there.
