@@ -1,0 +1,12 @@
+---
+fixes:
+  - |
+    Fixed a sign error in :func:`~qiskit_addon_sqd.qubit.matrix_elements_from_pauli`
+    (and therefore :func:`~qiskit_addon_sqd.qubit.project_operator_to_subspace` and
+    :func:`~qiskit_addon_sqd.qubit.solve_qubit`) that caused a projected operator to be
+    transposed relative to the input observable.  Because a matrix and its transpose share
+    the same eigenvalues, projected *energies* were unaffected; however, the projected
+    matrix elements -- and hence the recovered eigenstates -- carried the wrong sign for
+    every Pauli term containing an odd number of :math:`Y` operators (since
+    :math:`Y^{T} = -Y`, while :math:`X` and :math:`Z` are symmetric).  A single Pauli
+    :math:`Y` now correctly projects to :math:`Y` rather than :math:`-Y`.
